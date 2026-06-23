@@ -35,6 +35,19 @@ public class InfrastructureRegistrationTests
         Assert.Contains(DependencyInjection.BuildBookDatabaseConnectionName, exception.Message);
     }
 
+    [Fact]
+    public void InitialMigrationIsAvailable()
+    {
+        var options = new DbContextOptionsBuilder<BuildBookDbContext>()
+            .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=BuildBookMigrationTest;Trusted_Connection=True;TrustServerCertificate=True")
+            .Options;
+
+        using var context = new BuildBookDbContext(options);
+        var migrations = context.Database.GetMigrations();
+
+        Assert.Contains(migrations, migration => migration.EndsWith("_InitialCreate", StringComparison.Ordinal));
+    }
+
     private static IConfiguration CreateConfiguration(string? connectionString)
     {
         var values = new Dictionary<string, string?>
