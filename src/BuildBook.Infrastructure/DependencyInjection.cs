@@ -1,0 +1,42 @@
+using BuildBook.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace BuildBook.Infrastructure;
+
+public static class DependencyInjection
+{
+    public const string BuildBookDatabaseConnectionName = "BuildBookDatabase";
+
+    public static IServiceCollection AddBuildBookInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString(BuildBookDatabaseConnectionName);
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                $"Connection string '{BuildBookDatabaseConnectionName}' is not configured.");
+        }
+
+        services.AddDbContextFactory<BuildBookDbContext>(options =>
+        {
+            options.UseSqlServer(
+                connectionString,
+                sqlOptions => sqlOptions.MigrationsAssembly(typeof(BuildBookDbContext).Assembly.FullName));
+
+            options.EnableDetailedErrors(IsDetailedErrorsEnabled(configuration));
+            options.EnableSensitiveDataLogging(false);
+        });
+
+        return services;
+    }
+
+    private static bool IsDetailedErrorsEnabled(IConfiguration configuration)
+    {
+        return bool.TryParse(configuration["BuildBook:EnableDetailedErrors"], out var enabled)
+            && enabled;
+    }
+}

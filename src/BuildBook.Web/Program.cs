@@ -1,3 +1,4 @@
+using BuildBook.Infrastructure;
 using BuildBook.Web.Configuration;
 using BuildBook.Web.Components;
 
@@ -13,6 +14,8 @@ builder.Services.AddOptions<BuildBookOptions>()
     .Bind(builder.Configuration.GetSection(BuildBookOptions.SectionName))
     .Validate(options => options.IsValid(), "BuildBook configuration is invalid.")
     .ValidateOnStart();
+
+builder.Services.AddBuildBookInfrastructure(builder.Configuration);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
