@@ -3,7 +3,6 @@ using BuildBook.Infrastructure.Persistence.SeedData;
 using BuildBook.Web.Authorization;
 using BuildBook.Web.Configuration;
 using BuildBook.Web.Components;
-using Microsoft.AspNetCore.Authentication.Negotiate;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,8 +18,7 @@ builder.Services.AddOptions<BuildBookOptions>()
     .ValidateOnStart();
 
 builder.Services.AddBuildBookInfrastructure(builder.Configuration);
-builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
-    .AddNegotiate();
+builder.Services.AddBuildBookAuthentication(builder.Environment, builder.Configuration);
 builder.Services.AddBuildBookAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 

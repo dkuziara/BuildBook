@@ -1,4 +1,5 @@
 using BuildBook.Application.Security;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 
 namespace BuildBook.Web.Authorization;
@@ -52,6 +53,7 @@ public static class AuthorizationServiceCollectionExtensions
                 policy => policy.RequireRole(BuildBookRoles.Administrator));
         });
         services.AddScoped<IBuildBookPermissionService, BuildBookPermissionService>();
+        services.AddTransient<IClaimsTransformation, DevelopmentBuildBookRoleClaimsTransformation>();
 
         return services;
     }
