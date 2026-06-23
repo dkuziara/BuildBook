@@ -52,4 +52,53 @@ public class DomainEntityTests
         Assert.IsAssignableFrom<DbSet<BuildRecordAudit>>(context.BuildRecordAudit);
         Assert.IsAssignableFrom<DbSet<ImportBatch>>(context.Imports);
     }
+
+    [Fact]
+    public void BuildRecordModelHasLookupIndexes()
+    {
+        var options = new DbContextOptionsBuilder<BuildBookDbContext>()
+            .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=BuildBookIndexTest;Trusted_Connection=True;TrustServerCertificate=True")
+            .Options;
+
+        using var context = new BuildBookDbContext(options);
+        var buildRecord = context.Model.FindEntityType(typeof(BuildRecord));
+
+        Assert.NotNull(buildRecord);
+
+        var indexedProperties = buildRecord.GetIndexes()
+            .Select(index => string.Join(",", index.Properties.Select(property => property.Name)))
+            .ToArray();
+
+        Assert.Contains(nameof(BuildRecord.SerialNumber), indexedProperties);
+        Assert.Contains(nameof(BuildRecord.ProductCode), indexedProperties);
+        Assert.Contains(nameof(BuildRecord.ProductName), indexedProperties);
+        Assert.Contains(nameof(BuildRecord.CustomerId), indexedProperties);
+        Assert.Contains(nameof(BuildRecord.MachineName), indexedProperties);
+        Assert.Contains(nameof(BuildRecord.InvoiceNumber), indexedProperties);
+        Assert.Contains(nameof(BuildRecord.CustomerOrder), indexedProperties);
+        Assert.Contains(nameof(BuildRecord.OANumber), indexedProperties);
+        Assert.Contains(nameof(BuildRecord.RadSightVersion), indexedProperties);
+        Assert.Contains(nameof(BuildRecord.WindowsVersion), indexedProperties);
+        Assert.Contains(nameof(BuildRecord.DateShipped), indexedProperties);
+        Assert.Contains(nameof(BuildRecord.LastUpdatedAt), indexedProperties);
+    }
+
+    [Fact]
+    public void CustomerModelHasNameLookupIndex()
+    {
+        var options = new DbContextOptionsBuilder<BuildBookDbContext>()
+            .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=BuildBookIndexTest;Trusted_Connection=True;TrustServerCertificate=True")
+            .Options;
+
+        using var context = new BuildBookDbContext(options);
+        var customer = context.Model.FindEntityType(typeof(Customer));
+
+        Assert.NotNull(customer);
+
+        var indexedProperties = customer.GetIndexes()
+            .Select(index => string.Join(",", index.Properties.Select(property => property.Name)))
+            .ToArray();
+
+        Assert.Contains(nameof(Customer.Name), indexedProperties);
+    }
 }
