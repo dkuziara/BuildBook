@@ -121,12 +121,16 @@ See the backlog document for the full ordered implementation plan.
 
 ## Local Development
 
-Local development instructions will be added once the initial solution has been created.
-
-Expected future commands:
+Build and test the solution from the repository root:
 
 ```bash
 dotnet build
+dotnet test
+```
+
+Run the Blazor web application locally:
+
+```bash
 dotnet run --project src/BuildBook.Web/BuildBook.Web.csproj
 ```
 
