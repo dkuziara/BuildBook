@@ -1,5 +1,7 @@
 @page "/admin"
 
+@attribute [Authorize(Policy = BuildBookPolicies.ManageUsers)]
+
 <PageTitle>Admin</PageTitle>
 
 <section class="page-heading">

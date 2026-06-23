@@ -11,10 +11,22 @@
         </a>
 
         <nav class="primary-nav" aria-label="Primary navigation">
-            <NavLink href="/" Match="NavLinkMatch.All">Home</NavLink>
-            <NavLink href="/build-register">Build Register</NavLink>
-            <NavLink href="/reports">Reports</NavLink>
-            <NavLink href="/admin">Admin</NavLink>
+            <AuthorizeView Policy="@BuildBookPolicies.ViewBuildRecords">
+                <Authorized>
+                    <NavLink href="/" Match="NavLinkMatch.All">Home</NavLink>
+                    <NavLink href="/build-register">Build Register</NavLink>
+                </Authorized>
+            </AuthorizeView>
+            <AuthorizeView Policy="@BuildBookPolicies.ExportNonSensitiveData">
+                <Authorized>
+                    <NavLink href="/reports">Reports</NavLink>
+                </Authorized>
+            </AuthorizeView>
+            <AuthorizeView Policy="@BuildBookPolicies.ManageUsers">
+                <Authorized>
+                    <NavLink href="/admin">Admin</NavLink>
+                </Authorized>
+            </AuthorizeView>
         </nav>
     </header>
 

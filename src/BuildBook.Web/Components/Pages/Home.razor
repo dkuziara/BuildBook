@@ -1,5 +1,7 @@
 ﻿@page "/"
 
+@attribute [Authorize(Policy = BuildBookPolicies.ViewBuildRecords)]
+
 <PageTitle>BuildBook</PageTitle>
 
 <section class="page-heading">
