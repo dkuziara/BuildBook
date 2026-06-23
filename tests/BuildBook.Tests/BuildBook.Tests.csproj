@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\BuildBook.Application\BuildBook.Application.csproj" />
     <ProjectReference Include="..\..\src\BuildBook.Domain\BuildBook.Domain.csproj" />
+    <ProjectReference Include="..\..\src\BuildBook.Web\BuildBook.Web.csproj" />
   </ItemGroup>
 
 </Project>
