@@ -51,6 +51,7 @@ public static class AuthorizationServiceCollectionExtensions
                 BuildBookPolicies.DeleteRecords,
                 policy => policy.RequireRole(BuildBookRoles.Administrator));
         });
+        services.AddScoped<IBuildBookPermissionService, BuildBookPermissionService>();
 
         return services;
     }

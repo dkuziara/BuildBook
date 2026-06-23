@@ -3,7 +3,9 @@ using BuildBook.Web.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 
 namespace BuildBook.Tests;
 
@@ -53,9 +55,47 @@ public class BuildBookAuthorizationTests
             requirement => requirement is DenyAnonymousAuthorizationRequirement);
     }
 
+    [Fact]
+    public async Task PermissionServiceAllowsUserWithRequiredRole()
+    {
+        using var provider = CreateServiceProvider();
+        var permissionService = provider.GetRequiredService<IBuildBookPermissionService>();
+        var user = CreateUser(BuildBookRoles.Editor);
+
+        var isAuthorized = await permissionService.IsAuthorizedAsync(user, BuildBookPolicies.EditBuildRecords);
+
+        Assert.True(isAuthorized);
+    }
+
+    [Fact]
+    public async Task PermissionServiceRejectsUserWithoutRequiredRole()
+    {
+        using var provider = CreateServiceProvider();
+        var permissionService = provider.GetRequiredService<IBuildBookPermissionService>();
+        var user = CreateUser(BuildBookRoles.Viewer);
+
+        var isAuthorized = await permissionService.IsAuthorizedAsync(user, BuildBookPolicies.EditBuildRecords);
+
+        Assert.False(isAuthorized);
+    }
+
+    [Fact]
+    public async Task EnsureAuthorizedThrowsWhenUserDoesNotMeetPolicy()
+    {
+        using var provider = CreateServiceProvider();
+        var permissionService = provider.GetRequiredService<IBuildBookPermissionService>();
+        var user = CreateUser(BuildBookRoles.Viewer);
+
+        var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => permissionService.EnsureAuthorizedAsync(user, BuildBookPolicies.RevealSensitiveData));
+
+        Assert.Contains(BuildBookPolicies.RevealSensitiveData, exception.Message);
+    }
+
     private static ServiceProvider CreateServiceProvider()
     {
         var services = new ServiceCollection();
+        services.AddLogging();
         services.AddBuildBookAuthorization();
 
         return services.BuildServiceProvider();
@@ -68,5 +108,13 @@ public class BuildBookAuthorizationTests
             .Single()
             .AllowedRoles
             .ToArray();
+    }
+
+    private static ClaimsPrincipal CreateUser(params string[] roles)
+    {
+        var claims = roles.Select(role => new Claim(ClaimTypes.Role, role));
+        var identity = new ClaimsIdentity(claims, authenticationType: "Test");
+
+        return new ClaimsPrincipal(identity);
     }
 }
