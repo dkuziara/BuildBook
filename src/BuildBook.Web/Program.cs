@@ -1,4 +1,5 @@
 using BuildBook.Infrastructure;
+using BuildBook.Infrastructure.Persistence.SeedData;
 using BuildBook.Web.Configuration;
 using BuildBook.Web.Components;
 
@@ -34,6 +35,11 @@ logger.LogInformation(
     app.Environment.EnvironmentName,
     buildBookOptions.EnableDetailedErrors);
 
+if (app.Environment.IsDevelopment() && buildBookOptions.SeedDevelopmentData)
+{
+    await SeedDevelopmentDataAsync(app, logger);
+}
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -51,3 +57,20 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+static async Task SeedDevelopmentDataAsync(WebApplication app, ILogger logger)
+{
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var seeder = scope.ServiceProvider.GetRequiredService<DevelopmentDataSeeder>();
+
+        await seeder.SeedAsync();
+    }
+    catch (Exception exception)
+    {
+        logger.LogWarning(
+            exception,
+            "Development seed data could not be added. The application will continue to start.");
+    }
+}

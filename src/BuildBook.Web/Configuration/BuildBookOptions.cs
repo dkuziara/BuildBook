@@ -10,6 +10,8 @@ public sealed class BuildBookOptions
 
     public bool EnableDetailedErrors { get; init; }
 
+    public bool SeedDevelopmentData { get; init; }
+
     public int DefaultPageSize { get; init; } = 25;
 
     public bool IsValid()

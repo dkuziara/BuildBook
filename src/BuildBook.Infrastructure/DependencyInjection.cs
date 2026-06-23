@@ -1,4 +1,5 @@
 using BuildBook.Infrastructure.Persistence;
+using BuildBook.Infrastructure.Persistence.SeedData;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,8 @@ public static class DependencyInjection
             options.EnableDetailedErrors(IsDetailedErrorsEnabled(configuration));
             options.EnableSensitiveDataLogging(false);
         });
+
+        services.AddScoped<DevelopmentDataSeeder>();
 
         return services;
     }
