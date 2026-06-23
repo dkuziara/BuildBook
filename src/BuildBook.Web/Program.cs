@@ -1,9 +1,9 @@
 using BuildBook.Infrastructure;
 using BuildBook.Infrastructure.Persistence.SeedData;
+using BuildBook.Web.Authorization;
 using BuildBook.Web.Configuration;
 using BuildBook.Web.Components;
 using Microsoft.AspNetCore.Authentication.Negotiate;
-using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,12 +21,7 @@ builder.Services.AddOptions<BuildBookOptions>()
 builder.Services.AddBuildBookInfrastructure(builder.Configuration);
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
     .AddNegotiate();
-builder.Services.AddAuthorization(options =>
-{
-    options.FallbackPolicy = new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build();
-});
+builder.Services.AddBuildBookAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 
 // Add services to the container.
