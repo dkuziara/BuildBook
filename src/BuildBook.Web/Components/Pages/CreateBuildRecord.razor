@@ -1,0 +1,110 @@
+@page "/build-records/new"
+@rendermode InteractiveServer
+
+@attribute [Authorize(Policy = BuildBookPolicies.EditBuildRecords)]
+
+@inject IBuildRecordCreator BuildRecordCreator
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Add Build Record</PageTitle>
+
+<section class="page-heading">
+    <p class="eyebrow">Build Records</p>
+    <h1>Add a new Build Record.</h1>
+    <p>Create the required product and serial number details. More sections will be completed from the Build Record page in later backlog items.</p>
+</section>
+
+<section class="form-panel" aria-labelledby="add-build-record-heading">
+    <h2 id="add-build-record-heading">Required details</h2>
+
+    @if (createdBuildRecordId is not null)
+    {
+        <div class="status-message success" role="status">
+            Build Record @createdBuildRecordId was created.
+        </div>
+    }
+
+    @if (serverErrors.Count > 0)
+    {
+        <div class="status-message error" role="alert">
+            <p>The Build Record could not be saved.</p>
+            <ul>
+                @foreach (var error in serverErrors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <EditForm Model="model" OnValidSubmit="CreateAsync" FormName="create-build-record">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-grid">
+            <div class="form-field">
+                <label for="product-code">Product code</label>
+                <InputText id="product-code" class="text-input" @bind-Value="model.ProductCode" />
+                <ValidationMessage For="() => model.ProductCode" />
+            </div>
+
+            <div class="form-field">
+                <label for="product-name">Product name</label>
+                <InputText id="product-name" class="text-input" @bind-Value="model.ProductName" />
+                <ValidationMessage For="() => model.ProductName" />
+            </div>
+
+            <div class="form-field">
+                <label for="serial-number">Serial number</label>
+                <InputText id="serial-number" class="text-input" @bind-Value="model.SerialNumber" />
+                <ValidationMessage For="() => model.SerialNumber" />
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="primary-button" disabled="@isSaving">
+                @(isSaving ? "Saving..." : "Create Build Record")
+            </button>
+            <a class="secondary-link" href="/build-register">Back to Build Register</a>
+        </div>
+    </EditForm>
+</section>
+
+@code {
+    private CreateBuildRecordRequest model = new();
+    private readonly List<string> serverErrors = [];
+    private bool isSaving;
+    private int? createdBuildRecordId;
+
+    private async Task CreateAsync()
+    {
+        isSaving = true;
+        createdBuildRecordId = null;
+        serverErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await BuildRecordCreator.CreateAsync(model, userName);
+
+            if (result.Succeeded)
+            {
+                createdBuildRecordId = result.BuildRecordId;
+                model = new CreateBuildRecordRequest();
+            }
+            else
+            {
+                serverErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            serverErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

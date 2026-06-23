@@ -1,3 +1,4 @@
+using BuildBook.Application.BuildRecords;
 using BuildBook.Infrastructure;
 using BuildBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -19,8 +20,10 @@ public class InfrastructureRegistrationTests
 
         using var provider = services.BuildServiceProvider();
         var factory = provider.GetRequiredService<IDbContextFactory<BuildBookDbContext>>();
+        var creator = provider.GetRequiredService<IBuildRecordCreator>();
 
         Assert.NotNull(factory);
+        Assert.NotNull(creator);
     }
 
     [Fact]

@@ -7,6 +7,7 @@ public class BuildBookPageAuthorizationTests
     [Theory]
     [InlineData("Home.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRegister.razor", BuildBookPolicies.ViewBuildRecords)]
+    [InlineData("CreateBuildRecord.razor", BuildBookPolicies.EditBuildRecords)]
     [InlineData("Reports.razor", BuildBookPolicies.ExportNonSensitiveData)]
     [InlineData("Admin.razor", BuildBookPolicies.ManageUsers)]
     public void PagesDeclareExpectedAuthorizationPolicy(string pageFileName, string expectedPolicy)
@@ -31,6 +32,18 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ViewBuildRecords)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ExportNonSensitiveData)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ManageUsers)}\"", layoutContent);
+    }
+
+    [Fact]
+    public void CreateBuildRecordPageDefinesExpectedRouteAndForm()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("CreateBuildRecord.razor"));
+
+        Assert.Contains("@page \"/build-records/new\"", pageContent);
+        Assert.Contains("FormName=\"create-build-record\"", pageContent);
+        Assert.Contains("Product code", pageContent);
+        Assert.Contains("Product name", pageContent);
+        Assert.Contains("Serial number", pageContent);
     }
 
     [Fact]
@@ -81,6 +94,7 @@ public class BuildBookPageAuthorizationTests
         return policy switch
         {
             BuildBookPolicies.ViewBuildRecords => nameof(BuildBookPolicies.ViewBuildRecords),
+            BuildBookPolicies.EditBuildRecords => nameof(BuildBookPolicies.EditBuildRecords),
             BuildBookPolicies.ExportNonSensitiveData => nameof(BuildBookPolicies.ExportNonSensitiveData),
             BuildBookPolicies.ManageUsers => nameof(BuildBookPolicies.ManageUsers),
             _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, "No constant-name assertion is configured for this policy.")

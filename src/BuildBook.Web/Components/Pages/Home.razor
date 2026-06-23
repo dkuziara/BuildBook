@@ -10,6 +10,13 @@
     <p>
         Foundation screens are being added in backlog order. Use the navigation to move between the Version 1 work areas.
     </p>
+    <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+        <Authorized>
+            <p class="page-actions">
+                <a class="primary-button" href="/build-records/new">Add Build Record</a>
+            </p>
+        </Authorized>
+    </AuthorizeView>
 </section>
 
 <section class="placeholder-panel" aria-labelledby="foundation-status">

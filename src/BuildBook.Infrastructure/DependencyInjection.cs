@@ -1,4 +1,6 @@
+using BuildBook.Application.BuildRecords;
 using BuildBook.Infrastructure.Persistence;
+using BuildBook.Infrastructure.Persistence.BuildRecords;
 using BuildBook.Infrastructure.Persistence.SeedData;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -33,6 +35,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<DevelopmentDataSeeder>();
+        services.AddScoped<IBuildRecordCreator, BuildRecordCreator>();
 
         return services;
     }

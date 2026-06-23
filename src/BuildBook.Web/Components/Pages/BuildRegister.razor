@@ -8,6 +8,13 @@
     <p class="eyebrow">Build Register</p>
     <h1>Build Register</h1>
     <p>The main build record table will appear here in a later backlog item.</p>
+    <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+        <Authorized>
+            <p class="page-actions">
+                <a class="primary-button" href="/build-records/new">Add Build Record</a>
+            </p>
+        </Authorized>
+    </AuthorizeView>
 </section>
 
 <section class="placeholder-panel" aria-labelledby="build-register-placeholder">
