@@ -33,6 +33,33 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ManageUsers)}\"", layoutContent);
     }
 
+    [Fact]
+    public void AccessDeniedPageIsAvailableToSignedInUsers()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("AccessDenied.razor"));
+
+        Assert.Contains("@page \"/access-denied\"", pageContent);
+        Assert.Contains("@attribute [Authorize]", pageContent);
+        Assert.Contains("<AccessDeniedPanel />", pageContent);
+    }
+
+    [Fact]
+    public void RoutesShowAccessDeniedForAuthenticatedUnauthorizedUsers()
+    {
+        var routesPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Web",
+            "Components",
+            "Routes.razor");
+        var routesContent = File.ReadAllText(routesPath);
+
+        Assert.Contains("<NotAuthorized Context=\"authenticationState\">", routesContent);
+        Assert.Contains("authenticationState.User.Identity?.IsAuthenticated == true", routesContent);
+        Assert.Contains("<AccessDeniedPanel />", routesContent);
+        Assert.Contains("Sign in required", routesContent);
+    }
+
     private static string GetPagePath(string pageFileName)
     {
         return Path.Combine(

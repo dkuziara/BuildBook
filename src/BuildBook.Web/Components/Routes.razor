@@ -1,11 +1,20 @@
 ﻿<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
-            <NotAuthorized>
-                <LayoutView Layout="typeof(Layout.MainLayout)">
-                    <h1>Sign in required</h1>
-                    <p>Please sign in with your internal Windows account to use BuildBook.</p>
-                </LayoutView>
+            <NotAuthorized Context="authenticationState">
+                @if (authenticationState.User.Identity?.IsAuthenticated == true)
+                {
+                    <LayoutView Layout="typeof(Layout.MainLayout)">
+                        <AccessDeniedPanel />
+                    </LayoutView>
+                }
+                else
+                {
+                    <LayoutView Layout="typeof(Layout.MainLayout)">
+                        <h1>Sign in required</h1>
+                        <p>Please sign in with your internal Windows account to use BuildBook.</p>
+                    </LayoutView>
+                }
             </NotAuthorized>
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
