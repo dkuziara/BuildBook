@@ -2,6 +2,61 @@ h1:focus {
     outline: none;
 }
 
+body {
+    margin: 0;
+}
+
+.page-heading {
+    margin-bottom: 1.5rem;
+}
+
+.page-heading h1 {
+    font-size: 2.5rem;
+    line-height: 1.1;
+    margin: 0 0 0.75rem;
+    max-width: 48rem;
+}
+
+.page-heading p {
+    color: #4b596d;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    margin: 0;
+    max-width: 44rem;
+}
+
+.page-heading .eyebrow {
+    color: #235789;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+}
+
+@media (max-width: 42rem) {
+    .page-heading h1 {
+        font-size: 2rem;
+    }
+}
+
+.placeholder-panel {
+    background: #ffffff;
+    border: 1px solid #d9e0ea;
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+}
+
+.placeholder-panel h2 {
+    font-size: 1.05rem;
+    margin: 0 0 0.5rem;
+}
+
+.placeholder-panel p {
+    color: #4b596d;
+    line-height: 1.6;
+    margin: 0;
+}
+
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }
