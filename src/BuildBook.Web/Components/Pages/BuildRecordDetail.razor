@@ -6,6 +6,8 @@
 @inject IBuildRecordDetailReader BuildRecordDetailReader
 @inject IProductDetailsUpdater ProductDetailsUpdater
 @inject IBuildDetailsUpdater BuildDetailsUpdater
+@inject ICustomerOptionsReader CustomerOptionsReader
+@inject ICustomerShippingUpdater CustomerShippingUpdater
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -325,6 +327,106 @@ else
         }
     </section>
 
+    <section class="detail-panel detail-section" aria-labelledby="customer-shipping-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="customer-shipping-heading">Customer &amp; Shipping</h2>
+                <p>Customer, order and shipping reference information.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+                <Authorized>
+                    @if (!isEditingCustomerShipping)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingCustomerShipping">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingCustomerShipping)
+        {
+            @if (customerShippingErrors.Count > 0)
+            {
+                <div class="status-message error" role="alert">
+                    <p>Customer and shipping details could not be saved.</p>
+                    <ul>
+                        @foreach (var error in customerShippingErrors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <EditForm Model="customerShippingModel" OnValidSubmit="SaveCustomerShippingAsync" FormName="edit-customer-shipping">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-customer">Customer</label>
+                        <InputSelect id="edit-customer" class="text-input" @bind-Value="customerShippingModel.CustomerId">
+                            <option value="">Not recorded</option>
+                            @foreach (var customer in customerOptions)
+                            {
+                                <option value="@customer.Id">@customer.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-order">Customer order</label>
+                        <InputText id="edit-customer-order" class="text-input" @bind-Value="customerShippingModel.CustomerOrder" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-oa-number">OA number</label>
+                        <InputText id="edit-oa-number" class="text-input" @bind-Value="customerShippingModel.OANumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-invoice-number">Invoice number</label>
+                        <InputText id="edit-invoice-number" class="text-input" @bind-Value="customerShippingModel.InvoiceNumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-date-shipped">Date shipped</label>
+                        <InputDate id="edit-date-shipped" class="text-input" @bind-Value="customerShippingModel.DateShipped" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingCustomerShipping">
+                        @(isSavingCustomerShipping ? "Saving..." : "Save Customer & Shipping")
+                    </button>
+                    <button type="button" class="secondary-button" disabled="@isSavingCustomerShipping" @onclick="CancelCustomerShippingEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Customer</dt>
+                    <dd>@Display(buildRecord.CustomerName)</dd>
+                </div>
+                <div>
+                    <dt>Customer order</dt>
+                    <dd>@Display(buildRecord.CustomerOrder)</dd>
+                </div>
+                <div>
+                    <dt>OA number</dt>
+                    <dd>@Display(buildRecord.OANumber)</dd>
+                </div>
+                <div>
+                    <dt>Invoice number</dt>
+                    <dd>@Display(buildRecord.InvoiceNumber)</dd>
+                </div>
+                <div>
+                    <dt>Date shipped</dt>
+                    <dd>@Display(buildRecord.DateShipped)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
     <p class="detail-actions">
         <a class="secondary-link" href="/build-register">Back to Build Register</a>
     </p>
@@ -337,13 +439,18 @@ else
     private BuildRecordDetailModel? buildRecord;
     private UpdateProductDetailsRequest productDetailsModel = new();
     private UpdateBuildDetailsRequest buildDetailsModel = new();
+    private UpdateCustomerShippingRequest customerShippingModel = new();
+    private IReadOnlyList<CustomerOption> customerOptions = [];
     private readonly List<string> productDetailErrors = [];
     private readonly List<string> buildDetailErrors = [];
+    private readonly List<string> customerShippingErrors = [];
     private bool isLoading = true;
     private bool isEditingProductDetails;
     private bool isEditingBuildDetails;
+    private bool isEditingCustomerShipping;
     private bool isSavingProductDetails;
     private bool isSavingBuildDetails;
+    private bool isSavingCustomerShipping;
     private bool saveSucceeded;
     private string saveMessage = string.Empty;
 
@@ -358,10 +465,13 @@ else
     {
         isLoading = true;
         buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
+        customerOptions = await CustomerOptionsReader.ListActiveAsync();
         isEditingProductDetails = false;
         isEditingBuildDetails = false;
+        isEditingCustomerShipping = false;
         productDetailErrors.Clear();
         buildDetailErrors.Clear();
+        customerShippingErrors.Clear();
         isLoading = false;
     }
 
@@ -386,6 +496,7 @@ else
         saveSucceeded = false;
         saveMessage = string.Empty;
         isEditingBuildDetails = false;
+        isEditingCustomerShipping = false;
         isEditingProductDetails = true;
     }
 
@@ -412,7 +523,31 @@ else
         saveSucceeded = false;
         saveMessage = string.Empty;
         isEditingProductDetails = false;
+        isEditingCustomerShipping = false;
         isEditingBuildDetails = true;
+    }
+
+    private void StartEditingCustomerShipping()
+    {
+        if (buildRecord is null)
+        {
+            return;
+        }
+
+        customerShippingModel = new UpdateCustomerShippingRequest
+        {
+            CustomerId = buildRecord.CustomerId,
+            CustomerOrder = buildRecord.CustomerOrder,
+            OANumber = buildRecord.OANumber,
+            InvoiceNumber = buildRecord.InvoiceNumber,
+            DateShipped = buildRecord.DateShipped
+        };
+        customerShippingErrors.Clear();
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        isEditingProductDetails = false;
+        isEditingBuildDetails = false;
+        isEditingCustomerShipping = true;
     }
 
     private async Task SaveProductDetailsAsync()
@@ -494,6 +629,47 @@ else
     {
         buildDetailErrors.Clear();
         isEditingBuildDetails = false;
+    }
+
+    private async Task SaveCustomerShippingAsync()
+    {
+        isSavingCustomerShipping = true;
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        customerShippingErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await CustomerShippingUpdater.UpdateAsync(BuildRecordId, customerShippingModel, userName);
+
+            if (result.Succeeded)
+            {
+                buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
+                isEditingCustomerShipping = false;
+                saveSucceeded = true;
+                saveMessage = "Customer and shipping details were saved.";
+            }
+            else
+            {
+                customerShippingErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            customerShippingErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingCustomerShipping = false;
+        }
+    }
+
+    private void CancelCustomerShippingEdit()
+    {
+        customerShippingErrors.Clear();
+        isEditingCustomerShipping = false;
     }
 
     private static string Display(string? value)
