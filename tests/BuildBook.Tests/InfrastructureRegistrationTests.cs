@@ -22,6 +22,7 @@ public class InfrastructureRegistrationTests
         var factory = provider.GetRequiredService<IDbContextFactory<BuildBookDbContext>>();
         var creator = provider.GetRequiredService<IBuildRecordCreator>();
         var registerReader = provider.GetRequiredService<IBuildRegisterReader>();
+        var searchService = provider.GetRequiredService<IBuildRecordSearchService>();
         var detailReader = provider.GetRequiredService<IBuildRecordDetailReader>();
         var productDetailsUpdater = provider.GetRequiredService<IProductDetailsUpdater>();
         var buildDetailsUpdater = provider.GetRequiredService<IBuildDetailsUpdater>();
@@ -34,6 +35,7 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(factory);
         Assert.NotNull(creator);
         Assert.NotNull(registerReader);
+        Assert.NotNull(searchService);
         Assert.NotNull(detailReader);
         Assert.NotNull(productDetailsUpdater);
         Assert.NotNull(buildDetailsUpdater);
