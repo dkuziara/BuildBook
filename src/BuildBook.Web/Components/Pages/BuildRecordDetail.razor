@@ -5,6 +5,7 @@
 
 @inject IBuildRecordDetailReader BuildRecordDetailReader
 @inject IProductDetailsUpdater ProductDetailsUpdater
+@inject IBuildDetailsUpdater BuildDetailsUpdater
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -38,7 +39,7 @@ else
     @if (saveSucceeded)
     {
         <div class="status-message success" role="status">
-            Product details were saved.
+            @saveMessage
         </div>
     }
 
@@ -194,6 +195,136 @@ else
         }
     </section>
 
+    <section class="detail-panel detail-section" aria-labelledby="build-details-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="build-details-heading">Build Details</h2>
+                <p>Assembly, manufacturer, QA and checking information.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+                <Authorized>
+                    @if (!isEditingBuildDetails)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingBuildDetails">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingBuildDetails)
+        {
+            @if (buildDetailErrors.Count > 0)
+            {
+                <div class="status-message error" role="alert">
+                    <p>Build details could not be saved.</p>
+                    <ul>
+                        @foreach (var error in buildDetailErrors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <EditForm Model="buildDetailsModel" OnValidSubmit="SaveBuildDetailsAsync" FormName="edit-build-details">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-assembled-in">Assembled in</label>
+                        <InputText id="edit-assembled-in" class="text-input" @bind-Value="buildDetailsModel.AssembledIn" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-assembled-by">Assembled by</label>
+                        <InputText id="edit-assembled-by" class="text-input" @bind-Value="buildDetailsModel.AssembledBy" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-date-assembled">Date assembled</label>
+                        <InputDate id="edit-date-assembled" class="text-input" @bind-Value="buildDetailsModel.DateAssembled" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-hardware-manufacturer">H/W manufacturer</label>
+                        <InputText id="edit-hardware-manufacturer" class="text-input" @bind-Value="buildDetailsModel.HardwareManufacturer" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-manufacturer-part-number">Manufacturer part no.</label>
+                        <InputText id="edit-manufacturer-part-number" class="text-input" @bind-Value="buildDetailsModel.ManufacturerPartNumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-manufacturer-revision">Manufacturer revision</label>
+                        <InputText id="edit-manufacturer-revision" class="text-input" @bind-Value="buildDetailsModel.ManufacturerRevision" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-manufacturer-serial-number">Manufacturer serial no.</label>
+                        <InputText id="edit-manufacturer-serial-number" class="text-input" @bind-Value="buildDetailsModel.ManufacturerSerialNumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-packing-list">Packing list</label>
+                        <InputText id="edit-packing-list" class="text-input" @bind-Value="buildDetailsModel.PackingList" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-checked-by">Checked by</label>
+                        <InputText id="edit-checked-by" class="text-input" @bind-Value="buildDetailsModel.CheckedBy" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingBuildDetails">
+                        @(isSavingBuildDetails ? "Saving..." : "Save Build Details")
+                    </button>
+                    <button type="button" class="secondary-button" disabled="@isSavingBuildDetails" @onclick="CancelBuildDetailsEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Assembled in</dt>
+                    <dd>@Display(buildRecord.AssembledIn)</dd>
+                </div>
+                <div>
+                    <dt>Assembled by</dt>
+                    <dd>@Display(buildRecord.AssembledBy)</dd>
+                </div>
+                <div>
+                    <dt>Date assembled</dt>
+                    <dd>@Display(buildRecord.DateAssembled)</dd>
+                </div>
+                <div>
+                    <dt>H/W manufacturer</dt>
+                    <dd>@Display(buildRecord.HardwareManufacturer)</dd>
+                </div>
+                <div>
+                    <dt>Manufacturer part no.</dt>
+                    <dd>@Display(buildRecord.ManufacturerPartNumber)</dd>
+                </div>
+                <div>
+                    <dt>Manufacturer revision</dt>
+                    <dd>@Display(buildRecord.ManufacturerRevision)</dd>
+                </div>
+                <div>
+                    <dt>Manufacturer serial no.</dt>
+                    <dd>@Display(buildRecord.ManufacturerSerialNumber)</dd>
+                </div>
+                <div>
+                    <dt>Packing list</dt>
+                    <dd>@Display(buildRecord.PackingList)</dd>
+                </div>
+                <div>
+                    <dt>Checked by</dt>
+                    <dd>@Display(buildRecord.CheckedBy)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
     <p class="detail-actions">
         <a class="secondary-link" href="/build-register">Back to Build Register</a>
     </p>
@@ -205,11 +336,16 @@ else
 
     private BuildRecordDetailModel? buildRecord;
     private UpdateProductDetailsRequest productDetailsModel = new();
+    private UpdateBuildDetailsRequest buildDetailsModel = new();
     private readonly List<string> productDetailErrors = [];
+    private readonly List<string> buildDetailErrors = [];
     private bool isLoading = true;
     private bool isEditingProductDetails;
+    private bool isEditingBuildDetails;
     private bool isSavingProductDetails;
+    private bool isSavingBuildDetails;
     private bool saveSucceeded;
+    private string saveMessage = string.Empty;
 
     private static IReadOnlyList<InternalStatus> InternalStatusOptions { get; } =
         Enum.GetValues<InternalStatus>();
@@ -223,7 +359,9 @@ else
         isLoading = true;
         buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
         isEditingProductDetails = false;
+        isEditingBuildDetails = false;
         productDetailErrors.Clear();
+        buildDetailErrors.Clear();
         isLoading = false;
     }
 
@@ -246,7 +384,35 @@ else
         };
         productDetailErrors.Clear();
         saveSucceeded = false;
+        saveMessage = string.Empty;
+        isEditingBuildDetails = false;
         isEditingProductDetails = true;
+    }
+
+    private void StartEditingBuildDetails()
+    {
+        if (buildRecord is null)
+        {
+            return;
+        }
+
+        buildDetailsModel = new UpdateBuildDetailsRequest
+        {
+            AssembledIn = buildRecord.AssembledIn,
+            AssembledBy = buildRecord.AssembledBy,
+            DateAssembled = buildRecord.DateAssembled,
+            HardwareManufacturer = buildRecord.HardwareManufacturer,
+            ManufacturerPartNumber = buildRecord.ManufacturerPartNumber,
+            ManufacturerRevision = buildRecord.ManufacturerRevision,
+            ManufacturerSerialNumber = buildRecord.ManufacturerSerialNumber,
+            PackingList = buildRecord.PackingList,
+            CheckedBy = buildRecord.CheckedBy
+        };
+        buildDetailErrors.Clear();
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        isEditingProductDetails = false;
+        isEditingBuildDetails = true;
     }
 
     private async Task SaveProductDetailsAsync()
@@ -266,6 +432,7 @@ else
                 buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
                 isEditingProductDetails = false;
                 saveSucceeded = true;
+                saveMessage = "Product details were saved.";
             }
             else
             {
@@ -286,6 +453,47 @@ else
     {
         productDetailErrors.Clear();
         isEditingProductDetails = false;
+    }
+
+    private async Task SaveBuildDetailsAsync()
+    {
+        isSavingBuildDetails = true;
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        buildDetailErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await BuildDetailsUpdater.UpdateAsync(BuildRecordId, buildDetailsModel, userName);
+
+            if (result.Succeeded)
+            {
+                buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
+                isEditingBuildDetails = false;
+                saveSucceeded = true;
+                saveMessage = "Build details were saved.";
+            }
+            else
+            {
+                buildDetailErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            buildDetailErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingBuildDetails = false;
+        }
+    }
+
+    private void CancelBuildDetailsEdit()
+    {
+        buildDetailErrors.Clear();
+        isEditingBuildDetails = false;
     }
 
     private static string Display(string? value)

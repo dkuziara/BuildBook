@@ -28,6 +28,15 @@ public sealed class BuildRecordDetailReader(
                 buildRecord.RadSightVersion,
                 buildRecord.WindowsVersion,
                 buildRecord.DateShipped,
+                buildRecord.AssembledIn,
+                buildRecord.AssembledBy,
+                buildRecord.DateAssembled,
+                buildRecord.HardwareManufacturer,
+                buildRecord.ManufacturerPartNumber,
+                buildRecord.ManufacturerRevision,
+                buildRecord.ManufacturerSerialNumber,
+                buildRecord.PackingList,
+                buildRecord.CheckedBy,
                 buildRecord.LastUpdatedAt,
                 buildRecord.LastUpdatedBy
             })
@@ -47,6 +56,15 @@ public sealed class BuildRecordDetailReader(
                 buildRecord.RadSightVersion,
                 buildRecord.WindowsVersion,
                 buildRecord.DateShipped,
+                buildRecord.AssembledIn,
+                buildRecord.AssembledBy,
+                buildRecord.DateAssembled,
+                buildRecord.HardwareManufacturer,
+                buildRecord.ManufacturerPartNumber,
+                buildRecord.ManufacturerRevision,
+                buildRecord.ManufacturerSerialNumber,
+                buildRecord.PackingList,
+                buildRecord.CheckedBy,
                 buildRecord.LastUpdatedAt,
                 buildRecord.LastUpdatedBy);
     }

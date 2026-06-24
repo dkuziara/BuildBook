@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<IBuildRecordCreator, BuildRecordCreator>();
         services.AddScoped<IBuildRecordDetailReader, BuildRecordDetailReader>();
         services.AddScoped<IProductDetailsUpdater, ProductDetailsUpdater>();
+        services.AddScoped<IBuildDetailsUpdater, BuildDetailsUpdater>();
 
         return services;
     }

@@ -23,11 +23,13 @@ public class InfrastructureRegistrationTests
         var creator = provider.GetRequiredService<IBuildRecordCreator>();
         var detailReader = provider.GetRequiredService<IBuildRecordDetailReader>();
         var productDetailsUpdater = provider.GetRequiredService<IProductDetailsUpdater>();
+        var buildDetailsUpdater = provider.GetRequiredService<IBuildDetailsUpdater>();
 
         Assert.NotNull(factory);
         Assert.NotNull(creator);
         Assert.NotNull(detailReader);
         Assert.NotNull(productDetailsUpdater);
+        Assert.NotNull(buildDetailsUpdater);
     }
 
     [Fact]
