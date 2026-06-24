@@ -1,8 +1,11 @@
 @page "/build-records/{BuildRecordId:int}"
+@rendermode InteractiveServer
 
 @attribute [Authorize(Policy = BuildBookPolicies.ViewBuildRecords)]
 
 @inject IBuildRecordDetailReader BuildRecordDetailReader
+@inject IProductDetailsUpdater ProductDetailsUpdater
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@PageTitleText</PageTitle>
 
@@ -29,8 +32,15 @@ else
     <section class="page-heading">
         <p class="eyebrow">Build Record</p>
         <h1>@buildRecord.ProductName</h1>
-        <p>@buildRecord.ProductCode · Serial @buildRecord.SerialNumber</p>
+        <p>@buildRecord.ProductCode - Serial @buildRecord.SerialNumber</p>
     </section>
+
+    @if (saveSucceeded)
+    {
+        <div class="status-message success" role="status">
+            Product details were saved.
+        </div>
+    }
 
     <section class="detail-panel" aria-labelledby="build-record-summary-heading">
         <div class="detail-panel-header">
@@ -84,6 +94,106 @@ else
         </dl>
     </section>
 
+    <section class="detail-panel detail-section" aria-labelledby="product-details-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="product-details-heading">Product Details</h2>
+                <p>Product identity, classification, serial number and internal status.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+                <Authorized>
+                    @if (!isEditingProductDetails)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingProductDetails">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingProductDetails)
+        {
+            @if (productDetailErrors.Count > 0)
+            {
+                <div class="status-message error" role="alert">
+                    <p>Product details could not be saved.</p>
+                    <ul>
+                        @foreach (var error in productDetailErrors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <EditForm Model="productDetailsModel" OnValidSubmit="SaveProductDetailsAsync" FormName="edit-product-details">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-product-code">Product code</label>
+                        <InputText id="edit-product-code" class="text-input" @bind-Value="productDetailsModel.ProductCode" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-product-name">Product name</label>
+                        <InputText id="edit-product-name" class="text-input" @bind-Value="productDetailsModel.ProductName" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-product-classification">Classification</label>
+                        <InputText id="edit-product-classification" class="text-input" @bind-Value="productDetailsModel.ProductClassification" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-serial-number">Serial number</label>
+                        <InputText id="edit-serial-number" class="text-input" @bind-Value="productDetailsModel.SerialNumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-internal-status">Status</label>
+                        <InputSelect id="edit-internal-status" class="text-input" @bind-Value="productDetailsModel.InternalStatus">
+                            <option value="">Not recorded</option>
+                            @foreach (var status in InternalStatusOptions)
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingProductDetails">
+                        @(isSavingProductDetails ? "Saving..." : "Save Product Details")
+                    </button>
+                    <button type="button" class="secondary-button" disabled="@isSavingProductDetails" @onclick="CancelProductDetailsEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Product code</dt>
+                    <dd>@buildRecord.ProductCode</dd>
+                </div>
+                <div>
+                    <dt>Product name</dt>
+                    <dd>@buildRecord.ProductName</dd>
+                </div>
+                <div>
+                    <dt>Classification</dt>
+                    <dd>@Display(buildRecord.ProductClassification)</dd>
+                </div>
+                <div>
+                    <dt>Serial number</dt>
+                    <dd>@buildRecord.SerialNumber</dd>
+                </div>
+                <div>
+                    <dt>Status</dt>
+                    <dd>@Display(buildRecord.InternalStatus)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
     <p class="detail-actions">
         <a class="secondary-link" href="/build-register">Back to Build Register</a>
     </p>
@@ -94,7 +204,15 @@ else
     public int BuildRecordId { get; set; }
 
     private BuildRecordDetailModel? buildRecord;
+    private UpdateProductDetailsRequest productDetailsModel = new();
+    private readonly List<string> productDetailErrors = [];
     private bool isLoading = true;
+    private bool isEditingProductDetails;
+    private bool isSavingProductDetails;
+    private bool saveSucceeded;
+
+    private static IReadOnlyList<InternalStatus> InternalStatusOptions { get; } =
+        Enum.GetValues<InternalStatus>();
 
     private string PageTitleText => buildRecord is null
         ? "Build Record"
@@ -104,7 +222,70 @@ else
     {
         isLoading = true;
         buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
+        isEditingProductDetails = false;
+        productDetailErrors.Clear();
         isLoading = false;
+    }
+
+    private void StartEditingProductDetails()
+    {
+        if (buildRecord is null)
+        {
+            return;
+        }
+
+        productDetailsModel = new UpdateProductDetailsRequest
+        {
+            ProductCode = buildRecord.ProductCode,
+            ProductName = buildRecord.ProductName,
+            ProductClassification = buildRecord.ProductClassification,
+            SerialNumber = buildRecord.SerialNumber,
+            InternalStatus = Enum.TryParse<InternalStatus>(buildRecord.InternalStatus, out var status)
+                ? status
+                : null
+        };
+        productDetailErrors.Clear();
+        saveSucceeded = false;
+        isEditingProductDetails = true;
+    }
+
+    private async Task SaveProductDetailsAsync()
+    {
+        isSavingProductDetails = true;
+        saveSucceeded = false;
+        productDetailErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await ProductDetailsUpdater.UpdateAsync(BuildRecordId, productDetailsModel, userName);
+
+            if (result.Succeeded)
+            {
+                buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
+                isEditingProductDetails = false;
+                saveSucceeded = true;
+            }
+            else
+            {
+                productDetailErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            productDetailErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingProductDetails = false;
+        }
+    }
+
+    private void CancelProductDetailsEdit()
+    {
+        productDetailErrors.Clear();
+        isEditingProductDetails = false;
     }
 
     private static string Display(string? value)

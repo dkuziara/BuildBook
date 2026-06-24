@@ -55,8 +55,14 @@ public class BuildBookPageAuthorizationTests
 
         Assert.Contains("@page \"/build-records/{BuildRecordId:int}\"", pageContent);
         Assert.Contains("IBuildRecordDetailReader", pageContent);
+        Assert.Contains("IProductDetailsUpdater", pageContent);
+        Assert.Contains("FormName=\"edit-product-details\"", pageContent);
+        Assert.Contains("Product Details", pageContent);
         Assert.Contains("Product code", pageContent);
+        Assert.Contains("Product name", pageContent);
+        Assert.Contains("Classification", pageContent);
         Assert.Contains("Serial number", pageContent);
+        Assert.Contains("Status", pageContent);
         Assert.Contains("Customer", pageContent);
         Assert.Contains("RadSight version", pageContent);
         Assert.DoesNotContain("BuildRecordSecret", pageContent);
