@@ -49,6 +49,28 @@ public class BuildBookPageAuthorizationTests
     }
 
     [Fact]
+    public void BuildRegisterPageDefinesExpectedTable()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("BuildRegister.razor"));
+
+        Assert.Contains("IBuildRegisterReader", pageContent);
+        Assert.Contains("Product code", pageContent);
+        Assert.Contains("Product name", pageContent);
+        Assert.Contains("Serial number", pageContent);
+        Assert.Contains("Customer", pageContent);
+        Assert.Contains("Machine name", pageContent);
+        Assert.Contains("RadSight version", pageContent);
+        Assert.Contains("Windows version", pageContent);
+        Assert.Contains("Date assembled", pageContent);
+        Assert.Contains("Date shipped", pageContent);
+        Assert.Contains("Checked by", pageContent);
+        Assert.Contains("Last updated", pageContent);
+        Assert.Contains("/build-records/{buildRecord.Id}", pageContent);
+        Assert.DoesNotContain("BuildRecordSecret", pageContent);
+        Assert.DoesNotContain("Password", pageContent);
+    }
+
+    [Fact]
     public void BuildRecordDetailPageDefinesExpectedRouteAndSummary()
     {
         var pageContent = File.ReadAllText(GetPagePath("BuildRecordDetail.razor"));

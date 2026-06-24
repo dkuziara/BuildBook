@@ -249,6 +249,66 @@ body {
     margin-top: 1rem;
 }
 
+.table-panel {
+    background: #ffffff;
+    border: 1px solid #d9e0ea;
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+}
+
+.table-panel-heading {
+    align-items: flex-start;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.table-panel-heading h2 {
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+.table-panel-heading p {
+    color: #4b596d;
+    margin: 0;
+}
+
+.table-scroll {
+    overflow-x: auto;
+}
+
+.data-table {
+    border-collapse: collapse;
+    font-size: 0.92rem;
+    min-width: 64rem;
+    width: 100%;
+}
+
+.data-table th,
+.data-table td {
+    border-bottom: 1px solid #edf0f5;
+    padding: 0.7rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.data-table th {
+    color: #4b596d;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+}
+
+.data-table td {
+    color: #172033;
+    overflow-wrap: anywhere;
+}
+
+.table-link {
+    color: #235789;
+    font-weight: 700;
+}
+
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }

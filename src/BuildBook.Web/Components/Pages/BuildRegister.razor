@@ -2,12 +2,14 @@
 
 @attribute [Authorize(Policy = BuildBookPolicies.ViewBuildRecords)]
 
+@inject IBuildRegisterReader BuildRegisterReader
+
 <PageTitle>Build Register</PageTitle>
 
 <section class="page-heading">
     <p class="eyebrow">Build Register</p>
     <h1>Build Register</h1>
-    <p>The main build record table will appear here in a later backlog item.</p>
+    <p>Use the register to open Build Records and review the most useful product, customer, software and shipping details.</p>
     <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
         <Authorized>
             <p class="page-actions">
@@ -17,7 +19,84 @@
     </AuthorizeView>
 </section>
 
-<section class="placeholder-panel" aria-labelledby="build-register-placeholder">
-    <h2 id="build-register-placeholder">Placeholder</h2>
-    <p>This page is reserved for the searchable register of product, serial number, customer and version details.</p>
-</section>
+@if (buildRecords is null)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading Build Records...</p>
+    </section>
+}
+else if (buildRecords.Count == 0)
+{
+    <section class="placeholder-panel" aria-labelledby="empty-build-register-heading">
+        <h2 id="empty-build-register-heading">No Build Records yet</h2>
+        <p>Add the first Build Record to start replacing the spreadsheet.</p>
+    </section>
+}
+else
+{
+    <section class="table-panel" aria-labelledby="build-register-table-heading">
+        <div class="table-panel-heading">
+            <h2 id="build-register-table-heading">Build Records</h2>
+            <p>@buildRecords.Count active records</p>
+        </div>
+
+        <div class="table-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Product code</th>
+                        <th scope="col">Product name</th>
+                        <th scope="col">Serial number</th>
+                        <th scope="col">Customer</th>
+                        <th scope="col">Machine name</th>
+                        <th scope="col">RadSight version</th>
+                        <th scope="col">Windows version</th>
+                        <th scope="col">Date assembled</th>
+                        <th scope="col">Date shipped</th>
+                        <th scope="col">Checked by</th>
+                        <th scope="col">Last updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var buildRecord in buildRecords)
+                    {
+                        <tr>
+                            <td>@Display(buildRecord.ProductCode)</td>
+                            <td>@Display(buildRecord.ProductName)</td>
+                            <td>
+                                <a class="table-link" href="@($"/build-records/{buildRecord.Id}")">@buildRecord.SerialNumber</a>
+                            </td>
+                            <td>@Display(buildRecord.CustomerName)</td>
+                            <td>@Display(buildRecord.MachineName)</td>
+                            <td>@Display(buildRecord.RadSightVersion)</td>
+                            <td>@Display(buildRecord.WindowsVersion)</td>
+                            <td>@Display(buildRecord.DateAssembled)</td>
+                            <td>@Display(buildRecord.DateShipped)</td>
+                            <td>@Display(buildRecord.CheckedBy)</td>
+                            <td>@buildRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@code {
+    private IReadOnlyList<BuildRegisterRow>? buildRecords;
+
+    protected override async Task OnInitializedAsync()
+    {
+        buildRecords = await BuildRegisterReader.ListAsync();
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private static string Display(DateOnly? value)
+    {
+        return value?.ToString("d MMM yyyy") ?? "Not recorded";
+    }
+}
