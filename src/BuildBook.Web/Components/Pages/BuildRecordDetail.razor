@@ -9,6 +9,7 @@
 @inject ICustomerOptionsReader CustomerOptionsReader
 @inject ICustomerShippingUpdater CustomerShippingUpdater
 @inject IHardwareDetailsUpdater HardwareDetailsUpdater
+@inject ISoftwareFirmwareUpdater SoftwareFirmwareUpdater
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -540,6 +541,118 @@ else
         }
     </section>
 
+    <section class="detail-panel detail-section" aria-labelledby="software-firmware-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="software-firmware-heading">Software &amp; Firmware</h2>
+                <p>RadSight, Windows, disk image and firmware versions.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+                <Authorized>
+                    @if (!isEditingSoftwareFirmware)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingSoftwareFirmware">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingSoftwareFirmware)
+        {
+            @if (softwareFirmwareErrors.Count > 0)
+            {
+                <div class="status-message error" role="alert">
+                    <p>Software and firmware details could not be saved.</p>
+                    <ul>
+                        @foreach (var error in softwareFirmwareErrors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <EditForm Model="softwareFirmwareModel" OnValidSubmit="SaveSoftwareFirmwareAsync" FormName="edit-software-firmware">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-disk-image-version">Disk image version</label>
+                        <InputText id="edit-disk-image-version" class="text-input" @bind-Value="softwareFirmwareModel.DiskImageVersion" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-radsight-version">RadSight version</label>
+                        <InputText id="edit-radsight-version" class="text-input" @bind-Value="softwareFirmwareModel.RadSightVersion" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-windows-version">Windows version</label>
+                        <InputText id="edit-windows-version" class="text-input" @bind-Value="softwareFirmwareModel.WindowsVersion" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-windows-latest-patch">Windows latest patch</label>
+                        <InputText id="edit-windows-latest-patch" class="text-input" @bind-Value="softwareFirmwareModel.WindowsLatestPatch" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-bleuvio-firmware-version">Bleuvio firmware version</label>
+                        <InputText id="edit-bleuvio-firmware-version" class="text-input" @bind-Value="softwareFirmwareModel.BleuvioFirmwareVersion" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-charthouse-irda-firmware-version">Charthouse IRDA firmware version</label>
+                        <InputText id="edit-charthouse-irda-firmware-version" class="text-input" @bind-Value="softwareFirmwareModel.CharthouseIrdaFirmwareVersion" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-radio-firmware">Radio firmware</label>
+                        <InputText id="edit-radio-firmware" class="text-input" @bind-Value="softwareFirmwareModel.RadioFirmware" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingSoftwareFirmware">
+                        @(isSavingSoftwareFirmware ? "Saving..." : "Save Software & Firmware")
+                    </button>
+                    <button type="button" class="secondary-button" disabled="@isSavingSoftwareFirmware" @onclick="CancelSoftwareFirmwareEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Disk image version</dt>
+                    <dd>@Display(buildRecord.DiskImageVersion)</dd>
+                </div>
+                <div>
+                    <dt>RadSight version</dt>
+                    <dd>@Display(buildRecord.RadSightVersion)</dd>
+                </div>
+                <div>
+                    <dt>Windows version</dt>
+                    <dd>@Display(buildRecord.WindowsVersion)</dd>
+                </div>
+                <div>
+                    <dt>Windows latest patch</dt>
+                    <dd>@Display(buildRecord.WindowsLatestPatch)</dd>
+                </div>
+                <div>
+                    <dt>Bleuvio firmware version</dt>
+                    <dd>@Display(buildRecord.BleuvioFirmwareVersion)</dd>
+                </div>
+                <div>
+                    <dt>Charthouse IRDA firmware version</dt>
+                    <dd>@Display(buildRecord.CharthouseIrdaFirmwareVersion)</dd>
+                </div>
+                <div>
+                    <dt>Radio firmware</dt>
+                    <dd>@Display(buildRecord.RadioFirmware)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
     <p class="detail-actions">
         <a class="secondary-link" href="/build-register">Back to Build Register</a>
     </p>
@@ -554,20 +667,24 @@ else
     private UpdateBuildDetailsRequest buildDetailsModel = new();
     private UpdateCustomerShippingRequest customerShippingModel = new();
     private UpdateHardwareDetailsRequest hardwareDetailsModel = new();
+    private UpdateSoftwareFirmwareRequest softwareFirmwareModel = new();
     private IReadOnlyList<CustomerOption> customerOptions = [];
     private readonly List<string> productDetailErrors = [];
     private readonly List<string> buildDetailErrors = [];
     private readonly List<string> customerShippingErrors = [];
     private readonly List<string> hardwareDetailErrors = [];
+    private readonly List<string> softwareFirmwareErrors = [];
     private bool isLoading = true;
     private bool isEditingProductDetails;
     private bool isEditingBuildDetails;
     private bool isEditingCustomerShipping;
     private bool isEditingHardwareDetails;
+    private bool isEditingSoftwareFirmware;
     private bool isSavingProductDetails;
     private bool isSavingBuildDetails;
     private bool isSavingCustomerShipping;
     private bool isSavingHardwareDetails;
+    private bool isSavingSoftwareFirmware;
     private bool saveSucceeded;
     private string saveMessage = string.Empty;
 
@@ -587,10 +704,12 @@ else
         isEditingBuildDetails = false;
         isEditingCustomerShipping = false;
         isEditingHardwareDetails = false;
+        isEditingSoftwareFirmware = false;
         productDetailErrors.Clear();
         buildDetailErrors.Clear();
         customerShippingErrors.Clear();
         hardwareDetailErrors.Clear();
+        softwareFirmwareErrors.Clear();
         isLoading = false;
     }
 
@@ -617,6 +736,7 @@ else
         isEditingBuildDetails = false;
         isEditingCustomerShipping = false;
         isEditingHardwareDetails = false;
+        isEditingSoftwareFirmware = false;
         isEditingProductDetails = true;
     }
 
@@ -645,6 +765,7 @@ else
         isEditingProductDetails = false;
         isEditingCustomerShipping = false;
         isEditingHardwareDetails = false;
+        isEditingSoftwareFirmware = false;
         isEditingBuildDetails = true;
     }
 
@@ -669,6 +790,7 @@ else
         isEditingProductDetails = false;
         isEditingBuildDetails = false;
         isEditingHardwareDetails = false;
+        isEditingSoftwareFirmware = false;
         isEditingCustomerShipping = true;
     }
 
@@ -695,7 +817,35 @@ else
         isEditingProductDetails = false;
         isEditingBuildDetails = false;
         isEditingCustomerShipping = false;
+        isEditingSoftwareFirmware = false;
         isEditingHardwareDetails = true;
+    }
+
+    private void StartEditingSoftwareFirmware()
+    {
+        if (buildRecord is null)
+        {
+            return;
+        }
+
+        softwareFirmwareModel = new UpdateSoftwareFirmwareRequest
+        {
+            DiskImageVersion = buildRecord.DiskImageVersion,
+            RadSightVersion = buildRecord.RadSightVersion,
+            WindowsVersion = buildRecord.WindowsVersion,
+            WindowsLatestPatch = buildRecord.WindowsLatestPatch,
+            BleuvioFirmwareVersion = buildRecord.BleuvioFirmwareVersion,
+            CharthouseIrdaFirmwareVersion = buildRecord.CharthouseIrdaFirmwareVersion,
+            RadioFirmware = buildRecord.RadioFirmware
+        };
+        softwareFirmwareErrors.Clear();
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        isEditingProductDetails = false;
+        isEditingBuildDetails = false;
+        isEditingCustomerShipping = false;
+        isEditingHardwareDetails = false;
+        isEditingSoftwareFirmware = true;
     }
 
     private async Task SaveProductDetailsAsync()
@@ -859,6 +1009,47 @@ else
     {
         hardwareDetailErrors.Clear();
         isEditingHardwareDetails = false;
+    }
+
+    private async Task SaveSoftwareFirmwareAsync()
+    {
+        isSavingSoftwareFirmware = true;
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        softwareFirmwareErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await SoftwareFirmwareUpdater.UpdateAsync(BuildRecordId, softwareFirmwareModel, userName);
+
+            if (result.Succeeded)
+            {
+                buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
+                isEditingSoftwareFirmware = false;
+                saveSucceeded = true;
+                saveMessage = "Software and firmware details were saved.";
+            }
+            else
+            {
+                softwareFirmwareErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            softwareFirmwareErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingSoftwareFirmware = false;
+        }
+    }
+
+    private void CancelSoftwareFirmwareEdit()
+    {
+        softwareFirmwareErrors.Clear();
+        isEditingSoftwareFirmware = false;
     }
 
     private static string Display(string? value)

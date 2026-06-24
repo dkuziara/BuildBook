@@ -60,14 +60,17 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("ICustomerOptionsReader", pageContent);
         Assert.Contains("ICustomerShippingUpdater", pageContent);
         Assert.Contains("IHardwareDetailsUpdater", pageContent);
+        Assert.Contains("ISoftwareFirmwareUpdater", pageContent);
         Assert.Contains("FormName=\"edit-product-details\"", pageContent);
         Assert.Contains("FormName=\"edit-build-details\"", pageContent);
         Assert.Contains("FormName=\"edit-customer-shipping\"", pageContent);
         Assert.Contains("FormName=\"edit-hardware-details\"", pageContent);
+        Assert.Contains("FormName=\"edit-software-firmware\"", pageContent);
         Assert.Contains("Product Details", pageContent);
         Assert.Contains("Build Details", pageContent);
         Assert.Contains("Customer &amp; Shipping", pageContent);
         Assert.Contains("Hardware", pageContent);
+        Assert.Contains("Software &amp; Firmware", pageContent);
         Assert.Contains("Product code", pageContent);
         Assert.Contains("Product name", pageContent);
         Assert.Contains("Classification", pageContent);
@@ -94,7 +97,13 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Radio serial number", pageContent);
         Assert.Contains("Router used", pageContent);
         Assert.Contains("Hardware notes", pageContent);
+        Assert.Contains("Disk image version", pageContent);
         Assert.Contains("RadSight version", pageContent);
+        Assert.Contains("Windows version", pageContent);
+        Assert.Contains("Windows latest patch", pageContent);
+        Assert.Contains("Bleuvio firmware version", pageContent);
+        Assert.Contains("Charthouse IRDA firmware version", pageContent);
+        Assert.Contains("Radio firmware", pageContent);
         Assert.DoesNotContain("BuildRecordSecret", pageContent);
     }
 

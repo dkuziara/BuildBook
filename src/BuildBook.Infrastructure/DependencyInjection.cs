@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<ICustomerOptionsReader, CustomerOptionsReader>();
         services.AddScoped<ICustomerShippingUpdater, CustomerShippingUpdater>();
         services.AddScoped<IHardwareDetailsUpdater, HardwareDetailsUpdater>();
+        services.AddScoped<ISoftwareFirmwareUpdater, SoftwareFirmwareUpdater>();
 
         return services;
     }
