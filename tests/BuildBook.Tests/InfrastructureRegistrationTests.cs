@@ -26,6 +26,7 @@ public class InfrastructureRegistrationTests
         var buildDetailsUpdater = provider.GetRequiredService<IBuildDetailsUpdater>();
         var customerOptionsReader = provider.GetRequiredService<ICustomerOptionsReader>();
         var customerShippingUpdater = provider.GetRequiredService<ICustomerShippingUpdater>();
+        var hardwareDetailsUpdater = provider.GetRequiredService<IHardwareDetailsUpdater>();
 
         Assert.NotNull(factory);
         Assert.NotNull(creator);
@@ -34,6 +35,7 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(buildDetailsUpdater);
         Assert.NotNull(customerOptionsReader);
         Assert.NotNull(customerShippingUpdater);
+        Assert.NotNull(hardwareDetailsUpdater);
     }
 
     [Fact]

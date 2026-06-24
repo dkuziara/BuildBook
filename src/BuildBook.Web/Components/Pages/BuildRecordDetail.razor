@@ -8,6 +8,7 @@
 @inject IBuildDetailsUpdater BuildDetailsUpdater
 @inject ICustomerOptionsReader CustomerOptionsReader
 @inject ICustomerShippingUpdater CustomerShippingUpdater
+@inject IHardwareDetailsUpdater HardwareDetailsUpdater
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -427,6 +428,118 @@ else
         }
     </section>
 
+    <section class="detail-panel detail-section" aria-labelledby="hardware-details-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="hardware-details-heading">Hardware</h2>
+                <p>Panel, machine, radio and router information.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+                <Authorized>
+                    @if (!isEditingHardwareDetails)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingHardwareDetails">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingHardwareDetails)
+        {
+            @if (hardwareDetailErrors.Count > 0)
+            {
+                <div class="status-message error" role="alert">
+                    <p>Hardware details could not be saved.</p>
+                    <ul>
+                        @foreach (var error in hardwareDetailErrors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <EditForm Model="hardwareDetailsModel" OnValidSubmit="SaveHardwareDetailsAsync" FormName="edit-hardware-details">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-panel-device-model">Panel device model</label>
+                        <InputText id="edit-panel-device-model" class="text-input" @bind-Value="hardwareDetailsModel.PanelDeviceModel" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-panel-device-serial">Panel device serial</label>
+                        <InputText id="edit-panel-device-serial" class="text-input" @bind-Value="hardwareDetailsModel.PanelDeviceSerial" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-panel-firmware-version">Panel firmware version</label>
+                        <InputText id="edit-panel-firmware-version" class="text-input" @bind-Value="hardwareDetailsModel.PanelFirmwareVersion" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-machine-name">Machine name</label>
+                        <InputText id="edit-machine-name" class="text-input" @bind-Value="hardwareDetailsModel.MachineName" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-radio-serial-number">Radio serial number</label>
+                        <InputText id="edit-radio-serial-number" class="text-input" @bind-Value="hardwareDetailsModel.RadioSerialNumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-router-used">Router used</label>
+                        <InputText id="edit-router-used" class="text-input" @bind-Value="hardwareDetailsModel.RouterUsed" />
+                    </div>
+
+                    <div class="form-field form-field-wide">
+                        <label for="edit-hardware-notes">Hardware notes</label>
+                        <InputTextArea id="edit-hardware-notes" class="text-input" @bind-Value="hardwareDetailsModel.HardwareNotes" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingHardwareDetails">
+                        @(isSavingHardwareDetails ? "Saving..." : "Save Hardware")
+                    </button>
+                    <button type="button" class="secondary-button" disabled="@isSavingHardwareDetails" @onclick="CancelHardwareDetailsEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Panel device model</dt>
+                    <dd>@Display(buildRecord.PanelDeviceModel)</dd>
+                </div>
+                <div>
+                    <dt>Panel device serial</dt>
+                    <dd>@Display(buildRecord.PanelDeviceSerial)</dd>
+                </div>
+                <div>
+                    <dt>Panel firmware version</dt>
+                    <dd>@Display(buildRecord.PanelFirmwareVersion)</dd>
+                </div>
+                <div>
+                    <dt>Machine name</dt>
+                    <dd>@Display(buildRecord.MachineName)</dd>
+                </div>
+                <div>
+                    <dt>Radio serial number</dt>
+                    <dd>@Display(buildRecord.RadioSerialNumber)</dd>
+                </div>
+                <div>
+                    <dt>Router used</dt>
+                    <dd>@Display(buildRecord.RouterUsed)</dd>
+                </div>
+                <div>
+                    <dt>Hardware notes</dt>
+                    <dd>@Display(buildRecord.HardwareNotes)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
     <p class="detail-actions">
         <a class="secondary-link" href="/build-register">Back to Build Register</a>
     </p>
@@ -440,17 +553,21 @@ else
     private UpdateProductDetailsRequest productDetailsModel = new();
     private UpdateBuildDetailsRequest buildDetailsModel = new();
     private UpdateCustomerShippingRequest customerShippingModel = new();
+    private UpdateHardwareDetailsRequest hardwareDetailsModel = new();
     private IReadOnlyList<CustomerOption> customerOptions = [];
     private readonly List<string> productDetailErrors = [];
     private readonly List<string> buildDetailErrors = [];
     private readonly List<string> customerShippingErrors = [];
+    private readonly List<string> hardwareDetailErrors = [];
     private bool isLoading = true;
     private bool isEditingProductDetails;
     private bool isEditingBuildDetails;
     private bool isEditingCustomerShipping;
+    private bool isEditingHardwareDetails;
     private bool isSavingProductDetails;
     private bool isSavingBuildDetails;
     private bool isSavingCustomerShipping;
+    private bool isSavingHardwareDetails;
     private bool saveSucceeded;
     private string saveMessage = string.Empty;
 
@@ -469,9 +586,11 @@ else
         isEditingProductDetails = false;
         isEditingBuildDetails = false;
         isEditingCustomerShipping = false;
+        isEditingHardwareDetails = false;
         productDetailErrors.Clear();
         buildDetailErrors.Clear();
         customerShippingErrors.Clear();
+        hardwareDetailErrors.Clear();
         isLoading = false;
     }
 
@@ -497,6 +616,7 @@ else
         saveMessage = string.Empty;
         isEditingBuildDetails = false;
         isEditingCustomerShipping = false;
+        isEditingHardwareDetails = false;
         isEditingProductDetails = true;
     }
 
@@ -524,6 +644,7 @@ else
         saveMessage = string.Empty;
         isEditingProductDetails = false;
         isEditingCustomerShipping = false;
+        isEditingHardwareDetails = false;
         isEditingBuildDetails = true;
     }
 
@@ -547,7 +668,34 @@ else
         saveMessage = string.Empty;
         isEditingProductDetails = false;
         isEditingBuildDetails = false;
+        isEditingHardwareDetails = false;
         isEditingCustomerShipping = true;
+    }
+
+    private void StartEditingHardwareDetails()
+    {
+        if (buildRecord is null)
+        {
+            return;
+        }
+
+        hardwareDetailsModel = new UpdateHardwareDetailsRequest
+        {
+            PanelDeviceModel = buildRecord.PanelDeviceModel,
+            PanelDeviceSerial = buildRecord.PanelDeviceSerial,
+            PanelFirmwareVersion = buildRecord.PanelFirmwareVersion,
+            MachineName = buildRecord.MachineName,
+            RadioSerialNumber = buildRecord.RadioSerialNumber,
+            RouterUsed = buildRecord.RouterUsed,
+            HardwareNotes = buildRecord.HardwareNotes
+        };
+        hardwareDetailErrors.Clear();
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        isEditingProductDetails = false;
+        isEditingBuildDetails = false;
+        isEditingCustomerShipping = false;
+        isEditingHardwareDetails = true;
     }
 
     private async Task SaveProductDetailsAsync()
@@ -670,6 +818,47 @@ else
     {
         customerShippingErrors.Clear();
         isEditingCustomerShipping = false;
+    }
+
+    private async Task SaveHardwareDetailsAsync()
+    {
+        isSavingHardwareDetails = true;
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        hardwareDetailErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await HardwareDetailsUpdater.UpdateAsync(BuildRecordId, hardwareDetailsModel, userName);
+
+            if (result.Succeeded)
+            {
+                buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
+                isEditingHardwareDetails = false;
+                saveSucceeded = true;
+                saveMessage = "Hardware details were saved.";
+            }
+            else
+            {
+                hardwareDetailErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            hardwareDetailErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingHardwareDetails = false;
+        }
+    }
+
+    private void CancelHardwareDetailsEdit()
+    {
+        hardwareDetailErrors.Clear();
+        isEditingHardwareDetails = false;
     }
 
     private static string Display(string? value)

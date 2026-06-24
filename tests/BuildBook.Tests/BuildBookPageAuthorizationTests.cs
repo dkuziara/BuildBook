@@ -59,12 +59,15 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("IBuildDetailsUpdater", pageContent);
         Assert.Contains("ICustomerOptionsReader", pageContent);
         Assert.Contains("ICustomerShippingUpdater", pageContent);
+        Assert.Contains("IHardwareDetailsUpdater", pageContent);
         Assert.Contains("FormName=\"edit-product-details\"", pageContent);
         Assert.Contains("FormName=\"edit-build-details\"", pageContent);
         Assert.Contains("FormName=\"edit-customer-shipping\"", pageContent);
+        Assert.Contains("FormName=\"edit-hardware-details\"", pageContent);
         Assert.Contains("Product Details", pageContent);
         Assert.Contains("Build Details", pageContent);
         Assert.Contains("Customer &amp; Shipping", pageContent);
+        Assert.Contains("Hardware", pageContent);
         Assert.Contains("Product code", pageContent);
         Assert.Contains("Product name", pageContent);
         Assert.Contains("Classification", pageContent);
@@ -84,6 +87,13 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("OA number", pageContent);
         Assert.Contains("Invoice number", pageContent);
         Assert.Contains("Date shipped", pageContent);
+        Assert.Contains("Panel device model", pageContent);
+        Assert.Contains("Panel device serial", pageContent);
+        Assert.Contains("Panel firmware version", pageContent);
+        Assert.Contains("Machine name", pageContent);
+        Assert.Contains("Radio serial number", pageContent);
+        Assert.Contains("Router used", pageContent);
+        Assert.Contains("Hardware notes", pageContent);
         Assert.Contains("RadSight version", pageContent);
         Assert.DoesNotContain("BuildRecordSecret", pageContent);
     }
