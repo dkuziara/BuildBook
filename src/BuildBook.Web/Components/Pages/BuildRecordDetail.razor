@@ -10,6 +10,7 @@
 @inject ICustomerShippingUpdater CustomerShippingUpdater
 @inject IHardwareDetailsUpdater HardwareDetailsUpdater
 @inject ISoftwareFirmwareUpdater SoftwareFirmwareUpdater
+@inject INetworkNotesUpdater NetworkNotesUpdater
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -487,11 +488,6 @@ else
                         <InputText id="edit-radio-serial-number" class="text-input" @bind-Value="hardwareDetailsModel.RadioSerialNumber" />
                     </div>
 
-                    <div class="form-field">
-                        <label for="edit-router-used">Router used</label>
-                        <InputText id="edit-router-used" class="text-input" @bind-Value="hardwareDetailsModel.RouterUsed" />
-                    </div>
-
                     <div class="form-field form-field-wide">
                         <label for="edit-hardware-notes">Hardware notes</label>
                         <InputTextArea id="edit-hardware-notes" class="text-input" @bind-Value="hardwareDetailsModel.HardwareNotes" />
@@ -528,10 +524,6 @@ else
                 <div>
                     <dt>Radio serial number</dt>
                     <dd>@Display(buildRecord.RadioSerialNumber)</dd>
-                </div>
-                <div>
-                    <dt>Router used</dt>
-                    <dd>@Display(buildRecord.RouterUsed)</dd>
                 </div>
                 <div>
                     <dt>Hardware notes</dt>
@@ -653,6 +645,131 @@ else
         }
     </section>
 
+    <section class="detail-panel detail-section" aria-labelledby="network-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="network-heading">Network</h2>
+                <p>Wi-Fi SSID and router details. Passwords are stored separately.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+                <Authorized>
+                    @if (!isEditingNetworkDetails)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingNetworkDetails">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingNetworkDetails)
+        {
+            @if (networkDetailErrors.Count > 0)
+            {
+                <div class="status-message error" role="alert">
+                    <p>Network details could not be saved.</p>
+                    <ul>
+                        @foreach (var error in networkDetailErrors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <EditForm Model="networkDetailsModel" OnValidSubmit="SaveNetworkDetailsAsync" FormName="edit-network-details">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-wifi-ssid">Wi-Fi SSID</label>
+                        <InputText id="edit-wifi-ssid" class="text-input" @bind-Value="networkDetailsModel.WifiSsid" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-router-used">Router used</label>
+                        <InputText id="edit-router-used" class="text-input" @bind-Value="networkDetailsModel.RouterUsed" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingNetworkDetails">
+                        @(isSavingNetworkDetails ? "Saving..." : "Save Network")
+                    </button>
+                    <button type="button" class="secondary-button" disabled="@isSavingNetworkDetails" @onclick="CancelNetworkDetailsEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Wi-Fi SSID</dt>
+                    <dd>@Display(buildRecord.WifiSsid)</dd>
+                </div>
+                <div>
+                    <dt>Router used</dt>
+                    <dd>@Display(buildRecord.RouterUsed)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="notes-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="notes-heading">Notes</h2>
+                <p>General non-sensitive notes for this Build Record.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+                <Authorized>
+                    @if (!isEditingNotes)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingNotes">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingNotes)
+        {
+            @if (notesErrors.Count > 0)
+            {
+                <div class="status-message error" role="alert">
+                    <p>Notes could not be saved.</p>
+                    <ul>
+                        @foreach (var error in notesErrors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <EditForm Model="notesModel" OnValidSubmit="SaveNotesAsync" FormName="edit-notes">
+                <div class="form-grid">
+                    <div class="form-field form-field-wide">
+                        <label for="edit-note">Note</label>
+                        <InputTextArea id="edit-note" class="text-input" @bind-Value="notesModel.Note" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingNotes">
+                        @(isSavingNotes ? "Saving..." : "Save Notes")
+                    </button>
+                    <button type="button" class="secondary-button" disabled="@isSavingNotes" @onclick="CancelNotesEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Note</dt>
+                    <dd>@Display(buildRecord.Note)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
     <p class="detail-actions">
         <a class="secondary-link" href="/build-register">Back to Build Register</a>
     </p>
@@ -668,23 +785,31 @@ else
     private UpdateCustomerShippingRequest customerShippingModel = new();
     private UpdateHardwareDetailsRequest hardwareDetailsModel = new();
     private UpdateSoftwareFirmwareRequest softwareFirmwareModel = new();
+    private UpdateNetworkNotesRequest networkDetailsModel = new();
+    private UpdateNetworkNotesRequest notesModel = new();
     private IReadOnlyList<CustomerOption> customerOptions = [];
     private readonly List<string> productDetailErrors = [];
     private readonly List<string> buildDetailErrors = [];
     private readonly List<string> customerShippingErrors = [];
     private readonly List<string> hardwareDetailErrors = [];
     private readonly List<string> softwareFirmwareErrors = [];
+    private readonly List<string> networkDetailErrors = [];
+    private readonly List<string> notesErrors = [];
     private bool isLoading = true;
     private bool isEditingProductDetails;
     private bool isEditingBuildDetails;
     private bool isEditingCustomerShipping;
     private bool isEditingHardwareDetails;
     private bool isEditingSoftwareFirmware;
+    private bool isEditingNetworkDetails;
+    private bool isEditingNotes;
     private bool isSavingProductDetails;
     private bool isSavingBuildDetails;
     private bool isSavingCustomerShipping;
     private bool isSavingHardwareDetails;
     private bool isSavingSoftwareFirmware;
+    private bool isSavingNetworkDetails;
+    private bool isSavingNotes;
     private bool saveSucceeded;
     private string saveMessage = string.Empty;
 
@@ -705,11 +830,15 @@ else
         isEditingCustomerShipping = false;
         isEditingHardwareDetails = false;
         isEditingSoftwareFirmware = false;
+        isEditingNetworkDetails = false;
+        isEditingNotes = false;
         productDetailErrors.Clear();
         buildDetailErrors.Clear();
         customerShippingErrors.Clear();
         hardwareDetailErrors.Clear();
         softwareFirmwareErrors.Clear();
+        networkDetailErrors.Clear();
+        notesErrors.Clear();
         isLoading = false;
     }
 
@@ -737,6 +866,8 @@ else
         isEditingCustomerShipping = false;
         isEditingHardwareDetails = false;
         isEditingSoftwareFirmware = false;
+        isEditingNetworkDetails = false;
+        isEditingNotes = false;
         isEditingProductDetails = true;
     }
 
@@ -766,6 +897,8 @@ else
         isEditingCustomerShipping = false;
         isEditingHardwareDetails = false;
         isEditingSoftwareFirmware = false;
+        isEditingNetworkDetails = false;
+        isEditingNotes = false;
         isEditingBuildDetails = true;
     }
 
@@ -791,6 +924,8 @@ else
         isEditingBuildDetails = false;
         isEditingHardwareDetails = false;
         isEditingSoftwareFirmware = false;
+        isEditingNetworkDetails = false;
+        isEditingNotes = false;
         isEditingCustomerShipping = true;
     }
 
@@ -808,7 +943,6 @@ else
             PanelFirmwareVersion = buildRecord.PanelFirmwareVersion,
             MachineName = buildRecord.MachineName,
             RadioSerialNumber = buildRecord.RadioSerialNumber,
-            RouterUsed = buildRecord.RouterUsed,
             HardwareNotes = buildRecord.HardwareNotes
         };
         hardwareDetailErrors.Clear();
@@ -818,6 +952,8 @@ else
         isEditingBuildDetails = false;
         isEditingCustomerShipping = false;
         isEditingSoftwareFirmware = false;
+        isEditingNetworkDetails = false;
+        isEditingNotes = false;
         isEditingHardwareDetails = true;
     }
 
@@ -845,7 +981,59 @@ else
         isEditingBuildDetails = false;
         isEditingCustomerShipping = false;
         isEditingHardwareDetails = false;
+        isEditingNetworkDetails = false;
+        isEditingNotes = false;
         isEditingSoftwareFirmware = true;
+    }
+
+    private void StartEditingNetworkDetails()
+    {
+        if (buildRecord is null)
+        {
+            return;
+        }
+
+        networkDetailsModel = new UpdateNetworkNotesRequest
+        {
+            WifiSsid = buildRecord.WifiSsid,
+            RouterUsed = buildRecord.RouterUsed,
+            Note = buildRecord.Note
+        };
+        networkDetailErrors.Clear();
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        isEditingProductDetails = false;
+        isEditingBuildDetails = false;
+        isEditingCustomerShipping = false;
+        isEditingHardwareDetails = false;
+        isEditingSoftwareFirmware = false;
+        isEditingNotes = false;
+        isEditingNetworkDetails = true;
+    }
+
+    private void StartEditingNotes()
+    {
+        if (buildRecord is null)
+        {
+            return;
+        }
+
+        notesModel = new UpdateNetworkNotesRequest
+        {
+            WifiSsid = buildRecord.WifiSsid,
+            RouterUsed = buildRecord.RouterUsed,
+            Note = buildRecord.Note
+        };
+        notesErrors.Clear();
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        isEditingProductDetails = false;
+        isEditingBuildDetails = false;
+        isEditingCustomerShipping = false;
+        isEditingHardwareDetails = false;
+        isEditingSoftwareFirmware = false;
+        isEditingNetworkDetails = false;
+        isEditingNotes = true;
     }
 
     private async Task SaveProductDetailsAsync()
@@ -1050,6 +1238,91 @@ else
     {
         softwareFirmwareErrors.Clear();
         isEditingSoftwareFirmware = false;
+    }
+
+    private async Task SaveNetworkDetailsAsync()
+    {
+        isSavingNetworkDetails = true;
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        networkDetailErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            networkDetailsModel.Note = buildRecord?.Note;
+            var result = await NetworkNotesUpdater.UpdateAsync(BuildRecordId, networkDetailsModel, userName);
+
+            if (result.Succeeded)
+            {
+                buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
+                isEditingNetworkDetails = false;
+                saveSucceeded = true;
+                saveMessage = "Network details were saved.";
+            }
+            else
+            {
+                networkDetailErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            networkDetailErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingNetworkDetails = false;
+        }
+    }
+
+    private void CancelNetworkDetailsEdit()
+    {
+        networkDetailErrors.Clear();
+        isEditingNetworkDetails = false;
+    }
+
+    private async Task SaveNotesAsync()
+    {
+        isSavingNotes = true;
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        notesErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            notesModel.WifiSsid = buildRecord?.WifiSsid;
+            notesModel.RouterUsed = buildRecord?.RouterUsed;
+            var result = await NetworkNotesUpdater.UpdateAsync(BuildRecordId, notesModel, userName);
+
+            if (result.Succeeded)
+            {
+                buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
+                isEditingNotes = false;
+                saveSucceeded = true;
+                saveMessage = "Notes were saved.";
+            }
+            else
+            {
+                notesErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            notesErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingNotes = false;
+        }
+    }
+
+    private void CancelNotesEdit()
+    {
+        notesErrors.Clear();
+        isEditingNotes = false;
     }
 
     private static string Display(string? value)

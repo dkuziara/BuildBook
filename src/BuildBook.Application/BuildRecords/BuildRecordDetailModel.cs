@@ -19,6 +19,8 @@ public sealed record BuildRecordDetailModel(
     string? RadioSerialNumber,
     string? RouterUsed,
     string? HardwareNotes,
+    string? WifiSsid,
+    string? Note,
     string? DiskImageVersion,
     string? RadSightVersion,
     string? WindowsVersion,
