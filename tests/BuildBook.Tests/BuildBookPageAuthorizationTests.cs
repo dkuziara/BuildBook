@@ -7,6 +7,7 @@ public class BuildBookPageAuthorizationTests
     [Theory]
     [InlineData("Home.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRegister.razor", BuildBookPolicies.ViewBuildRecords)]
+    [InlineData("BuildRecordDetail.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("CreateBuildRecord.razor", BuildBookPolicies.EditBuildRecords)]
     [InlineData("Reports.razor", BuildBookPolicies.ExportNonSensitiveData)]
     [InlineData("Admin.razor", BuildBookPolicies.ManageUsers)]
@@ -41,9 +42,24 @@ public class BuildBookPageAuthorizationTests
 
         Assert.Contains("@page \"/build-records/new\"", pageContent);
         Assert.Contains("FormName=\"create-build-record\"", pageContent);
+        Assert.Contains("NavigationManager.NavigateTo($\"/build-records/{result.BuildRecordId}\")", pageContent);
         Assert.Contains("Product code", pageContent);
         Assert.Contains("Product name", pageContent);
         Assert.Contains("Serial number", pageContent);
+    }
+
+    [Fact]
+    public void BuildRecordDetailPageDefinesExpectedRouteAndSummary()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("BuildRecordDetail.razor"));
+
+        Assert.Contains("@page \"/build-records/{BuildRecordId:int}\"", pageContent);
+        Assert.Contains("IBuildRecordDetailReader", pageContent);
+        Assert.Contains("Product code", pageContent);
+        Assert.Contains("Serial number", pageContent);
+        Assert.Contains("Customer", pageContent);
+        Assert.Contains("RadSight version", pageContent);
+        Assert.DoesNotContain("BuildRecordSecret", pageContent);
     }
 
     [Fact]

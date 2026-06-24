@@ -160,6 +160,64 @@ body {
     color: #7a1d16;
 }
 
+.detail-panel {
+    background: #ffffff;
+    border: 1px solid #d9e0ea;
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+}
+
+.detail-panel-header {
+    align-items: flex-start;
+    border-bottom: 1px solid #e7ebf1;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+}
+
+.detail-panel-header h2 {
+    font-size: 1.05rem;
+    margin: 0 0 0.35rem;
+}
+
+.detail-panel-header p {
+    color: #4b596d;
+    margin: 0;
+}
+
+.summary-list {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    margin: 0;
+}
+
+.summary-list div {
+    border-bottom: 1px solid #edf0f5;
+    min-width: 0;
+    padding-bottom: 0.75rem;
+}
+
+.summary-list dt {
+    color: #4b596d;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.summary-list dd {
+    color: #172033;
+    font-weight: 700;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.detail-actions {
+    margin-top: 1rem;
+}
+
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }

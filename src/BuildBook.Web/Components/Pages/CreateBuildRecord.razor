@@ -5,6 +5,7 @@
 
 @inject IBuildRecordCreator BuildRecordCreator
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
 
 <PageTitle>Add Build Record</PageTitle>
 
@@ -16,13 +17,6 @@
 
 <section class="form-panel" aria-labelledby="add-build-record-heading">
     <h2 id="add-build-record-heading">Required details</h2>
-
-    @if (createdBuildRecordId is not null)
-    {
-        <div class="status-message success" role="status">
-            Build Record @createdBuildRecordId was created.
-        </div>
-    }
 
     @if (serverErrors.Count > 0)
     {
@@ -74,12 +68,10 @@
     private CreateBuildRecordRequest model = new();
     private readonly List<string> serverErrors = [];
     private bool isSaving;
-    private int? createdBuildRecordId;
 
     private async Task CreateAsync()
     {
         isSaving = true;
-        createdBuildRecordId = null;
         serverErrors.Clear();
 
         try
@@ -90,8 +82,7 @@
 
             if (result.Succeeded)
             {
-                createdBuildRecordId = result.BuildRecordId;
-                model = new CreateBuildRecordRequest();
+                NavigationManager.NavigateTo($"/build-records/{result.BuildRecordId}");
             }
             else
             {

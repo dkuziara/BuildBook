@@ -1,0 +1,119 @@
+@page "/build-records/{BuildRecordId:int}"
+
+@attribute [Authorize(Policy = BuildBookPolicies.ViewBuildRecords)]
+
+@inject IBuildRecordDetailReader BuildRecordDetailReader
+
+<PageTitle>@PageTitleText</PageTitle>
+
+@if (isLoading)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading Build Record...</p>
+    </section>
+}
+else if (buildRecord is null)
+{
+    <section class="page-heading">
+        <p class="eyebrow">Build Records</p>
+        <h1>Build Record not found.</h1>
+        <p>The record may not exist, or it may no longer be active.</p>
+    </section>
+
+    <p>
+        <a class="secondary-link" href="/build-register">Back to Build Register</a>
+    </p>
+}
+else
+{
+    <section class="page-heading">
+        <p class="eyebrow">Build Record</p>
+        <h1>@buildRecord.ProductName</h1>
+        <p>@buildRecord.ProductCode · Serial @buildRecord.SerialNumber</p>
+    </section>
+
+    <section class="detail-panel" aria-labelledby="build-record-summary-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="build-record-summary-heading">Summary</h2>
+                <p>Important information for this device.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Product code</dt>
+                <dd>@buildRecord.ProductCode</dd>
+            </div>
+            <div>
+                <dt>Serial number</dt>
+                <dd>@buildRecord.SerialNumber</dd>
+            </div>
+            <div>
+                <dt>Classification</dt>
+                <dd>@Display(buildRecord.ProductClassification)</dd>
+            </div>
+            <div>
+                <dt>Status</dt>
+                <dd>@Display(buildRecord.InternalStatus)</dd>
+            </div>
+            <div>
+                <dt>Customer</dt>
+                <dd>@Display(buildRecord.CustomerName)</dd>
+            </div>
+            <div>
+                <dt>Machine name</dt>
+                <dd>@Display(buildRecord.MachineName)</dd>
+            </div>
+            <div>
+                <dt>RadSight version</dt>
+                <dd>@Display(buildRecord.RadSightVersion)</dd>
+            </div>
+            <div>
+                <dt>Windows version</dt>
+                <dd>@Display(buildRecord.WindowsVersion)</dd>
+            </div>
+            <div>
+                <dt>Date shipped</dt>
+                <dd>@Display(buildRecord.DateShipped)</dd>
+            </div>
+            <div>
+                <dt>Last updated</dt>
+                <dd>@buildRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</dd>
+            </div>
+        </dl>
+    </section>
+
+    <p class="detail-actions">
+        <a class="secondary-link" href="/build-register">Back to Build Register</a>
+    </p>
+}
+
+@code {
+    [Parameter]
+    public int BuildRecordId { get; set; }
+
+    private BuildRecordDetailModel? buildRecord;
+    private bool isLoading = true;
+
+    private string PageTitleText => buildRecord is null
+        ? "Build Record"
+        : $"{buildRecord.ProductName} - {buildRecord.SerialNumber}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
+        isLoading = false;
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private static string Display(DateOnly? value)
+    {
+        return value?.ToString("d MMM yyyy") ?? "Not recorded";
+    }
+}

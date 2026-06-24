@@ -21,9 +21,11 @@ public class InfrastructureRegistrationTests
         using var provider = services.BuildServiceProvider();
         var factory = provider.GetRequiredService<IDbContextFactory<BuildBookDbContext>>();
         var creator = provider.GetRequiredService<IBuildRecordCreator>();
+        var detailReader = provider.GetRequiredService<IBuildRecordDetailReader>();
 
         Assert.NotNull(factory);
         Assert.NotNull(creator);
+        Assert.NotNull(detailReader);
     }
 
     [Fact]
