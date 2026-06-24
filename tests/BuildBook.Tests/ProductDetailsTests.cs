@@ -41,9 +41,9 @@ public class ProductDetailsTests
     [Fact]
     public void FailureResultReturnsErrors()
     {
-        var result = UpdateProductDetailsResult.Failure("Serial number is required.");
+        var result = UpdateProductDetailsResult.Failure("A Build Record with this serial number already exists.");
 
         Assert.False(result.Succeeded);
-        Assert.Equal(["Serial number is required."], result.Errors);
+        Assert.Equal(["A Build Record with this serial number already exists."], result.Errors);
     }
 }

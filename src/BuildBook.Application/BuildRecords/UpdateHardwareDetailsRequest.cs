@@ -12,7 +12,5 @@ public sealed class UpdateHardwareDetailsRequest
 
     public string? RadioSerialNumber { get; set; }
 
-    public string? RouterUsed { get; set; }
-
     public string? HardwareNotes { get; set; }
 }

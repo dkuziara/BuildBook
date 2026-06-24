@@ -38,10 +38,10 @@ public class CreateBuildRecordTests
     [Fact]
     public void FailureResultDoesNotExposeBuildRecordId()
     {
-        var result = CreateBuildRecordResult.Failure("Serial number is required.");
+        var result = CreateBuildRecordResult.Failure("A Build Record with this serial number already exists.");
 
         Assert.False(result.Succeeded);
         Assert.Null(result.BuildRecordId);
-        Assert.Equal(["Serial number is required."], result.Errors);
+        Assert.Equal(["A Build Record with this serial number already exists."], result.Errors);
     }
 }

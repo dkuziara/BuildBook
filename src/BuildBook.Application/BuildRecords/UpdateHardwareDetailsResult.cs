@@ -2,23 +2,29 @@ namespace BuildBook.Application.BuildRecords;
 
 public sealed class UpdateHardwareDetailsResult
 {
-    private UpdateHardwareDetailsResult(bool succeeded, IReadOnlyList<string> errors)
+    private UpdateHardwareDetailsResult(
+        bool succeeded,
+        IReadOnlyList<string> errors,
+        IReadOnlyList<string> warnings)
     {
         Succeeded = succeeded;
         Errors = errors;
+        Warnings = warnings;
     }
 
     public bool Succeeded { get; }
 
     public IReadOnlyList<string> Errors { get; }
 
-    public static UpdateHardwareDetailsResult Success()
+    public IReadOnlyList<string> Warnings { get; }
+
+    public static UpdateHardwareDetailsResult Success(params string[] warnings)
     {
-        return new UpdateHardwareDetailsResult(true, []);
+        return new UpdateHardwareDetailsResult(true, [], warnings);
     }
 
     public static UpdateHardwareDetailsResult Failure(params string[] errors)
     {
-        return new UpdateHardwareDetailsResult(false, errors);
+        return new UpdateHardwareDetailsResult(false, errors, []);
     }
 }

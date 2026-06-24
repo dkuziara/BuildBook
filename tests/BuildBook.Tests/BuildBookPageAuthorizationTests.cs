@@ -104,6 +104,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Hardware notes", pageContent);
         Assert.Contains("Wi-Fi SSID", pageContent);
         Assert.Contains("Note", pageContent);
+        Assert.Contains("Saved with warnings.", pageContent);
+        Assert.Contains("saveWarnings", pageContent);
         Assert.Contains("Disk image version", pageContent);
         Assert.Contains("RadSight version", pageContent);
         Assert.Contains("Windows version", pageContent);

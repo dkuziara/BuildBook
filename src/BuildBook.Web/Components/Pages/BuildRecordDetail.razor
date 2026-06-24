@@ -48,6 +48,19 @@ else
         </div>
     }
 
+    @if (saveWarnings.Count > 0)
+    {
+        <div class="status-message warning" role="status">
+            <p>Saved with warnings.</p>
+            <ul>
+                @foreach (var warning in saveWarnings)
+                {
+                    <li>@warning</li>
+                }
+            </ul>
+        </div>
+    }
+
     <section class="detail-panel" aria-labelledby="build-record-summary-heading">
         <div class="detail-panel-header">
             <div>
@@ -812,6 +825,7 @@ else
     private bool isSavingNotes;
     private bool saveSucceeded;
     private string saveMessage = string.Empty;
+    private readonly List<string> saveWarnings = [];
 
     private static IReadOnlyList<InternalStatus> InternalStatusOptions { get; } =
         Enum.GetValues<InternalStatus>();
@@ -825,6 +839,7 @@ else
         isLoading = true;
         buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
         customerOptions = await CustomerOptionsReader.ListActiveAsync();
+        saveWarnings.Clear();
         isEditingProductDetails = false;
         isEditingBuildDetails = false;
         isEditingCustomerShipping = false;
@@ -862,6 +877,7 @@ else
         productDetailErrors.Clear();
         saveSucceeded = false;
         saveMessage = string.Empty;
+        saveWarnings.Clear();
         isEditingBuildDetails = false;
         isEditingCustomerShipping = false;
         isEditingHardwareDetails = false;
@@ -893,6 +909,7 @@ else
         buildDetailErrors.Clear();
         saveSucceeded = false;
         saveMessage = string.Empty;
+        saveWarnings.Clear();
         isEditingProductDetails = false;
         isEditingCustomerShipping = false;
         isEditingHardwareDetails = false;
@@ -920,6 +937,7 @@ else
         customerShippingErrors.Clear();
         saveSucceeded = false;
         saveMessage = string.Empty;
+        saveWarnings.Clear();
         isEditingProductDetails = false;
         isEditingBuildDetails = false;
         isEditingHardwareDetails = false;
@@ -948,6 +966,7 @@ else
         hardwareDetailErrors.Clear();
         saveSucceeded = false;
         saveMessage = string.Empty;
+        saveWarnings.Clear();
         isEditingProductDetails = false;
         isEditingBuildDetails = false;
         isEditingCustomerShipping = false;
@@ -977,6 +996,7 @@ else
         softwareFirmwareErrors.Clear();
         saveSucceeded = false;
         saveMessage = string.Empty;
+        saveWarnings.Clear();
         isEditingProductDetails = false;
         isEditingBuildDetails = false;
         isEditingCustomerShipping = false;
@@ -1002,6 +1022,7 @@ else
         networkDetailErrors.Clear();
         saveSucceeded = false;
         saveMessage = string.Empty;
+        saveWarnings.Clear();
         isEditingProductDetails = false;
         isEditingBuildDetails = false;
         isEditingCustomerShipping = false;
@@ -1041,6 +1062,7 @@ else
         isSavingProductDetails = true;
         saveSucceeded = false;
         productDetailErrors.Clear();
+        saveWarnings.Clear();
 
         try
         {
@@ -1082,6 +1104,7 @@ else
         saveSucceeded = false;
         saveMessage = string.Empty;
         buildDetailErrors.Clear();
+        saveWarnings.Clear();
 
         try
         {
@@ -1123,6 +1146,7 @@ else
         saveSucceeded = false;
         saveMessage = string.Empty;
         customerShippingErrors.Clear();
+        saveWarnings.Clear();
 
         try
         {
@@ -1164,6 +1188,7 @@ else
         saveSucceeded = false;
         saveMessage = string.Empty;
         hardwareDetailErrors.Clear();
+        saveWarnings.Clear();
 
         try
         {
@@ -1177,6 +1202,7 @@ else
                 isEditingHardwareDetails = false;
                 saveSucceeded = true;
                 saveMessage = "Hardware details were saved.";
+                saveWarnings.AddRange(result.Warnings);
             }
             else
             {
@@ -1205,6 +1231,7 @@ else
         saveSucceeded = false;
         saveMessage = string.Empty;
         softwareFirmwareErrors.Clear();
+        saveWarnings.Clear();
 
         try
         {
@@ -1246,6 +1273,7 @@ else
         saveSucceeded = false;
         saveMessage = string.Empty;
         networkDetailErrors.Clear();
+        saveWarnings.Clear();
 
         try
         {
@@ -1288,6 +1316,7 @@ else
         saveSucceeded = false;
         saveMessage = string.Empty;
         notesErrors.Clear();
+        saveWarnings.Clear();
 
         try
         {

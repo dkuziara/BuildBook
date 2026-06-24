@@ -32,8 +32,9 @@ public sealed class HardwareDetailsUpdater(
         var panelFirmwareVersion = NormalizeOptionalValue(request.PanelFirmwareVersion);
         var machineName = NormalizeOptionalValue(request.MachineName);
         var radioSerialNumber = NormalizeOptionalValue(request.RadioSerialNumber);
-        var routerUsed = NormalizeOptionalValue(request.RouterUsed);
         var hardwareNotes = NormalizeOptionalValue(request.HardwareNotes);
+
+        var warnings = new List<string>();
 
         if (machineName is not null
             && await dbContext.BuildRecords.AnyAsync(
@@ -42,7 +43,7 @@ public sealed class HardwareDetailsUpdater(
                     && record.MachineName == machineName,
                 cancellationToken))
         {
-            return UpdateHardwareDetailsResult.Failure("A Build Record with this machine name already exists.");
+            warnings.Add("Another Build Record already uses this machine name.");
         }
 
         var auditEntries = CreateAuditEntries(
@@ -52,13 +53,12 @@ public sealed class HardwareDetailsUpdater(
             panelFirmwareVersion,
             machineName,
             radioSerialNumber,
-            routerUsed,
             hardwareNotes,
             userName);
 
         if (auditEntries.Count == 0)
         {
-            return UpdateHardwareDetailsResult.Success();
+            return UpdateHardwareDetailsResult.Success(warnings.ToArray());
         }
 
         buildRecord.PanelDeviceModel = panelDeviceModel;
@@ -66,7 +66,6 @@ public sealed class HardwareDetailsUpdater(
         buildRecord.PanelFirmwareVersion = panelFirmwareVersion;
         buildRecord.MachineName = machineName;
         buildRecord.RadioSerialNumber = radioSerialNumber;
-        buildRecord.RouterUsed = routerUsed;
         buildRecord.HardwareNotes = hardwareNotes;
         buildRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
         buildRecord.LastUpdatedBy = userName;
@@ -74,7 +73,7 @@ public sealed class HardwareDetailsUpdater(
         await dbContext.BuildRecordAudit.AddRangeAsync(auditEntries, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return UpdateHardwareDetailsResult.Success();
+        return UpdateHardwareDetailsResult.Success(warnings.ToArray());
     }
 
     private static string? NormalizeOptionalValue(string? value)
@@ -89,7 +88,6 @@ public sealed class HardwareDetailsUpdater(
         string? panelFirmwareVersion,
         string? machineName,
         string? radioSerialNumber,
-        string? routerUsed,
         string? hardwareNotes,
         string userName)
     {
@@ -100,7 +98,6 @@ public sealed class HardwareDetailsUpdater(
         AddAuditEntryIfChanged(auditEntries, buildRecord, "PanelFirmwareVersion", buildRecord.PanelFirmwareVersion, panelFirmwareVersion, userName);
         AddAuditEntryIfChanged(auditEntries, buildRecord, "MachineName", buildRecord.MachineName, machineName, userName);
         AddAuditEntryIfChanged(auditEntries, buildRecord, "RadioSerialNumber", buildRecord.RadioSerialNumber, radioSerialNumber, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "RouterUsed", buildRecord.RouterUsed, routerUsed, userName);
         AddAuditEntryIfChanged(auditEntries, buildRecord, "HardwareNotes", buildRecord.HardwareNotes, hardwareNotes, userName);
 
         return auditEntries;

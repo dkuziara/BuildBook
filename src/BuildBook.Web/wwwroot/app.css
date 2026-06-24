@@ -181,6 +181,12 @@ body {
     color: #7a1d16;
 }
 
+.status-message.warning {
+    background: #fff7df;
+    border: 1px solid #e3c875;
+    color: #5b4510;
+}
+
 .detail-panel {
     background: #ffffff;
     border: 1px solid #d9e0ea;
