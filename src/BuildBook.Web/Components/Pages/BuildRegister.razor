@@ -83,17 +83,17 @@ else
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th scope="col">Product code</th>
-                        <th scope="col">Product name</th>
-                        <th scope="col">Serial number</th>
-                        <th scope="col">Customer</th>
-                        <th scope="col">Machine name</th>
-                        <th scope="col">RadSight version</th>
-                        <th scope="col">Windows version</th>
-                        <th scope="col">Date assembled</th>
-                        <th scope="col">Date shipped</th>
-                        <th scope="col">Checked by</th>
-                        <th scope="col">Last updated</th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(BuildRegisterSortColumn.ProductCode))">Product code @SortIndicator(BuildRegisterSortColumn.ProductCode)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(BuildRegisterSortColumn.ProductName))">Product name @SortIndicator(BuildRegisterSortColumn.ProductName)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(BuildRegisterSortColumn.SerialNumber))">Serial number @SortIndicator(BuildRegisterSortColumn.SerialNumber)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(BuildRegisterSortColumn.Customer))">Customer @SortIndicator(BuildRegisterSortColumn.Customer)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(BuildRegisterSortColumn.MachineName))">Machine name @SortIndicator(BuildRegisterSortColumn.MachineName)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(BuildRegisterSortColumn.RadSightVersion))">RadSight version @SortIndicator(BuildRegisterSortColumn.RadSightVersion)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(BuildRegisterSortColumn.WindowsVersion))">Windows version @SortIndicator(BuildRegisterSortColumn.WindowsVersion)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(BuildRegisterSortColumn.DateAssembled))">Date assembled @SortIndicator(BuildRegisterSortColumn.DateAssembled)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(BuildRegisterSortColumn.DateShipped))">Date shipped @SortIndicator(BuildRegisterSortColumn.DateShipped)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(BuildRegisterSortColumn.CheckedBy))">Checked by @SortIndicator(BuildRegisterSortColumn.CheckedBy)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(BuildRegisterSortColumn.LastUpdated))">Last updated @SortIndicator(BuildRegisterSortColumn.LastUpdated)</button></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -143,6 +143,21 @@ else
         await LoadBuildRecordsAsync();
     }
 
+    private async Task SortByAsync(BuildRegisterSortColumn column)
+    {
+        if (filterModel.SortBy == column)
+        {
+            filterModel.SortDescending = !filterModel.SortDescending;
+        }
+        else
+        {
+            filterModel.SortBy = column;
+            filterModel.SortDescending = column == BuildRegisterSortColumn.LastUpdated;
+        }
+
+        await LoadBuildRecordsAsync(filterModel);
+    }
+
     private async Task LoadBuildRecordsAsync(BuildRegisterFilter? filter = null)
     {
         isLoading = true;
@@ -159,5 +174,15 @@ else
     private static string Display(DateOnly? value)
     {
         return value?.ToString("d MMM yyyy") ?? "Not recorded";
+    }
+
+    private string SortIndicator(BuildRegisterSortColumn column)
+    {
+        if (filterModel.SortBy != column)
+        {
+            return string.Empty;
+        }
+
+        return filterModel.SortDescending ? "v" : "^";
     }
 }

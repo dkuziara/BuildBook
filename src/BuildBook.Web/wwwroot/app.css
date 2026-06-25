@@ -318,6 +318,17 @@ body {
     text-transform: uppercase;
 }
 
+.sort-button {
+    background: transparent;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    padding: 0;
+    text-align: left;
+}
+
 .data-table td {
     color: #172033;
     overflow-wrap: anywhere;

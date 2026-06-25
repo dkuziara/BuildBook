@@ -57,6 +57,9 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("FormName=\"build-register-filters\"", pageContent);
         Assert.Contains("Apply filters", pageContent);
         Assert.Contains("Clear filters", pageContent);
+        Assert.Contains("SortByAsync(BuildRegisterSortColumn.ProductCode)", pageContent);
+        Assert.Contains("SortByAsync(BuildRegisterSortColumn.LastUpdated)", pageContent);
+        Assert.Contains("SortIndicator(BuildRegisterSortColumn.ProductCode)", pageContent);
         Assert.Contains("Product code", pageContent);
         Assert.Contains("Product name", pageContent);
         Assert.Contains("Serial number", pageContent);

@@ -45,4 +45,13 @@ public class BuildRegisterTests
         Assert.True(customerFilter.HasAnyFilter());
         Assert.True(dateFilter.HasAnyFilter());
     }
+
+    [Fact]
+    public void FilterDefaultsToLastUpdatedDescending()
+    {
+        var filter = new BuildRegisterFilter();
+
+        Assert.Equal(BuildRegisterSortColumn.LastUpdated, filter.SortBy);
+        Assert.True(filter.SortDescending);
+    }
 }

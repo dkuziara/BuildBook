@@ -53,9 +53,9 @@ public sealed class BuildRegisterReader(
             }
         }
 
+        query = ApplySorting(query, filter);
+
         return await query
-            .OrderByDescending(buildRecord => buildRecord.LastUpdatedAt)
-            .ThenBy(buildRecord => buildRecord.SerialNumber)
             .Select(buildRecord => new BuildRegisterRow(
                 buildRecord.Id,
                 buildRecord.ProductCode,
@@ -70,6 +70,42 @@ public sealed class BuildRegisterReader(
                 buildRecord.CheckedBy,
                 buildRecord.LastUpdatedAt))
             .ToListAsync(cancellationToken);
+    }
+
+    private static IQueryable<Domain.BuildRecords.BuildRecord> ApplySorting(
+        IQueryable<Domain.BuildRecords.BuildRecord> query,
+        BuildRegisterFilter? filter)
+    {
+        var sortBy = filter?.SortBy ?? BuildRegisterSortColumn.LastUpdated;
+        var sortDescending = filter?.SortDescending ?? true;
+
+        IOrderedQueryable<Domain.BuildRecords.BuildRecord> orderedQuery = (sortBy, sortDescending) switch
+        {
+            (BuildRegisterSortColumn.ProductCode, false) => query.OrderBy(buildRecord => buildRecord.ProductCode),
+            (BuildRegisterSortColumn.ProductCode, true) => query.OrderByDescending(buildRecord => buildRecord.ProductCode),
+            (BuildRegisterSortColumn.ProductName, false) => query.OrderBy(buildRecord => buildRecord.ProductName),
+            (BuildRegisterSortColumn.ProductName, true) => query.OrderByDescending(buildRecord => buildRecord.ProductName),
+            (BuildRegisterSortColumn.SerialNumber, false) => query.OrderBy(buildRecord => buildRecord.SerialNumber),
+            (BuildRegisterSortColumn.SerialNumber, true) => query.OrderByDescending(buildRecord => buildRecord.SerialNumber),
+            (BuildRegisterSortColumn.Customer, false) => query.OrderBy(buildRecord => buildRecord.Customer == null ? null : buildRecord.Customer.Name),
+            (BuildRegisterSortColumn.Customer, true) => query.OrderByDescending(buildRecord => buildRecord.Customer == null ? null : buildRecord.Customer.Name),
+            (BuildRegisterSortColumn.MachineName, false) => query.OrderBy(buildRecord => buildRecord.MachineName),
+            (BuildRegisterSortColumn.MachineName, true) => query.OrderByDescending(buildRecord => buildRecord.MachineName),
+            (BuildRegisterSortColumn.RadSightVersion, false) => query.OrderBy(buildRecord => buildRecord.RadSightVersion),
+            (BuildRegisterSortColumn.RadSightVersion, true) => query.OrderByDescending(buildRecord => buildRecord.RadSightVersion),
+            (BuildRegisterSortColumn.WindowsVersion, false) => query.OrderBy(buildRecord => buildRecord.WindowsVersion),
+            (BuildRegisterSortColumn.WindowsVersion, true) => query.OrderByDescending(buildRecord => buildRecord.WindowsVersion),
+            (BuildRegisterSortColumn.DateAssembled, false) => query.OrderBy(buildRecord => buildRecord.DateAssembled),
+            (BuildRegisterSortColumn.DateAssembled, true) => query.OrderByDescending(buildRecord => buildRecord.DateAssembled),
+            (BuildRegisterSortColumn.DateShipped, false) => query.OrderBy(buildRecord => buildRecord.DateShipped),
+            (BuildRegisterSortColumn.DateShipped, true) => query.OrderByDescending(buildRecord => buildRecord.DateShipped),
+            (BuildRegisterSortColumn.CheckedBy, false) => query.OrderBy(buildRecord => buildRecord.CheckedBy),
+            (BuildRegisterSortColumn.CheckedBy, true) => query.OrderByDescending(buildRecord => buildRecord.CheckedBy),
+            (BuildRegisterSortColumn.LastUpdated, false) => query.OrderBy(buildRecord => buildRecord.LastUpdatedAt),
+            _ => query.OrderByDescending(buildRecord => buildRecord.LastUpdatedAt)
+        };
+
+        return orderedQuery.ThenBy(buildRecord => buildRecord.SerialNumber);
     }
 
     private static string CreateLikePattern(string value)

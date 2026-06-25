@@ -2,6 +2,10 @@ namespace BuildBook.Application.BuildRecords;
 
 public sealed class BuildRegisterFilter
 {
+    public BuildRegisterSortColumn SortBy { get; set; } = BuildRegisterSortColumn.LastUpdated;
+
+    public bool SortDescending { get; set; } = true;
+
     public string? Customer { get; set; }
 
     public string? ProductCode { get; set; }
