@@ -9,6 +9,7 @@ public class BuildBookPageAuthorizationTests
     [InlineData("BuildRegister.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRecordDetail.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("CreateBuildRecord.razor", BuildBookPolicies.EditBuildRecords)]
+    [InlineData("ImportSpreadsheet.razor", BuildBookPolicies.ImportSpreadsheet)]
     [InlineData("Reports.razor", BuildBookPolicies.ExportNonSensitiveData)]
     [InlineData("Admin.razor", BuildBookPolicies.ManageUsers)]
     public void PagesDeclareExpectedAuthorizationPolicy(string pageFileName, string expectedPolicy)
@@ -33,6 +34,24 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ViewBuildRecords)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ExportNonSensitiveData)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ManageUsers)}\"", layoutContent);
+    }
+
+    [Fact]
+    public void ImportSpreadsheetPageDefinesExpectedRouteAndUploadControls()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("ImportSpreadsheet.razor"));
+
+        Assert.Contains("@page \"/imports/upload\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("Upload Spreadsheet", pageContent);
+        Assert.Contains("InputFile", pageContent);
+        Assert.Contains("HandleFileSelected", pageContent);
+        Assert.Contains("UploadSpreadsheetAsync", pageContent);
+        Assert.Contains("accept=\".xlsx,.xls,.csv\"", pageContent);
+        Assert.Contains("MaximumUploadBytes", pageContent);
+        Assert.Contains("AllowedExtensions", pageContent);
+        Assert.Contains("Choose an Excel workbook or CSV file.", pageContent);
+        Assert.Contains("The spreadsheet must be 25 MB or smaller.", pageContent);
     }
 
     [Fact]
@@ -200,6 +219,16 @@ public class BuildBookPageAuthorizationTests
     }
 
     [Fact]
+    public void AdminPageLinksToSpreadsheetUpload()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("Admin.razor"));
+
+        Assert.Contains("Spreadsheet Import", pageContent);
+        Assert.Contains("/imports/upload", pageContent);
+        Assert.Contains("Open Upload Screen", pageContent);
+    }
+
+    [Fact]
     public void RoutesShowAccessDeniedForAuthenticatedUnauthorizedUsers()
     {
         var routesPath = Path.Combine(
@@ -238,6 +267,7 @@ public class BuildBookPageAuthorizationTests
         {
             BuildBookPolicies.ViewBuildRecords => nameof(BuildBookPolicies.ViewBuildRecords),
             BuildBookPolicies.EditBuildRecords => nameof(BuildBookPolicies.EditBuildRecords),
+            BuildBookPolicies.ImportSpreadsheet => nameof(BuildBookPolicies.ImportSpreadsheet),
             BuildBookPolicies.ExportNonSensitiveData => nameof(BuildBookPolicies.ExportNonSensitiveData),
             BuildBookPolicies.ManageUsers => nameof(BuildBookPolicies.ManageUsers),
             _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, "No constant-name assertion is configured for this policy.")

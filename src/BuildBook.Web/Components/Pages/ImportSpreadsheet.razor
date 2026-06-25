@@ -1,0 +1,166 @@
+@page "/imports/upload"
+@rendermode InteractiveServer
+
+@attribute [Authorize(Policy = BuildBookPolicies.ImportSpreadsheet)]
+
+<PageTitle>Import Spreadsheet</PageTitle>
+
+<section class="page-heading">
+    <p class="eyebrow">Import</p>
+    <h1>Upload Spreadsheet</h1>
+    <p>Upload the existing spreadsheet so it can be reviewed and prepared for import.</p>
+</section>
+
+@if (uploadSucceeded)
+{
+    <div class="status-message success" role="status">
+        @statusMessage
+    </div>
+}
+
+@if (uploadErrors.Count > 0)
+{
+    <div class="status-message error" role="alert">
+        <p>The spreadsheet could not be uploaded.</p>
+        <ul>
+            @foreach (var error in uploadErrors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    </div>
+}
+
+<section class="detail-panel" aria-labelledby="import-upload-heading">
+    <div class="detail-panel-header">
+        <div>
+            <h2 id="import-upload-heading">Spreadsheet Upload</h2>
+            <p>Accepted file types: Excel workbook or CSV.</p>
+        </div>
+    </div>
+
+    <div class="form-grid">
+        <div class="form-field form-field-wide">
+            <label for="import-spreadsheet-file">Spreadsheet file</label>
+            <InputFile id="import-spreadsheet-file" OnChange="HandleFileSelected" accept=".xlsx,.xls,.csv" />
+        </div>
+    </div>
+
+    <dl class="summary-list import-upload-summary">
+        <div>
+            <dt>Selected file</dt>
+            <dd>@(selectedFile is null ? "No file selected" : selectedFile.Name)</dd>
+        </div>
+        <div>
+            <dt>File size</dt>
+            <dd>@DisplayFileSize(selectedFile?.Size)</dd>
+        </div>
+    </dl>
+
+    <div class="form-actions">
+        <button type="button" class="primary-button" disabled="@isUploading" @onclick="UploadSpreadsheetAsync">
+            @(isUploading ? "Uploading..." : "Upload Spreadsheet")
+        </button>
+        <a class="secondary-link" href="/admin">Back to Admin</a>
+    </div>
+</section>
+
+@code {
+    private const long MaximumUploadBytes = 25 * 1024 * 1024;
+    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".xlsx",
+        ".xls",
+        ".csv"
+    };
+
+    private IBrowserFile? selectedFile;
+    private readonly List<string> uploadErrors = [];
+    private bool isUploading;
+    private bool uploadSucceeded;
+    private string statusMessage = string.Empty;
+
+    private void HandleFileSelected(InputFileChangeEventArgs eventArgs)
+    {
+        uploadErrors.Clear();
+        uploadSucceeded = false;
+        statusMessage = string.Empty;
+        selectedFile = eventArgs.File;
+
+        if (selectedFile is null)
+        {
+            uploadErrors.Add("Choose a spreadsheet file to continue.");
+            return;
+        }
+
+        ValidateSelectedFile(selectedFile);
+    }
+
+    private async Task UploadSpreadsheetAsync()
+    {
+        uploadErrors.Clear();
+        uploadSucceeded = false;
+        statusMessage = string.Empty;
+
+        if (selectedFile is null)
+        {
+            uploadErrors.Add("Choose a spreadsheet file to continue.");
+            return;
+        }
+
+        ValidateSelectedFile(selectedFile);
+        if (uploadErrors.Count > 0)
+        {
+            return;
+        }
+
+        isUploading = true;
+
+        try
+        {
+            await using var uploadStream = selectedFile.OpenReadStream(MaximumUploadBytes);
+            await uploadStream.CopyToAsync(Stream.Null);
+
+            uploadSucceeded = true;
+            statusMessage = $"Spreadsheet '{selectedFile.Name}' was uploaded and is ready for import review.";
+        }
+        catch (IOException)
+        {
+            uploadErrors.Add("The spreadsheet could not be read. Try choosing the file again.");
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private void ValidateSelectedFile(IBrowserFile file)
+    {
+        var extension = Path.GetExtension(file.Name);
+
+        if (!AllowedExtensions.Contains(extension))
+        {
+            uploadErrors.Add("Choose an Excel workbook or CSV file.");
+        }
+
+        if (file.Size <= 0)
+        {
+            uploadErrors.Add("The selected file is empty.");
+        }
+        else if (file.Size > MaximumUploadBytes)
+        {
+            uploadErrors.Add("The spreadsheet must be 25 MB or smaller.");
+        }
+    }
+
+    private static string DisplayFileSize(long? fileSizeBytes)
+    {
+        if (fileSizeBytes is null)
+        {
+            return "Not available";
+        }
+
+        var sizeInMegabytes = fileSizeBytes.Value / 1024d / 1024d;
+        return $"{sizeInMegabytes:0.##} MB";
+    }
+}
