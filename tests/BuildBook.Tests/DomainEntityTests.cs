@@ -101,4 +101,24 @@ public class DomainEntityTests
 
         Assert.Contains(nameof(Customer.Name), indexedProperties);
     }
+
+    [Fact]
+    public void BuildRecordSecretModelHasUniqueRecordAndTypeIndex()
+    {
+        var options = new DbContextOptionsBuilder<BuildBookDbContext>()
+            .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=BuildBookSecretIndexTest;Trusted_Connection=True;TrustServerCertificate=True")
+            .Options;
+
+        using var context = new BuildBookDbContext(options);
+        var secret = context.Model.FindEntityType(typeof(BuildRecordSecret));
+
+        Assert.NotNull(secret);
+
+        var uniqueIndexes = secret.GetIndexes()
+            .Where(index => index.IsUnique)
+            .Select(index => string.Join(",", index.Properties.Select(property => property.Name)))
+            .ToArray();
+
+        Assert.Contains("BuildRecordId,SecretType", uniqueIndexes);
+    }
 }

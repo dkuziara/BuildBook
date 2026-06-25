@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<BuildBookDatabaseInitializer>();
         services.AddScoped<IBuildRecordAuditService, BuildRecordAuditService>();
         services.AddScoped<IBuildRecordAuditHistoryReader, BuildRecordAuditHistoryReader>();
+        services.AddScoped<IBuildRecordSecretStore, BuildRecordSecretStore>();
         services.AddScoped<IBuildRecordCreator, BuildRecordCreator>();
         services.AddScoped<IHomePageReader, HomePageReader>();
         services.AddScoped<IBuildRegisterReader, BuildRegisterReader>();
