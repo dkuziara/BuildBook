@@ -6,6 +6,7 @@
 @attribute [Authorize(Policy = BuildBookPolicies.ImportSpreadsheet)]
 
 @inject ISpreadsheetImportMappingService SpreadsheetImportMappingService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Import Spreadsheet</PageTitle>
 
@@ -303,6 +304,55 @@
                 </table>
             </div>
         }
+
+        <div class="form-actions">
+            <button type="button" class="primary-button" disabled="@(importValidation.ErrorCount > 0 || isImporting)" @onclick="RunImportAsync">
+                @(isImporting ? "Importing..." : "Run Import")
+            </button>
+        </div>
+    </section>
+}
+
+@if (importExecution is not null)
+{
+    <section class="detail-panel detail-section" aria-labelledby="import-summary-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="import-summary-heading">Import Summary</h2>
+                <p>Normal Build Record fields have been converted into BuildBook records.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list import-upload-summary">
+            <div>
+                <dt>Import batch</dt>
+                <dd>@(importExecution.ImportBatchId?.ToString() ?? "Pending")</dd>
+            </div>
+            <div>
+                <dt>Rows read</dt>
+                <dd>@importExecution.RowsRead</dd>
+            </div>
+            <div>
+                <dt>Records created</dt>
+                <dd>@importExecution.RecordsCreated</dd>
+            </div>
+            <div>
+                <dt>Records skipped</dt>
+                <dd>@importExecution.RecordsSkipped</dd>
+            </div>
+            <div>
+                <dt>Warnings</dt>
+                <dd>@importExecution.WarningCount</dd>
+            </div>
+            <div>
+                <dt>Errors</dt>
+                <dd>@importExecution.ErrorCount</dd>
+            </div>
+        </dl>
+
+        <div class="status-message @(importExecution.WarningCount > 0 ? "warning" : "success")" role="status">
+            @importExecution.Summary
+        </div>
     </section>
 }
 
@@ -320,11 +370,13 @@
     private readonly List<string> mappingValidationErrors = [];
     private readonly Dictionary<string, string> selectedMappings = new(StringComparer.OrdinalIgnoreCase);
     private bool isUploading;
+    private bool isImporting;
     private bool uploadSucceeded;
     private string statusMessage = string.Empty;
     private SpreadsheetColumnMappingReview? mappingReview;
     private SpreadsheetImportPreview? importPreview;
     private SpreadsheetImportValidationResult? importValidation;
+    private SpreadsheetImportExecutionResult? importExecution;
 
     private int SelectedMappingCount => selectedMappings.Values.Count(value => !string.IsNullOrWhiteSpace(value));
 
@@ -341,6 +393,7 @@
         mappingReview = null;
         importPreview = null;
         importValidation = null;
+        importExecution = null;
         selectedMappings.Clear();
         selectedFile = eventArgs.File;
 
@@ -362,6 +415,7 @@
         mappingReview = null;
         importPreview = null;
         importValidation = null;
+        importExecution = null;
         selectedMappings.Clear();
 
         if (selectedFile is null)
@@ -409,6 +463,7 @@
         mappingValidationErrors.Clear();
         importPreview = null;
         importValidation = null;
+        importExecution = null;
 
         if (mappingReview is null)
         {
@@ -463,6 +518,7 @@
     private async Task ValidateImportAsync()
     {
         importValidation = null;
+        importExecution = null;
 
         if (selectedFile is null)
         {
@@ -477,6 +533,56 @@
         statusMessage = importValidation.ErrorCount > 0
             ? "Import validation found issues that need attention."
             : "Import validation completed. Review the warnings before continuing.";
+    }
+
+    private async Task RunImportAsync()
+    {
+        importExecution = null;
+
+        if (selectedFile is null)
+        {
+            mappingValidationErrors.Clear();
+            mappingValidationErrors.Add("Choose the spreadsheet file again before running the import.");
+            return;
+        }
+
+        if (importValidation is null)
+        {
+            mappingValidationErrors.Clear();
+            mappingValidationErrors.Add("Run validation before importing spreadsheet rows.");
+            return;
+        }
+
+        if (importValidation.ErrorCount > 0)
+        {
+            mappingValidationErrors.Clear();
+            mappingValidationErrors.Add("Fix validation errors before importing spreadsheet rows.");
+            return;
+        }
+
+        isImporting = true;
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var importedBy = authenticationState.User.Identity?.Name ?? "Unknown";
+
+            await using var uploadStream = selectedFile.OpenReadStream(MaximumUploadBytes);
+            importExecution = await SpreadsheetImportMappingService.BuildImportAsync(
+                selectedFile.Name,
+                uploadStream,
+                selectedMappings,
+                importedBy);
+
+            uploadSucceeded = true;
+            statusMessage = importExecution.WarningCount > 0
+                ? "Import completed with warnings. Review the summary below."
+                : "Import completed successfully.";
+        }
+        finally
+        {
+            isImporting = false;
+        }
     }
 
     private void ValidateSelectedFile(IBrowserFile file)
@@ -514,6 +620,7 @@
         mappingValidationErrors.Clear();
         importPreview = null;
         importValidation = null;
+        importExecution = null;
         return Task.CompletedTask;
     }
 

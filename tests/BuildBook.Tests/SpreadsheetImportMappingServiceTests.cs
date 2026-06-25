@@ -1,6 +1,9 @@
 using System.IO.Compression;
 using System.Text;
+using BuildBook.Domain.BuildRecords;
+using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.BuildRecords;
+using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Tests;
 
@@ -164,6 +167,88 @@ public class SpreadsheetImportMappingServiceTests
         Assert.Empty(validation.Issues);
     }
 
+    [Fact]
+    public async Task BuildImportAsync_CreatesBuildRecordsCustomersImportBatchAndAuditEntries()
+    {
+        await using var harness = await ImportHarness.CreateAsync();
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(
+            "Product Code,Product Name,Serial Number,Customer,Machine Name,Date Assembled,Wi-Fi Password\r\n" +
+            "CDM61100,RadSight Access Terminal,1000000,APVL,RADSIGHT-11996,2026-06-20,super-secret\r\n" +
+            "CDM61101,RadSight Access Terminal,1000001,APVL,RADSIGHT-11997,2026-06-21,another-secret\r\n"));
+
+        var result = await harness.Service.BuildImportAsync(
+            "buildbook-import.csv",
+            stream,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Product Code"] = "ProductCode",
+                ["Product Name"] = "ProductName",
+                ["Serial Number"] = "SerialNumber",
+                ["Customer"] = "Customer",
+                ["Machine Name"] = "MachineName",
+                ["Date Assembled"] = "DateAssembled",
+                ["Wi-Fi Password"] = "WifiPassword"
+            },
+            "DOMAIN\\importer");
+
+        Assert.NotNull(result.ImportBatchId);
+        Assert.Equal(2, result.RowsRead);
+        Assert.Equal(2, result.RecordsCreated);
+        Assert.Equal(0, result.RecordsSkipped);
+        Assert.Equal(0, result.WarningCount);
+        Assert.Equal(0, result.ErrorCount);
+
+        await using var verifyContext = harness.CreateContext();
+        var buildRecords = await verifyContext.BuildRecords.Include(record => record.Customer).OrderBy(record => record.SerialNumber).ToListAsync();
+        var importBatch = await verifyContext.Imports.SingleAsync();
+        var importAudit = await verifyContext.BuildRecordAudit.SingleAsync(entry => entry.Action == AuditAction.ImportPerformed);
+
+        Assert.Equal(2, buildRecords.Count);
+        Assert.Equal("APVL", buildRecords[0].Customer?.Name);
+        Assert.Equal(new DateOnly(2026, 6, 20), buildRecords[0].DateAssembled);
+        Assert.Equal(2, await verifyContext.BuildRecordAudit.CountAsync(entry => entry.Action == AuditAction.Created));
+        Assert.Empty(await verifyContext.BuildRecordSecrets.ToListAsync());
+        Assert.Equal(2, importBatch.RecordsCreated);
+        Assert.Equal(0, importBatch.RecordsSkipped);
+        Assert.Equal(0, importBatch.WarningCount);
+        Assert.Equal(ImportStatus.Completed, importBatch.Status);
+        Assert.Equal("Spreadsheet import", importAudit.FieldChanged);
+    }
+
+    [Fact]
+    public async Task BuildImportAsync_SkipsExistingSerialNumbersAndMarksWarnings()
+    {
+        await using var harness = await ImportHarness.CreateAsync(seedExistingRecord: true);
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(
+            "Product Code,Product Name,Serial Number,Customer\r\n" +
+            "CDM61100,RadSight Access Terminal,EXISTING-1000000,APVL\r\n" +
+            "CDM61101,RadSight Access Terminal,1000001,APVL\r\n"));
+
+        var result = await harness.Service.BuildImportAsync(
+            "buildbook-import.csv",
+            stream,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Product Code"] = "ProductCode",
+                ["Product Name"] = "ProductName",
+                ["Serial Number"] = "SerialNumber",
+                ["Customer"] = "Customer"
+            },
+            "DOMAIN\\importer");
+
+        Assert.Equal(2, result.RowsRead);
+        Assert.Equal(1, result.RecordsCreated);
+        Assert.Equal(1, result.RecordsSkipped);
+        Assert.Equal(1, result.WarningCount);
+        Assert.Equal(0, result.ErrorCount);
+
+        await using var verifyContext = harness.CreateContext();
+        var importBatch = await verifyContext.Imports.SingleAsync();
+
+        Assert.Equal(2, await verifyContext.BuildRecords.CountAsync());
+        Assert.Equal(ImportStatus.CompletedWithWarnings, importBatch.Status);
+    }
+
     private static MemoryStream CreateXlsxStream(IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>>? rows = null)
     {
         var stream = new MemoryStream();
@@ -306,5 +391,71 @@ public class SpreadsheetImportMappingServiceTests
         }
 
         return letters.ToString();
+    }
+
+    private sealed class ImportHarness : IAsyncDisposable
+    {
+        private ImportHarness(DbContextOptions<BuildBookDbContext> options, SpreadsheetImportMappingService service)
+        {
+            Options = options;
+            Service = service;
+        }
+
+        public DbContextOptions<BuildBookDbContext> Options { get; }
+
+        public SpreadsheetImportMappingService Service { get; }
+
+        public static async Task<ImportHarness> CreateAsync(bool seedExistingRecord = false)
+        {
+            var databaseName = $"BuildBookImport_{Guid.NewGuid():N}";
+            var connectionString = $"Server=(localdb)\\MSSQLLocalDB;Database={databaseName};Trusted_Connection=True;TrustServerCertificate=True";
+            var options = new DbContextOptionsBuilder<BuildBookDbContext>()
+                .UseSqlServer(connectionString)
+                .Options;
+
+            await using var setupContext = new BuildBookDbContext(options);
+            await setupContext.Database.MigrateAsync();
+
+            if (seedExistingRecord)
+            {
+                setupContext.BuildRecords.Add(new BuildRecord
+                {
+                    ProductCode = "SEEDED",
+                    ProductName = "Seeded Device",
+                    SerialNumber = "EXISTING-1000000",
+                    CreatedBy = "seed",
+                    LastUpdatedBy = "seed"
+                });
+                await setupContext.SaveChangesAsync();
+            }
+
+            var factory = new TestDbContextFactory(options);
+            var service = new SpreadsheetImportMappingService(factory, new BuildRecordAuditService());
+            return new ImportHarness(options, service);
+        }
+
+        public BuildBookDbContext CreateContext()
+        {
+            return new BuildBookDbContext(Options);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await using var context = CreateContext();
+            await context.Database.EnsureDeletedAsync();
+        }
+    }
+
+    private sealed class TestDbContextFactory(DbContextOptions<BuildBookDbContext> options) : IDbContextFactory<BuildBookDbContext>
+    {
+        public BuildBookDbContext CreateDbContext()
+        {
+            return new BuildBookDbContext(options);
+        }
+
+        public Task<BuildBookDbContext> CreateDbContextAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new BuildBookDbContext(options));
+        }
     }
 }

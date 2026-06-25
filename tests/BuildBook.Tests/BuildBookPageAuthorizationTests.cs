@@ -51,10 +51,15 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Column Mapping", pageContent);
         Assert.Contains("Import Preview", pageContent);
         Assert.Contains("Import Validation", pageContent);
+        Assert.Contains("Import Summary", pageContent);
         Assert.Contains("SaveColumnMappingAsync", pageContent);
         Assert.Contains("BuildPreviewAsync", pageContent);
         Assert.Contains("ValidateImportAsync", pageContent);
         Assert.Contains("BuildValidationAsync", pageContent);
+        Assert.Contains("RunImportAsync", pageContent);
+        Assert.Contains("BuildImportAsync", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("importExecution", pageContent);
         Assert.Contains("importValidation", pageContent);
         Assert.Contains("importPreview", pageContent);
         Assert.Contains("DisplayPreviewValue", pageContent);
@@ -71,6 +76,9 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Rows checked", pageContent);
         Assert.Contains("Severity", pageContent);
         Assert.Contains("No validation issues were found in the previewed import data.", pageContent);
+        Assert.Contains("Records created", pageContent);
+        Assert.Contains("Records skipped", pageContent);
+        Assert.Contains("Normal Build Record fields have been converted into BuildBook records.", pageContent);
     }
 
     [Fact]

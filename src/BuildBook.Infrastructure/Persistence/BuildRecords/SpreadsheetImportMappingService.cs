@@ -2,6 +2,9 @@ using System.Globalization;
 using System.IO.Compression;
 using System.Xml.Linq;
 using BuildBook.Application.BuildRecords;
+using BuildBook.Domain.BuildRecords;
+using BuildBook.Domain.Customers;
+using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence.BuildRecords;
 
@@ -9,6 +12,8 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
 {
     private const int MaximumPreviewRows = 10;
     private const string MaskedPreviewValue = "************";
+    private readonly IDbContextFactory<BuildBookDbContext>? dbContextFactory;
+    private readonly IBuildRecordAuditService? buildRecordAuditService;
 
     private static readonly IReadOnlyList<SpreadsheetImportFieldOption> AvailableFields =
     [
@@ -126,6 +131,18 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
         ["Router Password"] = "RouterPassword",
         ["BitLocker Recovery Key"] = "BitLockerRecoveryKey"
     };
+
+    public SpreadsheetImportMappingService()
+    {
+    }
+
+    public SpreadsheetImportMappingService(
+        IDbContextFactory<BuildBookDbContext> dbContextFactory,
+        IBuildRecordAuditService buildRecordAuditService)
+    {
+        this.dbContextFactory = dbContextFactory;
+        this.buildRecordAuditService = buildRecordAuditService;
+    }
 
     public async Task<SpreadsheetColumnMappingReview> BuildReviewAsync(
         string fileName,
@@ -290,6 +307,178 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
                 .ToArray(),
             ErrorCount = issues.Count(issue => issue.Severity == SpreadsheetImportValidationSeverity.Error),
             WarningCount = issues.Count(issue => issue.Severity == SpreadsheetImportValidationSeverity.Warning)
+        };
+    }
+
+    public async Task<SpreadsheetImportExecutionResult> BuildImportAsync(
+        string fileName,
+        Stream fileStream,
+        IReadOnlyDictionary<string, string> selectedMappings,
+        string importedBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (dbContextFactory is null || buildRecordAuditService is null)
+        {
+            throw new InvalidOperationException("Spreadsheet import execution requires database services.");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        ArgumentNullException.ThrowIfNull(fileStream);
+        ArgumentNullException.ThrowIfNull(selectedMappings);
+
+        var worksheetData = await ReadWorksheetDataAsync(fileName, fileStream, cancellationToken);
+        var effectiveMappings = selectedMappings
+            .Where(mapping => !string.IsNullOrWhiteSpace(mapping.Value))
+            .Where(mapping => worksheetData.Headers.Contains(mapping.Key, StringComparer.OrdinalIgnoreCase))
+            .Where(mapping => FieldLookup.TryGetValue(mapping.Value, out var field) && !field.IsSensitive)
+            .ToArray();
+        var rowIndexByHeader = worksheetData.Headers
+            .Select((header, index) => new { header, index })
+            .ToDictionary(item => item.header, item => item.index, StringComparer.OrdinalIgnoreCase);
+        var normalizedUserName = string.IsNullOrWhiteSpace(importedBy) ? "Unknown" : importedBy.Trim();
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var importBatch = new ImportBatch
+        {
+            SourceFileName = fileName,
+            ImportedAt = DateTimeOffset.UtcNow,
+            ImportedBy = normalizedUserName,
+            Status = ImportStatus.Pending,
+            RowsRead = worksheetData.Rows.Count
+        };
+        dbContext.Imports.Add(importBatch);
+
+        var existingCustomers = await dbContext.Customers
+            .Where(customer => customer.IsActive)
+            .ToDictionaryAsync(customer => customer.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
+        var existingSerialNumbers = await dbContext.BuildRecords
+            .Select(buildRecord => buildRecord.SerialNumber)
+            .ToListAsync(cancellationToken);
+        var knownSerialNumbers = new HashSet<string>(existingSerialNumbers, StringComparer.OrdinalIgnoreCase);
+
+        var createdRecords = 0;
+        var skippedRecords = 0;
+        var warningCount = 0;
+
+        foreach (var row in worksheetData.Rows)
+        {
+            var rowValues = effectiveMappings.ToDictionary(
+                mapping => mapping.Value,
+                mapping => row.Cells[rowIndexByHeader[mapping.Key]],
+                StringComparer.OrdinalIgnoreCase);
+
+            var serialNumber = NormalizeOptionalValue(GetRowValue(rowValues, "SerialNumber"));
+            var productCode = NormalizeOptionalValue(GetRowValue(rowValues, "ProductCode"));
+            var productName = NormalizeOptionalValue(GetRowValue(rowValues, "ProductName"));
+
+            if (string.IsNullOrWhiteSpace(serialNumber)
+                || string.IsNullOrWhiteSpace(productCode)
+                || string.IsNullOrWhiteSpace(productName))
+            {
+                skippedRecords++;
+                warningCount++;
+                continue;
+            }
+
+            if (!knownSerialNumbers.Add(serialNumber))
+            {
+                skippedRecords++;
+                warningCount++;
+                continue;
+            }
+
+            var customer = await GetOrCreateCustomerAsync(
+                dbContext,
+                existingCustomers,
+                NormalizeOptionalValue(GetRowValue(rowValues, "Customer")),
+                normalizedUserName,
+                cancellationToken);
+
+            var now = DateTimeOffset.UtcNow;
+            var buildRecord = new BuildRecord
+            {
+                ProductCode = productCode,
+                ProductName = productName,
+                ProductClassification = NormalizeOptionalValue(GetRowValue(rowValues, "ProductClassification")),
+                SerialNumber = serialNumber,
+                InternalStatus = ParseInternalStatus(GetRowValue(rowValues, "InternalStatus")),
+                AssembledIn = NormalizeOptionalValue(GetRowValue(rowValues, "AssembledIn")),
+                AssembledBy = NormalizeOptionalValue(GetRowValue(rowValues, "AssembledBy")),
+                DateAssembled = ParseOptionalDate(GetRowValue(rowValues, "DateAssembled")),
+                HardwareManufacturer = NormalizeOptionalValue(GetRowValue(rowValues, "HardwareManufacturer")),
+                ManufacturerPartNumber = NormalizeOptionalValue(GetRowValue(rowValues, "ManufacturerPartNumber")),
+                ManufacturerRevision = NormalizeOptionalValue(GetRowValue(rowValues, "ManufacturerRevision")),
+                ManufacturerSerialNumber = NormalizeOptionalValue(GetRowValue(rowValues, "ManufacturerSerialNumber")),
+                Customer = customer,
+                CustomerId = customer is not null && customer.Id > 0 ? customer.Id : null,
+                CustomerOrder = NormalizeOptionalValue(GetRowValue(rowValues, "CustomerOrder")),
+                OANumber = NormalizeOptionalValue(GetRowValue(rowValues, "OANumber")),
+                InvoiceNumber = NormalizeOptionalValue(GetRowValue(rowValues, "InvoiceNumber")),
+                DateShipped = ParseOptionalDate(GetRowValue(rowValues, "DateShipped")),
+                ShippingNotes = NormalizeOptionalValue(GetRowValue(rowValues, "ShippingNotes")),
+                PanelDeviceModel = NormalizeOptionalValue(GetRowValue(rowValues, "PanelDeviceModel")),
+                PanelDeviceSerial = NormalizeOptionalValue(GetRowValue(rowValues, "PanelDeviceSerial")),
+                PanelFirmwareVersion = NormalizeOptionalValue(GetRowValue(rowValues, "PanelFirmwareVersion")),
+                MachineName = NormalizeOptionalValue(GetRowValue(rowValues, "MachineName")),
+                RadioSerialNumber = NormalizeOptionalValue(GetRowValue(rowValues, "RadioSerialNumber")),
+                RouterUsed = NormalizeOptionalValue(GetRowValue(rowValues, "RouterUsed")),
+                HardwareNotes = NormalizeOptionalValue(GetRowValue(rowValues, "HardwareNotes")),
+                DiskImageVersion = NormalizeOptionalValue(GetRowValue(rowValues, "DiskImageVersion")),
+                RadSightVersion = NormalizeOptionalValue(GetRowValue(rowValues, "RadSightVersion")),
+                WindowsVersion = NormalizeOptionalValue(GetRowValue(rowValues, "WindowsVersion")),
+                WindowsLatestPatch = NormalizeOptionalValue(GetRowValue(rowValues, "WindowsLatestPatch")),
+                BleuvioFirmwareVersion = NormalizeOptionalValue(GetRowValue(rowValues, "BleuvioFirmwareVersion")),
+                CharthouseIrdaFirmwareVersion = NormalizeOptionalValue(GetRowValue(rowValues, "CharthouseIrdaFirmwareVersion")),
+                RadioFirmware = NormalizeOptionalValue(GetRowValue(rowValues, "RadioFirmware")),
+                RadSightUserLogin = NormalizeOptionalValue(GetRowValue(rowValues, "RadSightUserLogin")),
+                KioskUser = NormalizeOptionalValue(GetRowValue(rowValues, "KioskUser")),
+                WindowsAdminUser = NormalizeOptionalValue(GetRowValue(rowValues, "WindowsAdminUser")),
+                WifiSsid = NormalizeOptionalValue(GetRowValue(rowValues, "WifiSsid")),
+                PackingList = NormalizeOptionalValue(GetRowValue(rowValues, "PackingList")),
+                CheckedBy = NormalizeOptionalValue(GetRowValue(rowValues, "CheckedBy")),
+                Note = NormalizeOptionalValue(GetRowValue(rowValues, "Note")),
+                OriginalSpreadsheetRowNumber = row.RowNumber,
+                CreatedAt = now,
+                CreatedBy = normalizedUserName,
+                LastUpdatedAt = now,
+                LastUpdatedBy = normalizedUserName,
+                IsActive = true
+            };
+
+            dbContext.BuildRecords.Add(buildRecord);
+            dbContext.BuildRecordAudit.Add(buildRecordAuditService.CreateRecordCreatedEntry(buildRecord, normalizedUserName));
+            createdRecords++;
+        }
+
+        importBatch.RecordsCreated = createdRecords;
+        importBatch.RecordsSkipped = skippedRecords;
+        importBatch.WarningCount = warningCount;
+        importBatch.ErrorCount = 0;
+        importBatch.Status = warningCount > 0 ? ImportStatus.CompletedWithWarnings : ImportStatus.Completed;
+        importBatch.Summary = $"Rows read: {importBatch.RowsRead}. Records created: {createdRecords}. Records skipped: {skippedRecords}. Warnings: {warningCount}. Errors: 0.";
+
+        dbContext.BuildRecordAudit.Add(new BuildRecordAudit
+        {
+            OccurredAt = DateTimeOffset.UtcNow,
+            User = normalizedUserName,
+            Action = AuditAction.ImportPerformed,
+            FieldChanged = "Spreadsheet import",
+            OldValue = null,
+            NewValue = importBatch.Summary,
+            ImportBatch = importBatch
+        });
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new SpreadsheetImportExecutionResult
+        {
+            ImportBatchId = importBatch.Id,
+            RowsRead = importBatch.RowsRead,
+            RecordsCreated = importBatch.RecordsCreated,
+            RecordsSkipped = importBatch.RecordsSkipped,
+            WarningCount = importBatch.WarningCount,
+            ErrorCount = importBatch.ErrorCount,
+            Summary = importBatch.Summary ?? string.Empty
         };
     }
 
@@ -506,6 +695,87 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
                 Message = "Row appears incomplete."
             });
         }
+    }
+
+    private static string? GetRowValue(
+        IReadOnlyDictionary<string, string> rowValues,
+        string fieldKey)
+    {
+        return rowValues.TryGetValue(fieldKey, out var value) ? value : null;
+    }
+
+    private static string? NormalizeOptionalValue(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static DateOnly? ParseOptionalDate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (DateOnly.TryParse(value, CultureInfo.InvariantCulture, out var date)
+            || DateOnly.TryParse(value, CultureInfo.GetCultureInfo("en-GB"), out date)
+            || DateOnly.TryParse(value, CultureInfo.GetCultureInfo("en-US"), out date))
+        {
+            return date;
+        }
+
+        return null;
+    }
+
+    private static InternalStatus? ParseInternalStatus(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalizedValue = Normalize(value);
+        foreach (var status in Enum.GetValues<InternalStatus>())
+        {
+            if (Normalize(status.ToString()) == normalizedValue)
+            {
+                return status;
+            }
+        }
+
+        return null;
+    }
+
+    private static async Task<Customer?> GetOrCreateCustomerAsync(
+        BuildBookDbContext dbContext,
+        IDictionary<string, Customer> existingCustomers,
+        string? customerName,
+        string userName,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(customerName))
+        {
+            return null;
+        }
+
+        if (existingCustomers.TryGetValue(customerName, out var existingCustomer))
+        {
+            return existingCustomer;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var customer = new Customer
+        {
+            Name = customerName,
+            CreatedAt = now,
+            CreatedBy = userName,
+            LastUpdatedAt = now,
+            LastUpdatedBy = userName,
+            IsActive = true
+        };
+
+        await dbContext.Customers.AddAsync(customer, cancellationToken);
+        existingCustomers[customerName] = customer;
+        return customer;
     }
 
     private static string GetMappedValue(
