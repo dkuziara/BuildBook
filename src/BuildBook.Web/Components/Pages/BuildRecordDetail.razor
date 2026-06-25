@@ -4,6 +4,7 @@
 @attribute [Authorize(Policy = BuildBookPolicies.ViewBuildRecords)]
 
 @inject IBuildRecordDetailReader BuildRecordDetailReader
+@inject IBuildRecordAuditHistoryReader BuildRecordAuditHistoryReader
 @inject IProductDetailsUpdater ProductDetailsUpdater
 @inject IBuildDetailsUpdater BuildDetailsUpdater
 @inject ICustomerOptionsReader CustomerOptionsReader
@@ -784,6 +785,50 @@ else
         }
     </section>
 
+    <section class="detail-panel detail-section" aria-labelledby="history-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="history-heading">History</h2>
+                <p>Audit history for this Build Record.</p>
+            </div>
+        </div>
+
+        @if (auditHistory.Count == 0)
+        {
+            <p class="empty-state">No audit history has been recorded yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Date/time</th>
+                            <th scope="col">User</th>
+                            <th scope="col">Action</th>
+                            <th scope="col">Field changed</th>
+                            <th scope="col">Old value</th>
+                            <th scope="col">New value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var auditEntry in auditHistory)
+                        {
+                            <tr>
+                                <td>@auditEntry.OccurredAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                                <td>@DisplayAuditValue(auditEntry.User)</td>
+                                <td>@DisplayAuditAction(auditEntry.Action)</td>
+                                <td>@DisplayAuditValue(auditEntry.FieldChanged)</td>
+                                <td>@DisplayAuditValue(auditEntry.OldValue)</td>
+                                <td>@DisplayAuditValue(auditEntry.NewValue)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
     <p class="detail-actions">
         <a class="secondary-link" href="/build-register">Back to Build Register</a>
     </p>
@@ -802,6 +847,7 @@ else
     private UpdateNetworkNotesRequest networkDetailsModel = new();
     private UpdateNetworkNotesRequest notesModel = new();
     private IReadOnlyList<CustomerOption> customerOptions = [];
+    private IReadOnlyList<BuildRecordAuditHistoryEntry> auditHistory = [];
     private readonly List<string> productDetailErrors = [];
     private readonly List<string> buildDetailErrors = [];
     private readonly List<string> customerShippingErrors = [];
@@ -844,6 +890,11 @@ else
             var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             var userName = authenticationState.User.Identity?.Name;
             RecentlyViewedBuildRecordTracker.TrackView(buildRecord.Id, userName);
+            auditHistory = await BuildRecordAuditHistoryReader.ListByBuildRecordIdAsync(BuildRecordId);
+        }
+        else
+        {
+            auditHistory = [];
         }
 
         customerOptions = await CustomerOptionsReader.ListActiveAsync();
@@ -1370,5 +1421,24 @@ else
     private static string Display(DateOnly? value)
     {
         return value?.ToString("d MMM yyyy") ?? "Not recorded";
+    }
+
+    private static string DisplayAuditValue(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private static string DisplayAuditAction(AuditAction action)
+    {
+        return action switch
+        {
+            AuditAction.Created => "Created",
+            AuditAction.Updated => "Edited",
+            AuditAction.SensitiveValueViewed => "Sensitive value viewed",
+            AuditAction.SensitiveValueChanged => "Sensitive value changed",
+            AuditAction.Retired => "Marked inactive",
+            AuditAction.ImportPerformed => "Import performed",
+            _ => action.ToString()
+        };
     }
 }

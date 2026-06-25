@@ -100,6 +100,7 @@ public class BuildBookPageAuthorizationTests
 
         Assert.Contains("@page \"/build-records/{BuildRecordId:int}\"", pageContent);
         Assert.Contains("IBuildRecordDetailReader", pageContent);
+        Assert.Contains("IBuildRecordAuditHistoryReader", pageContent);
         Assert.Contains("IProductDetailsUpdater", pageContent);
         Assert.Contains("IBuildDetailsUpdater", pageContent);
         Assert.Contains("ICustomerOptionsReader", pageContent);
@@ -122,6 +123,12 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Software &amp; Firmware", pageContent);
         Assert.Contains("Network", pageContent);
         Assert.Contains("Notes", pageContent);
+        Assert.Contains("History", pageContent);
+        Assert.Contains("Audit history for this Build Record.", pageContent);
+        Assert.Contains("Date/time", pageContent);
+        Assert.Contains("Field changed", pageContent);
+        Assert.Contains("Old value", pageContent);
+        Assert.Contains("New value", pageContent);
         Assert.Contains("Product code", pageContent);
         Assert.Contains("Product name", pageContent);
         Assert.Contains("Classification", pageContent);
