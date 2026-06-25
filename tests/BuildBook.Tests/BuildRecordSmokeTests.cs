@@ -66,7 +66,7 @@ public class BuildRecordSmokeTests
             revealSucceeded,
             $"Secret reveal did not show the expected value.{Environment.NewLine}{bodyTextAfterReveal}");
         Assert.Contains("Sensitive value viewed", bodyTextAfterReveal, StringComparison.Ordinal);
-        Assert.Contains(nameof(SecretType.RouterPassword), bodyTextAfterReveal, StringComparison.Ordinal);
+        Assert.Contains("Router password", bodyTextAfterReveal, StringComparison.Ordinal);
 
         var notesSection = page.Locator("section[aria-labelledby='notes-heading']");
         await notesSection.GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();

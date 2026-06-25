@@ -60,7 +60,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Build Records you opened recently.", pageContent);
         Assert.Contains("Build Records with the latest saved changes.", pageContent);
         Assert.Contains("/build-records/@record.Id", pageContent);
-        Assert.DoesNotContain("BuildRecordSecret", pageContent);
+        Assert.DoesNotContain("BuildRecordSecrets", pageContent);
         Assert.DoesNotContain("Password", pageContent);
     }
 
@@ -89,7 +89,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Checked by", pageContent);
         Assert.Contains("Last updated", pageContent);
         Assert.Contains("/build-records/{buildRecord.Id}", pageContent);
-        Assert.DoesNotContain("BuildRecordSecret", pageContent);
+        Assert.DoesNotContain("BuildRecordSecrets", pageContent);
         Assert.DoesNotContain("Password", pageContent);
     }
 
@@ -185,7 +185,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("BuildRecordSecretService.RetrieveAsync", pageContent);
         Assert.Contains("RevealSecretAsync", pageContent);
         Assert.Contains("RecentlyViewedBuildRecordTracker.TrackView", pageContent);
-        Assert.DoesNotContain("BuildRecordSecret", pageContent);
+        Assert.DoesNotContain("BuildRecordSecrets", pageContent);
         Assert.DoesNotContain("SecretValueEncrypted", pageContent);
     }
 

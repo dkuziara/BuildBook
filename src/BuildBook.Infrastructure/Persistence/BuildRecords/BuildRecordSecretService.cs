@@ -80,7 +80,7 @@ public sealed class BuildRecordSecretService(
         var secretValue = Unprotect(secret.SecretValueEncrypted);
         var auditEntry = buildRecordAuditService.CreateSensitiveValueViewedEntry(
             buildRecord,
-            secretType.ToString(),
+            GetSecretFieldLabel(secretType),
             userName);
 
         await dbContext.BuildRecordAudit.AddAsync(auditEntry, cancellationToken);
@@ -162,7 +162,7 @@ public sealed class BuildRecordSecretService(
 
         var auditEntry = buildRecordAuditService.CreateSensitiveValueChangedEntry(
             buildRecord,
-            secretType.ToString(),
+            GetSecretFieldLabel(secretType),
             userName);
 
         await dbContext.BuildRecordAudit.AddAsync(auditEntry, cancellationToken);
@@ -184,5 +184,19 @@ public sealed class BuildRecordSecretService(
     private static string NormalizeUserName(string userName)
     {
         return string.IsNullOrWhiteSpace(userName) ? "Unknown" : userName.Trim();
+    }
+
+    private static string GetSecretFieldLabel(SecretType secretType)
+    {
+        return secretType switch
+        {
+            SecretType.RadSightUserPassword => "RadSight user password",
+            SecretType.WindowsAdminPassword => "Windows admin password",
+            SecretType.KioskPassword => "Kiosk password",
+            SecretType.WifiPassword => "Wi-Fi password",
+            SecretType.RouterPassword => "Router password",
+            SecretType.BitLockerRecoveryKey => "BitLocker recovery key",
+            _ => secretType.ToString()
+        };
     }
 }

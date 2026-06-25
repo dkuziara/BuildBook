@@ -34,7 +34,7 @@ public class BuildRecordSecretServiceTests
             Assert.Equal("DOMAIN\\editor", secretRow.LastUpdatedBy);
             Assert.Equal("DOMAIN\\editor", buildRecord.LastUpdatedBy);
             Assert.Equal(AuditAction.SensitiveValueChanged, auditEntry.Action);
-            Assert.Equal(nameof(SecretType.RouterPassword), auditEntry.FieldChanged);
+            Assert.Equal("Router password", auditEntry.FieldChanged);
             Assert.Null(auditEntry.OldValue);
             Assert.Null(auditEntry.NewValue);
         }
@@ -106,9 +106,49 @@ public class BuildRecordSecretServiceTests
                 .SingleAsync(entry => entry.Action == AuditAction.SensitiveValueViewed);
 
             Assert.Equal("viewer", revealAuditEntry.User);
-            Assert.Equal(nameof(SecretType.BitLockerRecoveryKey), revealAuditEntry.FieldChanged);
+            Assert.Equal("BitLocker recovery key", revealAuditEntry.FieldChanged);
             Assert.Null(revealAuditEntry.OldValue);
             Assert.Null(revealAuditEntry.NewValue);
+        }
+        finally
+        {
+            await harness.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task SaveAndRetrieveAsync_RecordFriendlyAuditHistoryEntries()
+    {
+        var harness = await SecretServiceHarness.CreateAsync();
+
+        try
+        {
+            await harness.Service.SaveAsync(
+                harness.BuildRecordId,
+                SecretType.WindowsAdminPassword,
+                "secret-1",
+                "editor");
+
+            await harness.Service.RetrieveAsync(
+                harness.BuildRecordId,
+                SecretType.WindowsAdminPassword,
+                "viewer");
+
+            var historyReader = new BuildRecordAuditHistoryReader(harness.Factory);
+            var history = await historyReader.ListByBuildRecordIdAsync(harness.BuildRecordId);
+
+            Assert.Equal(2, history.Count);
+            Assert.Equal(AuditAction.SensitiveValueViewed, history[0].Action);
+            Assert.Equal("Windows admin password", history[0].FieldChanged);
+            Assert.Equal("viewer", history[0].User);
+            Assert.Null(history[0].OldValue);
+            Assert.Null(history[0].NewValue);
+
+            Assert.Equal(AuditAction.SensitiveValueChanged, history[1].Action);
+            Assert.Equal("Windows admin password", history[1].FieldChanged);
+            Assert.Equal("editor", history[1].User);
+            Assert.Null(history[1].OldValue);
+            Assert.Null(history[1].NewValue);
         }
         finally
         {
@@ -197,12 +237,14 @@ public class BuildRecordSecretServiceTests
             DbContextOptions<BuildBookDbContext> options,
             string keyDirectory,
             int buildRecordId,
-            BuildRecordSecretService service)
+            BuildRecordSecretService service,
+            TestDbContextFactory factory)
         {
             Options = options;
             KeyDirectory = keyDirectory;
             BuildRecordId = buildRecordId;
             Service = service;
+            Factory = factory;
         }
 
         public DbContextOptions<BuildBookDbContext> Options { get; }
@@ -212,6 +254,8 @@ public class BuildRecordSecretServiceTests
         public int BuildRecordId { get; }
 
         public BuildRecordSecretService Service { get; }
+
+        public TestDbContextFactory Factory { get; }
 
         public static async Task<SecretServiceHarness> CreateAsync()
         {
@@ -242,7 +286,7 @@ public class BuildRecordSecretServiceTests
             var factory = new TestDbContextFactory(options);
             var service = new BuildRecordSecretService(factory, provider, new BuildRecordAuditService());
 
-            return new SecretServiceHarness(options, keyDirectory, buildRecord.Id, service);
+            return new SecretServiceHarness(options, keyDirectory, buildRecord.Id, service, factory);
         }
 
         public BuildBookDbContext CreateContext()
