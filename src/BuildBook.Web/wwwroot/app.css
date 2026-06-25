@@ -245,6 +245,12 @@ body {
     overflow-wrap: anywhere;
 }
 
+.secret-mask {
+    color: #4b596d;
+    font-family: Consolas, "Courier New", monospace;
+    letter-spacing: 0.08em;
+}
+
 .detail-actions {
     margin-top: 1rem;
 }

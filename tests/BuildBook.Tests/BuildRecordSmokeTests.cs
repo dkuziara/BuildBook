@@ -47,6 +47,12 @@ public class BuildRecordSmokeTests
         await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
         Assert.DoesNotContain(harness.SecretPlainText, await page.Locator("body").InnerTextAsync(), StringComparison.Ordinal);
+        var credentialsSection = page.Locator("section[aria-labelledby='credentials-recovery-heading']");
+        var credentialsText = await credentialsSection.InnerTextAsync();
+        Assert.Contains("Credentials & Recovery", credentialsText, StringComparison.Ordinal);
+        Assert.Contains("smoke-user", credentialsText, StringComparison.Ordinal);
+        Assert.Contains("************", credentialsText, StringComparison.Ordinal);
+        Assert.DoesNotContain(harness.SecretPlainText, credentialsText, StringComparison.Ordinal);
 
         var notesSection = page.Locator("section[aria-labelledby='notes-heading']");
         await notesSection.GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();

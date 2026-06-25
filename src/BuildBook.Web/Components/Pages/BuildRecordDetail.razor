@@ -727,6 +727,54 @@ else
         }
     </section>
 
+    <section class="detail-panel detail-section" aria-labelledby="credentials-recovery-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="credentials-recovery-heading">Credentials &amp; Recovery</h2>
+                <p>User account names and protected recovery information.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>RadSight user login</dt>
+                <dd>@Display(buildRecord.RadSightUserLogin)</dd>
+            </div>
+            <div>
+                <dt>Kiosk user</dt>
+                <dd>@Display(buildRecord.KioskUser)</dd>
+            </div>
+            <div>
+                <dt>Windows admin user</dt>
+                <dd>@Display(buildRecord.WindowsAdminUser)</dd>
+            </div>
+            <div>
+                <dt>RadSight user password</dt>
+                <dd><span class="secret-mask">@MaskedSecretDisplay</span></dd>
+            </div>
+            <div>
+                <dt>Windows admin password</dt>
+                <dd><span class="secret-mask">@MaskedSecretDisplay</span></dd>
+            </div>
+            <div>
+                <dt>Kiosk password</dt>
+                <dd><span class="secret-mask">@MaskedSecretDisplay</span></dd>
+            </div>
+            <div>
+                <dt>Wi-Fi password</dt>
+                <dd><span class="secret-mask">@MaskedSecretDisplay</span></dd>
+            </div>
+            <div>
+                <dt>Router password</dt>
+                <dd><span class="secret-mask">@MaskedSecretDisplay</span></dd>
+            </div>
+            <div>
+                <dt>BitLocker recovery key</dt>
+                <dd><span class="secret-mask">@MaskedSecretDisplay</span></dd>
+            </div>
+        </dl>
+    </section>
+
     <section class="detail-panel detail-section" aria-labelledby="notes-heading">
         <div class="detail-panel-header">
             <div>
@@ -873,6 +921,7 @@ else
     private bool saveSucceeded;
     private string saveMessage = string.Empty;
     private readonly List<string> saveWarnings = [];
+    private const string MaskedSecretDisplay = "************";
 
     private static IReadOnlyList<InternalStatus> InternalStatusOptions { get; } =
         Enum.GetValues<InternalStatus>();

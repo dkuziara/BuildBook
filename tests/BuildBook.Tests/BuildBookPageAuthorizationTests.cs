@@ -122,6 +122,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Hardware", pageContent);
         Assert.Contains("Software &amp; Firmware", pageContent);
         Assert.Contains("Network", pageContent);
+        Assert.Contains("Credentials &amp; Recovery", pageContent);
         Assert.Contains("Notes", pageContent);
         Assert.Contains("History", pageContent);
         Assert.Contains("Audit history for this Build Record.", pageContent);
@@ -166,10 +167,22 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Bleuvio firmware version", pageContent);
         Assert.Contains("Charthouse IRDA firmware version", pageContent);
         Assert.Contains("Radio firmware", pageContent);
+        Assert.Contains("RadSight user login", pageContent);
+        Assert.Contains("Kiosk user", pageContent);
+        Assert.Contains("Windows admin user", pageContent);
+        Assert.Contains("RadSight user password", pageContent);
+        Assert.Contains("Windows admin password", pageContent);
+        Assert.Contains("Kiosk password", pageContent);
+        Assert.Contains("Wi-Fi password", pageContent);
+        Assert.Contains("Router password", pageContent);
+        Assert.Contains("BitLocker recovery key", pageContent);
+        Assert.Contains("MaskedSecretDisplay", pageContent);
+        Assert.Contains("************", pageContent);
         Assert.Contains("RecentlyViewedBuildRecordTracker.TrackView", pageContent);
         Assert.DoesNotContain("BuildRecordSecret", pageContent);
         Assert.DoesNotContain("WifiPassword", pageContent);
         Assert.DoesNotContain("RouterPassword", pageContent);
+        Assert.DoesNotContain("BitLockerRecoveryKey", pageContent);
     }
 
     [Fact]
