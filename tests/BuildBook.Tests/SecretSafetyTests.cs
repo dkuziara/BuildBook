@@ -21,6 +21,24 @@ public class SecretSafetyTests
     }
 
     [Fact]
+    public void CsvExporterDoesNotReferenceSensitiveFields()
+    {
+        var exporterPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Infrastructure",
+            "Persistence",
+            "BuildRecords",
+            "BuildRegisterCsvExporter.cs");
+        var exporterContent = File.ReadAllText(exporterPath);
+
+        Assert.DoesNotContain("Password", exporterContent);
+        Assert.DoesNotContain("BitLocker", exporterContent);
+        Assert.DoesNotContain("RecoveryKey", exporterContent);
+        Assert.DoesNotContain("BuildRecordSecret", exporterContent);
+    }
+
+    [Fact]
     public void SecretServiceDoesNotWriteSensitiveValuesToLogs()
     {
         var secretServicePath = Path.Combine(

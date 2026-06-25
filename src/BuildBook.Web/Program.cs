@@ -1,3 +1,6 @@
+using System.Text;
+using BuildBook.Application.BuildRecords;
+using BuildBook.Application.Security;
 using BuildBook.Infrastructure;
 using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.SeedData;
@@ -63,6 +66,21 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapGet(
+        "/reports/build-register.csv",
+        async (HttpRequest request, IBuildRegisterCsvExporter buildRegisterCsvExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateBuildRegisterFilter(request);
+            var csv = await buildRegisterCsvExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"build-register-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.csv";
+
+            return Results.File(
+                Encoding.UTF8.GetBytes(csv),
+                "text/csv; charset=utf-8",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookPolicies.ExportNonSensitiveData);
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .RequireAuthorization();
@@ -103,4 +121,39 @@ static async Task SeedDevelopmentDataAsync(WebApplication app, ILogger logger)
             exception,
             "Development seed data could not be added. The application will continue to start.");
     }
+}
+
+static BuildRegisterFilter CreateBuildRegisterFilter(HttpRequest request)
+{
+    var query = request.Query;
+    var filter = new BuildRegisterFilter();
+
+    filter.Customer = ReadString(query, "customer");
+    filter.ProductCode = ReadString(query, "productCode");
+    filter.RadSightVersion = ReadString(query, "radSightVersion");
+    filter.WindowsVersion = ReadString(query, "windowsVersion");
+
+    if (DateOnly.TryParse(ReadString(query, "dateShipped"), out var dateShipped))
+    {
+        filter.DateShipped = dateShipped;
+    }
+
+    if (Enum.TryParse<BuildRegisterSortColumn>(ReadString(query, "sortBy"), ignoreCase: true, out var sortBy))
+    {
+        filter.SortBy = sortBy;
+    }
+
+    if (bool.TryParse(ReadString(query, "sortDescending"), out var sortDescending))
+    {
+        filter.SortDescending = sortDescending;
+    }
+
+    return filter;
+}
+
+static string? ReadString(IQueryCollection query, string key)
+{
+    return query.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+        ? value.ToString()
+        : null;
 }

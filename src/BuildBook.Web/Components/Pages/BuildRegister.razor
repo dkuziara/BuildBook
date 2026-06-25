@@ -54,6 +54,14 @@
         <div class="form-actions">
             <button type="submit" class="primary-button" disabled="@isLoading">Apply filters</button>
             <button type="button" class="secondary-button" disabled="@isLoading || !hasActiveFilters" @onclick="ClearFiltersAsync">Clear filters</button>
+            <AuthorizeView Policy="@BuildBookPolicies.ExportNonSensitiveData">
+                <Authorized Context="exportAuthorizationState">
+                    @if (buildRecords is { Count: > 0 })
+                    {
+                        <a class="secondary-link" href="@BuildRegisterCsvDownloadUrl">Export current results to CSV</a>
+                    }
+                </Authorized>
+            </AuthorizeView>
         </div>
     </EditForm>
 </section>
@@ -126,6 +134,7 @@ else
     private BuildRegisterFilter filterModel = new();
     private bool hasActiveFilters;
     private bool isLoading;
+    private string BuildRegisterCsvDownloadUrl => BuildExportUrl();
 
     protected override async Task OnInitializedAsync()
     {
@@ -184,5 +193,39 @@ else
         }
 
         return filterModel.SortDescending ? "v" : "^";
+    }
+
+    private string BuildExportUrl()
+    {
+        var queryParameters = new List<string>
+        {
+            CreateQueryParameter("sortBy", filterModel.SortBy.ToString()),
+            CreateQueryParameter("sortDescending", filterModel.SortDescending.ToString().ToLowerInvariant())
+        };
+
+        AddQueryParameter(queryParameters, "customer", filterModel.Customer);
+        AddQueryParameter(queryParameters, "productCode", filterModel.ProductCode);
+        AddQueryParameter(queryParameters, "radSightVersion", filterModel.RadSightVersion);
+        AddQueryParameter(queryParameters, "windowsVersion", filterModel.WindowsVersion);
+
+        if (filterModel.DateShipped is not null)
+        {
+            queryParameters.Add(CreateQueryParameter("dateShipped", filterModel.DateShipped.Value.ToString("yyyy-MM-dd")));
+        }
+
+        return $"/reports/build-register.csv?{string.Join("&", queryParameters)}";
+    }
+
+    private static void AddQueryParameter(ICollection<string> queryParameters, string key, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            queryParameters.Add(CreateQueryParameter(key, value.Trim()));
+        }
+    }
+
+    private static string CreateQueryParameter(string key, string value)
+    {
+        return $"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}";
     }
 }
