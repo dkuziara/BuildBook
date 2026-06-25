@@ -35,6 +35,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<DevelopmentDataSeeder>();
+        services.AddScoped<BuildBookDatabaseInitializer>();
         services.AddScoped<IBuildRecordCreator, BuildRecordCreator>();
         services.AddScoped<IHomePageReader, HomePageReader>();
         services.AddScoped<IBuildRegisterReader, BuildRegisterReader>();

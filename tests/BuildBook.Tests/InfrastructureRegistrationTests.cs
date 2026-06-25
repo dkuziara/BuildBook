@@ -15,11 +15,13 @@ public class InfrastructureRegistrationTests
         var configuration = CreateConfiguration(
             "Server=(localdb)\\MSSQLLocalDB;Database=BuildBookTest;Trusted_Connection=True;TrustServerCertificate=True");
         var services = new ServiceCollection();
+        services.AddLogging();
 
         services.AddBuildBookInfrastructure(configuration);
 
         using var provider = services.BuildServiceProvider();
         var factory = provider.GetRequiredService<IDbContextFactory<BuildBookDbContext>>();
+        var databaseInitializer = provider.GetRequiredService<BuildBookDatabaseInitializer>();
         var creator = provider.GetRequiredService<IBuildRecordCreator>();
         var homePageReader = provider.GetRequiredService<IHomePageReader>();
         var registerReader = provider.GetRequiredService<IBuildRegisterReader>();
@@ -35,6 +37,7 @@ public class InfrastructureRegistrationTests
         var recentlyViewedTracker = provider.GetRequiredService<IRecentlyViewedBuildRecordTracker>();
 
         Assert.NotNull(factory);
+        Assert.NotNull(databaseInitializer);
         Assert.NotNull(creator);
         Assert.NotNull(homePageReader);
         Assert.NotNull(registerReader);
@@ -75,6 +78,30 @@ public class InfrastructureRegistrationTests
         Assert.Contains(migrations, migration => migration.EndsWith("_InitialCreate", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void WebProgramInitializesDatabaseBeforeServingRequests()
+    {
+        var programPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Web",
+            "Program.cs");
+        var programContent = File.ReadAllText(programPath);
+        var initializerPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Infrastructure",
+            "Persistence",
+            "BuildBookDatabaseInitializer.cs");
+        var initializerContent = File.ReadAllText(initializerPath);
+
+        Assert.Contains("await InitializeDatabaseAsync(app, logger);", programContent);
+        Assert.Contains("BuildBook database initialization failed. The application will not start.", programContent);
+        Assert.Contains("BuildBook database does not exist yet. Creating database and applying", initializerContent);
+        Assert.Contains("BuildBook database was created and initialized.", initializerContent);
+        Assert.Contains("BuildBook database migration completed.", initializerContent);
+    }
+
     private static IConfiguration CreateConfiguration(string? connectionString)
     {
         var values = new Dictionary<string, string?>
@@ -90,5 +117,10 @@ public class InfrastructureRegistrationTests
         return new ConfigurationBuilder()
             .AddInMemoryCollection(values)
             .Build();
+    }
+
+    private static string GetRepositoryRoot()
+    {
+        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
     }
 }

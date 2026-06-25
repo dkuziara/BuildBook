@@ -1,4 +1,5 @@
 using BuildBook.Infrastructure;
+using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.SeedData;
 using BuildBook.Web.Authorization;
 using BuildBook.Web.Configuration;
@@ -39,6 +40,8 @@ logger.LogInformation(
     app.Environment.EnvironmentName,
     buildBookOptions.EnableDetailedErrors);
 
+await InitializeDatabaseAsync(app, logger);
+
 if (app.Environment.IsDevelopment() && buildBookOptions.SeedDevelopmentData)
 {
     await SeedDevelopmentDataAsync(app, logger);
@@ -65,6 +68,25 @@ app.MapRazorComponents<App>()
     .RequireAuthorization();
 
 app.Run();
+
+static async Task InitializeDatabaseAsync(WebApplication app, ILogger logger)
+{
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var databaseInitializer = scope.ServiceProvider.GetRequiredService<BuildBookDatabaseInitializer>();
+
+        await databaseInitializer.InitializeAsync();
+    }
+    catch (Exception exception)
+    {
+        logger.LogError(
+            exception,
+            "BuildBook database initialization failed. The application will not start.");
+
+        throw;
+    }
+}
 
 static async Task SeedDevelopmentDataAsync(WebApplication app, ILogger logger)
 {
