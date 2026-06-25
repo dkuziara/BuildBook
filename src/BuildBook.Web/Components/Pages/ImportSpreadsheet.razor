@@ -1,14 +1,18 @@
 @page "/imports/upload"
 @rendermode InteractiveServer
 
+@using BuildBook.Application.BuildRecords
+
 @attribute [Authorize(Policy = BuildBookPolicies.ImportSpreadsheet)]
+
+@inject ISpreadsheetImportMappingService SpreadsheetImportMappingService
 
 <PageTitle>Import Spreadsheet</PageTitle>
 
 <section class="page-heading">
     <p class="eyebrow">Import</p>
     <h1>Upload Spreadsheet</h1>
-    <p>Upload the existing spreadsheet so it can be reviewed and prepared for import.</p>
+    <p>Upload the existing spreadsheet, review the detected headers and map each column to the right BuildBook field.</p>
 </section>
 
 @if (uploadSucceeded)
@@ -65,6 +69,104 @@
     </div>
 </section>
 
+@if (mappingReview is not null)
+{
+    <section class="detail-panel detail-section" aria-labelledby="import-mapping-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="import-mapping-heading">Column Mapping</h2>
+                <p>Check the suggested matches, confirm the required fields and keep sensitive values pointed at the protected secret fields.</p>
+            </div>
+        </div>
+
+        @if (mappingReview.Notices.Count > 0)
+        {
+            <div class="status-message warning" role="status">
+                <ul>
+                    @foreach (var notice in mappingReview.Notices)
+                    {
+                        <li>@notice</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        @if (mappingValidationErrors.Count > 0)
+        {
+            <div class="status-message error" role="alert">
+                <p>The column mapping needs a little more attention.</p>
+                <ul>
+                    @foreach (var error in mappingValidationErrors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <dl class="summary-list import-upload-summary">
+            <div>
+                <dt>Detected columns</dt>
+                <dd>@mappingReview.ColumnMappings.Count</dd>
+            </div>
+            <div>
+                <dt>Mapped fields</dt>
+                <dd>@SelectedMappingCount</dd>
+            </div>
+            <div>
+                <dt>Sensitive mappings</dt>
+                <dd>@SensitiveMappingCount</dd>
+            </div>
+        </dl>
+
+        @if (mappingReview.ColumnMappings.Count > 0)
+        {
+            <div class="mapping-table" role="table" aria-label="Spreadsheet column mapping review">
+                <div class="mapping-table-header" role="row">
+                    <span role="columnheader">Spreadsheet column</span>
+                    <span role="columnheader">BuildBook field</span>
+                    <span role="columnheader">Notes</span>
+                </div>
+
+                @foreach (var mapping in mappingReview.ColumnMappings)
+                {
+                    <div class="mapping-table-row" role="row">
+                        <div role="cell">
+                            <strong>@mapping.SourceColumnName</strong>
+                        </div>
+                        <div role="cell">
+                            <select class="text-input"
+                                    @bind="selectedMappings[mapping.SourceColumnName]"
+                                    @bind:after="HandleMappingChanged">
+                                <option value="">Do not import</option>
+                                @foreach (var field in mappingReview.AvailableFields)
+                                {
+                                    <option value="@field.Key">@field.Label</option>
+                                }
+                            </select>
+                        </div>
+                        <div role="cell" class="mapping-note">
+                            @DescribeMapping(mapping.SourceColumnName)
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <div class="status-message warning import-sensitive-note" role="status">
+            <p>Sensitive fields stay out of normal search and exports.</p>
+            <ul>
+                <li>Passwords and BitLocker recovery keys should map to the protected secret fields.</li>
+                <li>Protected values are stored separately and encrypted during import.</li>
+            </ul>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" class="primary-button" @onclick="SaveColumnMappingAsync">Save Column Mapping</button>
+        </div>
+    </section>
+}
+
 @code {
     private const long MaximumUploadBytes = 25 * 1024 * 1024;
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -76,15 +178,27 @@
 
     private IBrowserFile? selectedFile;
     private readonly List<string> uploadErrors = [];
+    private readonly List<string> mappingValidationErrors = [];
+    private readonly Dictionary<string, string> selectedMappings = new(StringComparer.OrdinalIgnoreCase);
     private bool isUploading;
     private bool uploadSucceeded;
     private string statusMessage = string.Empty;
+    private SpreadsheetColumnMappingReview? mappingReview;
+
+    private int SelectedMappingCount => selectedMappings.Values.Count(value => !string.IsNullOrWhiteSpace(value));
+
+    private int SensitiveMappingCount => mappingReview?.AvailableFields.Count(importField =>
+        importField.IsSensitive
+        && selectedMappings.Values.Contains(importField.Key, StringComparer.OrdinalIgnoreCase)) ?? 0;
 
     private void HandleFileSelected(InputFileChangeEventArgs eventArgs)
     {
         uploadErrors.Clear();
+        mappingValidationErrors.Clear();
         uploadSucceeded = false;
         statusMessage = string.Empty;
+        mappingReview = null;
+        selectedMappings.Clear();
         selectedFile = eventArgs.File;
 
         if (selectedFile is null)
@@ -99,8 +213,11 @@
     private async Task UploadSpreadsheetAsync()
     {
         uploadErrors.Clear();
+        mappingValidationErrors.Clear();
         uploadSucceeded = false;
         statusMessage = string.Empty;
+        mappingReview = null;
+        selectedMappings.Clear();
 
         if (selectedFile is null)
         {
@@ -119,19 +236,75 @@
         try
         {
             await using var uploadStream = selectedFile.OpenReadStream(MaximumUploadBytes);
-            await uploadStream.CopyToAsync(Stream.Null);
+            mappingReview = await SpreadsheetImportMappingService.BuildReviewAsync(selectedFile.Name, uploadStream);
+            foreach (var mapping in mappingReview.ColumnMappings)
+            {
+                selectedMappings[mapping.SourceColumnName] = mapping.SuggestedFieldKey ?? string.Empty;
+            }
 
             uploadSucceeded = true;
-            statusMessage = $"Spreadsheet '{selectedFile.Name}' was uploaded and is ready for import review.";
+            statusMessage = $"Spreadsheet '{selectedFile.Name}' was uploaded and {mappingReview.ColumnMappings.Count} column headers are ready for review.";
         }
         catch (IOException)
         {
             uploadErrors.Add("The spreadsheet could not be read. Try choosing the file again.");
         }
+        catch (InvalidDataException)
+        {
+            uploadErrors.Add("The spreadsheet could not be read. Check that the file is a valid workbook or CSV file.");
+        }
         finally
         {
             isUploading = false;
         }
+    }
+
+    private Task SaveColumnMappingAsync()
+    {
+        mappingValidationErrors.Clear();
+
+        if (mappingReview is null)
+        {
+            mappingValidationErrors.Add("Upload a spreadsheet before saving the column mapping.");
+            return Task.CompletedTask;
+        }
+
+        if (mappingReview.ColumnMappings.Count == 0)
+        {
+            mappingValidationErrors.Add("No spreadsheet headers are available to map yet.");
+            return Task.CompletedTask;
+        }
+
+        foreach (var requiredField in mappingReview.AvailableFields.Where(field => field.IsRequired))
+        {
+            if (!selectedMappings.Values.Contains(requiredField.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                mappingValidationErrors.Add($"{requiredField.Label} must be mapped before import can continue.");
+            }
+        }
+
+        var duplicateMappings = selectedMappings
+            .Where(mapping => !string.IsNullOrWhiteSpace(mapping.Value))
+            .GroupBy(mapping => mapping.Value, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToArray();
+
+        foreach (var duplicateMapping in duplicateMappings)
+        {
+            if (duplicateMapping is not null)
+            {
+                mappingValidationErrors.Add($"{GetFieldLabel(duplicateMapping)} is mapped more than once. Choose one source column for each BuildBook field.");
+            }
+        }
+
+        if (mappingValidationErrors.Count == 0)
+        {
+            uploadSucceeded = true;
+            statusMessage = "Column mapping saved. The spreadsheet is ready for validation and import review.";
+        }
+
+        return Task.CompletedTask;
     }
 
     private void ValidateSelectedFile(IBrowserFile file)
@@ -162,5 +335,34 @@
 
         var sizeInMegabytes = fileSizeBytes.Value / 1024d / 1024d;
         return $"{sizeInMegabytes:0.##} MB";
+    }
+
+    private Task HandleMappingChanged()
+    {
+        mappingValidationErrors.Clear();
+        return Task.CompletedTask;
+    }
+
+    private string DescribeMapping(string sourceColumnName)
+    {
+        if (mappingReview is null || !selectedMappings.TryGetValue(sourceColumnName, out var selectedFieldKey) || string.IsNullOrWhiteSpace(selectedFieldKey))
+        {
+            return "Not imported.";
+        }
+
+        var selectedField = mappingReview.AvailableFields.First(field => field.Key == selectedFieldKey);
+        if (selectedField.IsSensitive)
+        {
+            return "Sensitive value. Stored separately, encrypted and excluded from normal search and exports.";
+        }
+
+        return selectedField.IsRequired
+            ? "Required field for creating Build Records."
+            : "Standard Build Record field.";
+    }
+
+    private string GetFieldLabel(string fieldKey)
+    {
+        return mappingReview?.AvailableFields.FirstOrDefault(field => field.Key == fieldKey)?.Label ?? fieldKey;
     }
 }

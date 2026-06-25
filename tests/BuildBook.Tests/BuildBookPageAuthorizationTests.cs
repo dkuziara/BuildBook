@@ -47,11 +47,18 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("InputFile", pageContent);
         Assert.Contains("HandleFileSelected", pageContent);
         Assert.Contains("UploadSpreadsheetAsync", pageContent);
+        Assert.Contains("ISpreadsheetImportMappingService", pageContent);
+        Assert.Contains("Column Mapping", pageContent);
+        Assert.Contains("SaveColumnMappingAsync", pageContent);
+        Assert.Contains("selectedMappings", pageContent);
+        Assert.Contains("DescribeMapping", pageContent);
         Assert.Contains("accept=\".xlsx,.xls,.csv\"", pageContent);
         Assert.Contains("MaximumUploadBytes", pageContent);
         Assert.Contains("AllowedExtensions", pageContent);
         Assert.Contains("Choose an Excel workbook or CSV file.", pageContent);
         Assert.Contains("The spreadsheet must be 25 MB or smaller.", pageContent);
+        Assert.Contains("must be mapped before import can continue.", pageContent);
+        Assert.Contains("Stored separately, encrypted and excluded from normal search and exports.", pageContent);
     }
 
     [Fact]

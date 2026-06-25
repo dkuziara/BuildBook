@@ -441,3 +441,48 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+.mapping-table {
+    border-top: 1px solid #e7ebf1;
+    display: grid;
+    margin-top: 1rem;
+}
+
+.mapping-table-header,
+.mapping-table-row {
+    align-items: start;
+    column-gap: 1rem;
+    display: grid;
+    grid-template-columns: minmax(12rem, 1.1fr) minmax(14rem, 1.2fr) minmax(16rem, 1fr);
+    padding: 0.9rem 0;
+}
+
+.mapping-table-header {
+    color: #4b596d;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.mapping-table-row {
+    border-top: 1px solid #edf0f5;
+}
+
+.mapping-note {
+    color: #4b596d;
+    line-height: 1.5;
+}
+
+.import-sensitive-note {
+    margin-top: 1rem;
+}
+
+@media (max-width: 52rem) {
+    .mapping-table-header {
+        display: none;
+    }
+
+    .mapping-table-row {
+        grid-template-columns: 1fr;
+        row-gap: 0.6rem;
+    }
+}
