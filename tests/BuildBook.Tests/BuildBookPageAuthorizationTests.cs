@@ -10,6 +10,7 @@ public class BuildBookPageAuthorizationTests
     [InlineData("BuildRecordDetail.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("CreateBuildRecord.razor", BuildBookPolicies.EditBuildRecords)]
     [InlineData("ImportSpreadsheet.razor", BuildBookPolicies.ImportSpreadsheet)]
+    [InlineData("ImportHistory.razor", BuildBookPolicies.ImportSpreadsheet)]
     [InlineData("Reports.razor", BuildBookPolicies.ExportNonSensitiveData)]
     [InlineData("Admin.razor", BuildBookPolicies.ManageUsers)]
     public void PagesDeclareExpectedAuthorizationPolicy(string pageFileName, string expectedPolicy)
@@ -70,6 +71,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("AllowedExtensions", pageContent);
         Assert.Contains("Choose an Excel workbook or CSV file.", pageContent);
         Assert.Contains("The spreadsheet must be 25 MB or smaller.", pageContent);
+        Assert.Contains("Import History", pageContent);
+        Assert.Contains("href=\"/imports\"", pageContent);
         Assert.Contains("must be mapped before import can continue.", pageContent);
         Assert.Contains("Stored separately, encrypted and excluded from normal search and exports.", pageContent);
         Assert.Contains("Review a sample of the mapped spreadsheet rows before moving on to validation.", pageContent);
@@ -79,6 +82,32 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Records created", pageContent);
         Assert.Contains("Records skipped", pageContent);
         Assert.Contains("Normal Build Record fields have been converted into BuildBook records.", pageContent);
+    }
+
+    [Fact]
+    public void ImportHistoryPageDefinesExpectedRouteAndSummaryTable()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("ImportHistory.razor"));
+
+        Assert.Contains("@page \"/imports\"", pageContent);
+        Assert.Contains("IImportHistoryReader", pageContent);
+        Assert.Contains("Import History", pageContent);
+        Assert.Contains("Import Summary", pageContent);
+        Assert.Contains("Total batches", pageContent);
+        Assert.Contains("Records created", pageContent);
+        Assert.Contains("Warnings", pageContent);
+        Assert.Contains("Errors", pageContent);
+        Assert.Contains("History", pageContent);
+        Assert.Contains("Source file", pageContent);
+        Assert.Contains("Imported by", pageContent);
+        Assert.Contains("Rows read", pageContent);
+        Assert.Contains("Created", pageContent);
+        Assert.Contains("Skipped", pageContent);
+        Assert.Contains("DisplayStatus", pageContent);
+        Assert.Contains("FormatTimestamp", pageContent);
+        Assert.Contains("Open Upload Screen", pageContent);
+        Assert.Contains("Back to Admin", pageContent);
+        Assert.Contains("No spreadsheet imports have been run yet.", pageContent);
     }
 
     [Fact]
@@ -253,6 +282,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Spreadsheet Import", pageContent);
         Assert.Contains("/imports/upload", pageContent);
         Assert.Contains("Open Upload Screen", pageContent);
+        Assert.Contains("/imports", pageContent);
+        Assert.Contains("View Import History", pageContent);
     }
 
     [Fact]

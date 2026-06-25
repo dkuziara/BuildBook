@@ -66,6 +66,7 @@
         <button type="button" class="primary-button" disabled="@isUploading" @onclick="UploadSpreadsheetAsync">
             @(isUploading ? "Uploading..." : "Upload Spreadsheet")
         </button>
+        <a class="secondary-link" href="/imports">Import History</a>
         <a class="secondary-link" href="/admin">Back to Admin</a>
     </div>
 </section>
@@ -353,6 +354,10 @@
         <div class="status-message @(importExecution.WarningCount > 0 ? "warning" : "success")" role="status">
             @importExecution.Summary
         </div>
+
+        <p class="detail-actions">
+            <a class="secondary-link" href="/imports">View Import History</a>
+        </p>
     </section>
 }
 

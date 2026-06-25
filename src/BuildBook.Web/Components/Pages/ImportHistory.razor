@@ -1,0 +1,138 @@
+@page "/imports"
+
+@using BuildBook.Application.BuildRecords
+
+@attribute [Authorize(Policy = BuildBookPolicies.ImportSpreadsheet)]
+
+@inject IImportHistoryReader ImportHistoryReader
+
+<PageTitle>Import History</PageTitle>
+
+@if (isLoading)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading import history...</p>
+    </section>
+}
+else
+{
+    <section class="page-heading">
+        <p class="eyebrow">Import</p>
+        <h1>Import History</h1>
+        <p>Review recent spreadsheet imports, including row counts, warnings and final status.</p>
+    </section>
+
+    <section class="detail-panel" aria-labelledby="import-history-summary-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="import-history-summary-heading">Import Summary</h2>
+                <p>A quick view of the batches already run in BuildBook.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Total batches</dt>
+                <dd>@importHistory.Count</dd>
+            </div>
+            <div>
+                <dt>Records created</dt>
+                <dd>@importHistory.Sum(entry => entry.RecordsCreated)</dd>
+            </div>
+            <div>
+                <dt>Warnings</dt>
+                <dd>@importHistory.Sum(entry => entry.WarningCount)</dd>
+            </div>
+            <div>
+                <dt>Errors</dt>
+                <dd>@importHistory.Sum(entry => entry.ErrorCount)</dd>
+            </div>
+        </dl>
+
+        <div class="detail-actions">
+            <a class="primary-button" href="/imports/upload">Open Upload Screen</a>
+            <a class="secondary-link" href="/admin">Back to Admin</a>
+        </div>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="import-history-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="import-history-heading">History</h2>
+                <p>Each batch keeps the imported file name, counts and completion outcome.</p>
+            </div>
+        </div>
+
+        @if (importHistory.Count == 0)
+        {
+            <p class="empty-state">No spreadsheet imports have been run yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Batch</th>
+                            <th>Imported</th>
+                            <th>Imported by</th>
+                            <th>Source file</th>
+                            <th>Status</th>
+                            <th>Rows read</th>
+                            <th>Created</th>
+                            <th>Skipped</th>
+                            <th>Warnings</th>
+                            <th>Errors</th>
+                            <th>Summary</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in importHistory)
+                        {
+                            <tr>
+                                <td>@entry.Id</td>
+                                <td>@FormatTimestamp(entry.ImportedAt)</td>
+                                <td>@entry.ImportedBy</td>
+                                <td>@entry.SourceFileName</td>
+                                <td>@DisplayStatus(entry.Status)</td>
+                                <td>@entry.RowsRead</td>
+                                <td>@entry.RecordsCreated</td>
+                                <td>@entry.RecordsSkipped</td>
+                                <td>@entry.WarningCount</td>
+                                <td>@entry.ErrorCount</td>
+                                <td>@entry.Summary</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private IReadOnlyList<ImportHistoryEntry> importHistory = [];
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        importHistory = await ImportHistoryReader.ListAsync();
+        isLoading = false;
+    }
+
+    private static string FormatTimestamp(DateTimeOffset timestamp)
+    {
+        return timestamp.ToLocalTime().ToString("d MMM yyyy HH:mm");
+    }
+
+    private static string DisplayStatus(BuildBook.Domain.BuildRecords.ImportStatus status)
+    {
+        return status switch
+        {
+            BuildBook.Domain.BuildRecords.ImportStatus.Completed => "Completed",
+            BuildBook.Domain.BuildRecords.ImportStatus.CompletedWithWarnings => "Completed with warnings",
+            BuildBook.Domain.BuildRecords.ImportStatus.Failed => "Failed",
+            _ => "Pending"
+        };
+    }
+}

@@ -51,6 +51,7 @@ public static class DependencyInjection
         services.AddScoped<IBuildRecordSecretService, BuildRecordSecretService>();
         services.AddScoped<IBuildRecordCreator, BuildRecordCreator>();
         services.AddScoped<IHomePageReader, HomePageReader>();
+        services.AddScoped<IImportHistoryReader, ImportHistoryReader>();
         services.AddScoped<IBuildRegisterReader, BuildRegisterReader>();
         services.AddScoped<IBuildRecordSearchService, BuildRecordSearchService>();
         services.AddScoped<IBuildRecordDetailReader, BuildRecordDetailReader>();
