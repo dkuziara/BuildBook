@@ -51,7 +51,58 @@ public class SpreadsheetImportMappingServiceTests
         Assert.Contains(review.Notices, notice => notice.Contains(".xlsx and .csv", StringComparison.Ordinal));
     }
 
-    private static MemoryStream CreateXlsxStream(params string[] headers)
+    [Fact]
+    public async Task BuildPreviewAsync_ReadsCsvRowsAndMasksSensitiveValues()
+    {
+        var service = new SpreadsheetImportMappingService();
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(
+            "Product Code,Serial Number,Wi-Fi Password\r\nCDM61100,1000000,super-secret\r\nCDM61101,1000001,\r\n"));
+
+        var preview = await service.BuildPreviewAsync(
+            "buildbook-import.csv",
+            stream,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Product Code"] = "ProductCode",
+                ["Serial Number"] = "SerialNumber",
+                ["Wi-Fi Password"] = "WifiPassword"
+            });
+
+        Assert.Equal(2, preview.RowsRead);
+        Assert.Equal(2, preview.RowsShown);
+        Assert.Equal(3, preview.Columns.Count);
+        Assert.Equal("CDM61100", preview.Rows[0].Values["ProductCode"]);
+        Assert.Equal("1000000", preview.Rows[0].Values["SerialNumber"]);
+        Assert.Equal("************", preview.Rows[0].Values["WifiPassword"]);
+        Assert.Equal(string.Empty, preview.Rows[1].Values["WifiPassword"]);
+        Assert.Contains(preview.Notices, notice => notice.Contains("masked in the preview", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task BuildPreviewAsync_ReadsXlsxRowsAndLimitsPreviewLength()
+    {
+        var service = new SpreadsheetImportMappingService();
+        await using var stream = CreateXlsxStream(
+            ["Product Code", "Machine Name"],
+            [["CDM61100", "RADSIGHT-11996"], ["CDM61101", "RADSIGHT-11997"], ["CDM61102", "RADSIGHT-11998"], ["CDM61103", "RADSIGHT-11999"], ["CDM61104", "RADSIGHT-12000"], ["CDM61105", "RADSIGHT-12001"], ["CDM61106", "RADSIGHT-12002"], ["CDM61107", "RADSIGHT-12003"], ["CDM61108", "RADSIGHT-12004"], ["CDM61109", "RADSIGHT-12005"], ["CDM61110", "RADSIGHT-12006"]]);
+
+        var preview = await service.BuildPreviewAsync(
+            "buildbook-import.xlsx",
+            stream,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Product Code"] = "ProductCode",
+                ["Machine Name"] = "MachineName"
+            });
+
+        Assert.Equal(11, preview.RowsRead);
+        Assert.Equal(10, preview.RowsShown);
+        Assert.Equal("CDM61100", preview.Rows[0].Values["ProductCode"]);
+        Assert.Equal("RADSIGHT-11996", preview.Rows[0].Values["MachineName"]);
+        Assert.Contains(preview.Notices, notice => notice.Contains("Showing the first 10 rows of 11 data rows.", StringComparison.Ordinal));
+    }
+
+    private static MemoryStream CreateXlsxStream(IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>>? rows = null)
     {
         var stream = new MemoryStream();
 
@@ -102,15 +153,20 @@ public class SpreadsheetImportMappingServiceTests
             WriteEntry(
                 archive,
                 "xl/sharedStrings.xml",
-                BuildSharedStringsXml(headers));
+                BuildSharedStringsXml(headers, rows ?? []));
             WriteEntry(
                 archive,
                 "xl/worksheets/sheet1.xml",
-                BuildWorksheetXml(headers.Length));
+                BuildWorksheetXml(headers.Count, rows ?? []));
         }
 
         stream.Position = 0;
         return stream;
+    }
+
+    private static MemoryStream CreateXlsxStream(params string[] headers)
+    {
+        return CreateXlsxStream(headers, []);
     }
 
     private static void WriteEntry(ZipArchive archive, string path, string contents)
@@ -120,7 +176,7 @@ public class SpreadsheetImportMappingServiceTests
         writer.Write(contents);
     }
 
-    private static string BuildSharedStringsXml(IReadOnlyList<string> headers)
+    private static string BuildSharedStringsXml(IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>> rows)
     {
         var builder = new StringBuilder();
         builder.Append("""<?xml version="1.0" encoding="UTF-8"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">""");
@@ -132,11 +188,21 @@ public class SpreadsheetImportMappingServiceTests
             builder.Append("</t></si>");
         }
 
+        foreach (var row in rows)
+        {
+            foreach (var value in row)
+            {
+                builder.Append("<si><t>");
+                builder.Append(System.Security.SecurityElement.Escape(value));
+                builder.Append("</t></si>");
+            }
+        }
+
         builder.Append("</sst>");
         return builder.ToString();
     }
 
-    private static string BuildWorksheetXml(int headerCount)
+    private static string BuildWorksheetXml(int headerCount, IReadOnlyList<IReadOnlyList<string>> rows)
     {
         var builder = new StringBuilder();
         builder.Append("""<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1">""");
@@ -146,7 +212,23 @@ public class SpreadsheetImportMappingServiceTests
             builder.Append($"""<c r="{ToColumnLetter(index + 1)}1" t="s"><v>{index}</v></c>""");
         }
 
-        builder.Append("</row></sheetData></worksheet>");
+        builder.Append("</row>");
+
+        var sharedStringIndex = headerCount;
+        for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+        {
+            builder.Append($"""<row r="{rowIndex + 2}">""");
+
+            for (var columnIndex = 0; columnIndex < rows[rowIndex].Count; columnIndex++)
+            {
+                builder.Append($"""<c r="{ToColumnLetter(columnIndex + 1)}{rowIndex + 2}" t="s"><v>{sharedStringIndex}</v></c>""");
+                sharedStringIndex++;
+            }
+
+            builder.Append("</row>");
+        }
+
+        builder.Append("</sheetData></worksheet>");
         return builder.ToString();
     }
 

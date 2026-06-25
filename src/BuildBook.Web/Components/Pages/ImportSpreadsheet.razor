@@ -167,6 +167,79 @@
     </section>
 }
 
+@if (importPreview is not null)
+{
+    <section class="detail-panel detail-section" aria-labelledby="import-preview-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="import-preview-heading">Import Preview</h2>
+                <p>Review a sample of the mapped spreadsheet rows before moving on to validation.</p>
+            </div>
+        </div>
+
+        @if (importPreview.Notices.Count > 0)
+        {
+            <div class="status-message warning" role="status">
+                <ul>
+                    @foreach (var notice in importPreview.Notices)
+                    {
+                        <li>@notice</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <dl class="summary-list import-upload-summary">
+            <div>
+                <dt>Rows read</dt>
+                <dd>@importPreview.RowsRead</dd>
+            </div>
+            <div>
+                <dt>Rows shown</dt>
+                <dd>@importPreview.RowsShown</dd>
+            </div>
+            <div>
+                <dt>Preview columns</dt>
+                <dd>@importPreview.Columns.Count</dd>
+            </div>
+        </dl>
+
+        @if (importPreview.Rows.Count > 0 && importPreview.Columns.Count > 0)
+        {
+            <div class="table-scroll">
+                <table class="data-table import-preview-table">
+                    <thead>
+                        <tr>
+                            <th>Spreadsheet row</th>
+                            @foreach (var column in importPreview.Columns)
+                            {
+                                <th>
+                                    <span>@column.FieldLabel</span>
+                                    <small class="import-preview-source">@column.SourceColumnName</small>
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in importPreview.Rows)
+                        {
+                            <tr>
+                                <td>@row.SourceRowNumber</td>
+                                @foreach (var column in importPreview.Columns)
+                                {
+                                    <td class="@(column.IsSensitive ? "secret-value" : null)">
+                                        @DisplayPreviewValue(row, column)
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}
+
 @code {
     private const long MaximumUploadBytes = 25 * 1024 * 1024;
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -184,6 +257,7 @@
     private bool uploadSucceeded;
     private string statusMessage = string.Empty;
     private SpreadsheetColumnMappingReview? mappingReview;
+    private SpreadsheetImportPreview? importPreview;
 
     private int SelectedMappingCount => selectedMappings.Values.Count(value => !string.IsNullOrWhiteSpace(value));
 
@@ -198,6 +272,7 @@
         uploadSucceeded = false;
         statusMessage = string.Empty;
         mappingReview = null;
+        importPreview = null;
         selectedMappings.Clear();
         selectedFile = eventArgs.File;
 
@@ -217,6 +292,7 @@
         uploadSucceeded = false;
         statusMessage = string.Empty;
         mappingReview = null;
+        importPreview = null;
         selectedMappings.Clear();
 
         if (selectedFile is null)
@@ -259,20 +335,21 @@
         }
     }
 
-    private Task SaveColumnMappingAsync()
+    private async Task SaveColumnMappingAsync()
     {
         mappingValidationErrors.Clear();
+        importPreview = null;
 
         if (mappingReview is null)
         {
             mappingValidationErrors.Add("Upload a spreadsheet before saving the column mapping.");
-            return Task.CompletedTask;
+            return;
         }
 
         if (mappingReview.ColumnMappings.Count == 0)
         {
             mappingValidationErrors.Add("No spreadsheet headers are available to map yet.");
-            return Task.CompletedTask;
+            return;
         }
 
         foreach (var requiredField in mappingReview.AvailableFields.Where(field => field.IsRequired))
@@ -300,11 +377,17 @@
 
         if (mappingValidationErrors.Count == 0)
         {
-            uploadSucceeded = true;
-            statusMessage = "Column mapping saved. The spreadsheet is ready for validation and import review.";
-        }
+            if (selectedFile is null)
+            {
+                mappingValidationErrors.Add("Choose the spreadsheet file again before previewing the import.");
+                return;
+            }
 
-        return Task.CompletedTask;
+            await using var uploadStream = selectedFile.OpenReadStream(MaximumUploadBytes);
+            importPreview = await SpreadsheetImportMappingService.BuildPreviewAsync(selectedFile.Name, uploadStream, selectedMappings);
+            uploadSucceeded = true;
+            statusMessage = "Column mapping saved. Review the import preview before moving on to validation.";
+        }
     }
 
     private void ValidateSelectedFile(IBrowserFile file)
@@ -340,6 +423,7 @@
     private Task HandleMappingChanged()
     {
         mappingValidationErrors.Clear();
+        importPreview = null;
         return Task.CompletedTask;
     }
 
@@ -364,5 +448,17 @@
     private string GetFieldLabel(string fieldKey)
     {
         return mappingReview?.AvailableFields.FirstOrDefault(field => field.Key == fieldKey)?.Label ?? fieldKey;
+    }
+
+    private static string DisplayPreviewValue(
+        SpreadsheetImportPreviewRow row,
+        SpreadsheetImportPreviewColumn column)
+    {
+        if (!row.Values.TryGetValue(column.FieldKey, out var value) || string.IsNullOrWhiteSpace(value))
+        {
+            return "—";
+        }
+
+        return value;
     }
 }

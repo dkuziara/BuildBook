@@ -7,6 +7,9 @@ namespace BuildBook.Infrastructure.Persistence.BuildRecords;
 
 public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingService
 {
+    private const int MaximumPreviewRows = 10;
+    private const string MaskedPreviewValue = "************";
+
     private static readonly IReadOnlyList<SpreadsheetImportFieldOption> AvailableFields =
     [
         CreateField("ProductCode", "Product code", isRequired: true),
@@ -57,9 +60,9 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
         CreateField("BitLockerRecoveryKey", "BitLocker recovery key", isSensitive: true)
     ];
 
-    private static readonly Dictionary<string, string> FieldLookup = AvailableFields.ToDictionary(
+    private static readonly Dictionary<string, SpreadsheetImportFieldOption> FieldLookup = AvailableFields.ToDictionary(
         field => field.Key,
-        field => field.Label,
+        field => field,
         StringComparer.Ordinal);
 
     private static readonly Dictionary<string, string> HeaderAliases = new(StringComparer.OrdinalIgnoreCase)
@@ -132,38 +135,13 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
         ArgumentNullException.ThrowIfNull(fileStream);
 
-        var extension = Path.GetExtension(fileName);
-        var notices = new List<string>();
-        IReadOnlyList<string> sourceColumns;
-
-        if (extension.Equals(".csv", StringComparison.OrdinalIgnoreCase))
-        {
-            sourceColumns = await ReadCsvHeadersAsync(fileStream, cancellationToken);
-        }
-        else if (extension.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
-        {
-            sourceColumns = ReadXlsxHeaders(fileStream);
-        }
-        else if (extension.Equals(".xls", StringComparison.OrdinalIgnoreCase))
-        {
-            notices.Add("Header review is available for .xlsx and .csv files. Save legacy .xls files as .xlsx or .csv to review column mappings.");
-            sourceColumns = [];
-        }
-        else
-        {
-            sourceColumns = [];
-        }
-
-        if (sourceColumns.Count == 0 && notices.Count == 0)
-        {
-            notices.Add("No spreadsheet headers were detected. Check the first row and try again.");
-        }
+        var worksheetData = await ReadWorksheetDataAsync(fileName, fileStream, cancellationToken);
 
         return new SpreadsheetColumnMappingReview
         {
             AvailableFields = AvailableFields,
-            Notices = notices,
-            ColumnMappings = sourceColumns
+            Notices = worksheetData.Notices,
+            ColumnMappings = worksheetData.Headers
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Select(header => new SpreadsheetImportColumnMapping
                 {
@@ -171,6 +149,79 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
                     SuggestedFieldKey = SuggestFieldKey(header)
                 })
                 .ToArray()
+        };
+    }
+
+    public async Task<SpreadsheetImportPreview> BuildPreviewAsync(
+        string fileName,
+        Stream fileStream,
+        IReadOnlyDictionary<string, string> selectedMappings,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        ArgumentNullException.ThrowIfNull(fileStream);
+        ArgumentNullException.ThrowIfNull(selectedMappings);
+
+        var worksheetData = await ReadWorksheetDataAsync(fileName, fileStream, cancellationToken);
+        var effectiveMappings = selectedMappings
+            .Where(mapping => !string.IsNullOrWhiteSpace(mapping.Value))
+            .Where(mapping => worksheetData.Headers.Contains(mapping.Key, StringComparer.OrdinalIgnoreCase))
+            .ToArray();
+
+        var previewColumns = effectiveMappings
+            .Select(mapping =>
+            {
+                var field = FieldLookup[mapping.Value];
+                return new SpreadsheetImportPreviewColumn
+                {
+                    FieldKey = field.Key,
+                    FieldLabel = field.Label,
+                    SourceColumnName = mapping.Key,
+                    IsSensitive = field.IsSensitive
+                };
+            })
+            .ToArray();
+
+        var rowIndexByHeader = worksheetData.Headers
+            .Select((header, index) => new { header, index })
+            .ToDictionary(item => item.header, item => item.index, StringComparer.OrdinalIgnoreCase);
+
+        var previewRows = worksheetData.Rows
+            .Take(MaximumPreviewRows)
+            .Select(row => new SpreadsheetImportPreviewRow
+            {
+                SourceRowNumber = row.RowNumber,
+                Values = previewColumns.ToDictionary(
+                    column => column.FieldKey,
+                    column =>
+                    {
+                        var value = row.Cells[rowIndexByHeader[column.SourceColumnName]];
+                        return column.IsSensitive && !string.IsNullOrWhiteSpace(value)
+                            ? MaskedPreviewValue
+                            : value;
+                    },
+                    StringComparer.OrdinalIgnoreCase)
+            })
+            .ToArray();
+
+        var notices = worksheetData.Notices.ToList();
+        if (previewRows.Length > 0)
+        {
+            notices.Add("Sensitive values are masked in the preview.");
+        }
+
+        if (worksheetData.Rows.Count > MaximumPreviewRows)
+        {
+            notices.Add($"Showing the first {MaximumPreviewRows} rows of {worksheetData.Rows.Count} data rows.");
+        }
+
+        return new SpreadsheetImportPreview
+        {
+            Columns = previewColumns,
+            Rows = previewRows,
+            Notices = notices,
+            RowsRead = worksheetData.Rows.Count,
+            RowsShown = previewRows.Length
         };
     }
 
@@ -189,13 +240,41 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
         };
     }
 
-    private static async Task<IReadOnlyList<string>> ReadCsvHeadersAsync(
+    private static async Task<WorksheetData> ReadWorksheetDataAsync(
+        string fileName,
+        Stream fileStream,
+        CancellationToken cancellationToken)
+    {
+        var extension = Path.GetExtension(fileName);
+        if (extension.Equals(".csv", StringComparison.OrdinalIgnoreCase))
+        {
+            return await ReadCsvWorksheetDataAsync(fileStream, cancellationToken);
+        }
+
+        if (extension.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            return ReadXlsxWorksheetData(fileStream);
+        }
+
+        if (extension.Equals(".xls", StringComparison.OrdinalIgnoreCase))
+        {
+            return new WorksheetData([], [], ["Header review and preview are available for .xlsx and .csv files. Save legacy .xls files as .xlsx or .csv to continue."]);
+        }
+
+        return new WorksheetData([], [], ["No spreadsheet headers were detected. Check the first row and try again."]);
+    }
+
+    private static async Task<WorksheetData> ReadCsvWorksheetDataAsync(
         Stream stream,
         CancellationToken cancellationToken)
     {
         stream.Position = 0;
 
         using var reader = new StreamReader(stream, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+        string[] headers = [];
+        var rows = new List<WorksheetRow>();
+        var sourceRowNumber = 0;
+
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -205,19 +284,27 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
                 break;
             }
 
-            if (!string.IsNullOrWhiteSpace(line))
+            sourceRowNumber++;
+
+            if (string.IsNullOrWhiteSpace(line))
             {
-                return ParseCsvLine(line)
-                    .Select(header => header.Trim())
-                    .Where(header => !string.IsNullOrWhiteSpace(header))
-                    .ToArray();
+                continue;
             }
+
+            var cells = ParseCsvLine(line).Select(value => value.Trim()).ToArray();
+            if (headers.Length == 0)
+            {
+                headers = cells.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray();
+                continue;
+            }
+
+            rows.Add(new WorksheetRow(sourceRowNumber, NormalizeRowCells(cells, headers.Length)));
         }
 
-        return [];
+        return CreateWorksheetData(headers, rows);
     }
 
-    private static IReadOnlyList<string> ReadXlsxHeaders(Stream stream)
+    private static WorksheetData ReadXlsxWorksheetData(Stream stream)
     {
         stream.Position = 0;
 
@@ -225,32 +312,95 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
         var worksheetEntry = ResolveFirstWorksheetEntry(archive);
         if (worksheetEntry is null)
         {
-            return [];
+            return new WorksheetData([], [], ["No spreadsheet headers were detected. Check the first row and try again."]);
         }
 
         var sharedStrings = ReadSharedStrings(archive);
         using var worksheetStream = worksheetEntry.Open();
         var worksheetDocument = XDocument.Load(worksheetStream);
         XNamespace worksheetNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-        var headerRow = worksheetDocument.Root?
+        var worksheetRows = worksheetDocument.Root?
             .Element(worksheetNs + "sheetData")?
             .Elements(worksheetNs + "row")
-            .FirstOrDefault();
-        if (headerRow is null)
+            .ToArray()
+            ?? [];
+
+        if (worksheetRows.Length == 0)
         {
-            return [];
+            return new WorksheetData([], [], ["No spreadsheet headers were detected. Check the first row and try again."]);
         }
 
-        return headerRow.Elements(worksheetNs + "c")
+        var headers = ReadRowCells(worksheetRows[0], sharedStrings, worksheetNs)
+            .Select(value => value.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+
+        var dataRows = worksheetRows
+            .Skip(1)
+            .Select(row =>
+            {
+                var rowNumber = int.TryParse((string?)row.Attribute("r"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedRowNumber)
+                    ? parsedRowNumber
+                    : 0;
+                var cells = NormalizeRowCells(ReadRowCells(row, sharedStrings, worksheetNs), headers.Length);
+                return new WorksheetRow(rowNumber, cells);
+            })
+            .ToList();
+
+        return CreateWorksheetData(headers, dataRows);
+    }
+
+    private static WorksheetData CreateWorksheetData(
+        IReadOnlyList<string> headers,
+        IReadOnlyList<WorksheetRow> rows)
+    {
+        if (headers.Count == 0)
+        {
+            return new WorksheetData([], [], ["No spreadsheet headers were detected. Check the first row and try again."]);
+        }
+
+        var dataRows = rows
+            .Where(row => row.Cells.Any(cell => !string.IsNullOrWhiteSpace(cell)))
+            .ToArray();
+
+        return new WorksheetData(headers.ToArray(), dataRows, []);
+    }
+
+    private static string[] NormalizeRowCells(IReadOnlyList<string> cells, int headerCount)
+    {
+        var normalized = new string[headerCount];
+        for (var index = 0; index < headerCount; index++)
+        {
+            normalized[index] = index < cells.Count ? cells[index].Trim() : string.Empty;
+        }
+
+        return normalized;
+    }
+
+    private static string[] ReadRowCells(
+        XElement row,
+        IReadOnlyList<string> sharedStrings,
+        XNamespace worksheetNs)
+    {
+        var cells = row.Elements(worksheetNs + "c")
             .Select(cell => new
             {
                 ColumnIndex = GetColumnIndex((string?)cell.Attribute("r")),
                 Value = ReadCellValue(cell, sharedStrings, worksheetNs)
             })
-            .Where(cell => !string.IsNullOrWhiteSpace(cell.Value))
-            .OrderBy(cell => cell.ColumnIndex)
-            .Select(cell => cell.Value.Trim())
             .ToArray();
+        if (cells.Length == 0)
+        {
+            return [];
+        }
+
+        var values = new string[cells.Max(cell => cell.ColumnIndex)];
+        foreach (var cell in cells)
+        {
+            values[cell.ColumnIndex - 1] = cell.Value;
+        }
+
+        return values.Select(value => value ?? string.Empty).ToArray();
     }
 
     private static ZipArchiveEntry? ResolveFirstWorksheetEntry(ZipArchive archive)
@@ -314,9 +464,7 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
 
         return sharedStringsDocument.Root?
             .Elements(spreadsheetNs + "si")
-            .Select(item => string.Concat(
-                item.Descendants(spreadsheetNs + "t")
-                    .Select(text => text.Value)))
+            .Select(item => string.Concat(item.Descendants(spreadsheetNs + "t").Select(text => text.Value)))
             .ToArray()
             ?? [];
     }
@@ -419,4 +567,13 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
         values.Add(buffer.ToString());
         return values;
     }
+
+    private sealed record WorksheetData(
+        IReadOnlyList<string> Headers,
+        IReadOnlyList<WorksheetRow> Rows,
+        IReadOnlyList<string> Notices);
+
+    private sealed record WorksheetRow(
+        int RowNumber,
+        IReadOnlyList<string> Cells);
 }

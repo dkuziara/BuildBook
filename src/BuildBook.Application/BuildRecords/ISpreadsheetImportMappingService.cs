@@ -6,4 +6,10 @@ public interface ISpreadsheetImportMappingService
         string fileName,
         Stream fileStream,
         CancellationToken cancellationToken = default);
+
+    Task<SpreadsheetImportPreview> BuildPreviewAsync(
+        string fileName,
+        Stream fileStream,
+        IReadOnlyDictionary<string, string> selectedMappings,
+        CancellationToken cancellationToken = default);
 }

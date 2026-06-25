@@ -476,6 +476,15 @@ body {
     margin-top: 1rem;
 }
 
+.import-preview-table th small.import-preview-source {
+    color: #4b596d;
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-top: 0.3rem;
+    text-transform: none;
+}
+
 @media (max-width: 52rem) {
     .mapping-table-header {
         display: none;
