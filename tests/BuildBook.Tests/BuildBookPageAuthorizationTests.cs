@@ -54,6 +54,9 @@ public class BuildBookPageAuthorizationTests
         var pageContent = File.ReadAllText(GetPagePath("BuildRegister.razor"));
 
         Assert.Contains("IBuildRegisterReader", pageContent);
+        Assert.Contains("FormName=\"build-register-filters\"", pageContent);
+        Assert.Contains("Apply filters", pageContent);
+        Assert.Contains("Clear filters", pageContent);
         Assert.Contains("Product code", pageContent);
         Assert.Contains("Product name", pageContent);
         Assert.Contains("Serial number", pageContent);
@@ -61,6 +64,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Machine name", pageContent);
         Assert.Contains("RadSight version", pageContent);
         Assert.Contains("Windows version", pageContent);
+        Assert.Contains("Date shipped", pageContent);
         Assert.Contains("Date assembled", pageContent);
         Assert.Contains("Date shipped", pageContent);
         Assert.Contains("Checked by", pageContent);

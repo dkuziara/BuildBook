@@ -33,4 +33,16 @@ public class BuildRegisterTests
         Assert.Equal(new DateOnly(2026, 6, 24), row.DateShipped);
         Assert.Equal("QA Team", row.CheckedBy);
     }
+
+    [Fact]
+    public void FilterReportsWhetherAnyFilterIsSet()
+    {
+        var emptyFilter = new BuildRegisterFilter();
+        var customerFilter = new BuildRegisterFilter { Customer = "APVL" };
+        var dateFilter = new BuildRegisterFilter { DateShipped = new DateOnly(2026, 6, 24) };
+
+        Assert.False(emptyFilter.HasAnyFilter());
+        Assert.True(customerFilter.HasAnyFilter());
+        Assert.True(dateFilter.HasAnyFilter());
+    }
 }

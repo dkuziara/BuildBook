@@ -1,4 +1,5 @@
 @page "/build-register"
+@rendermode InteractiveServer
 
 @attribute [Authorize(Policy = BuildBookPolicies.ViewBuildRecords)]
 
@@ -19,6 +20,44 @@
     </AuthorizeView>
 </section>
 
+<section class="filter-panel" aria-labelledby="build-register-filters-heading">
+    <h2 id="build-register-filters-heading">Filters</h2>
+
+    <EditForm Model="filterModel" OnValidSubmit="ApplyFiltersAsync" FormName="build-register-filters">
+        <div class="filter-grid">
+            <div class="form-field">
+                <label for="filter-customer">Customer</label>
+                <InputText id="filter-customer" class="text-input" @bind-Value="filterModel.Customer" />
+            </div>
+
+            <div class="form-field">
+                <label for="filter-product-code">Product code</label>
+                <InputText id="filter-product-code" class="text-input" @bind-Value="filterModel.ProductCode" />
+            </div>
+
+            <div class="form-field">
+                <label for="filter-date-shipped">Date shipped</label>
+                <InputDate id="filter-date-shipped" class="text-input" @bind-Value="filterModel.DateShipped" />
+            </div>
+
+            <div class="form-field">
+                <label for="filter-radsight-version">RadSight version</label>
+                <InputText id="filter-radsight-version" class="text-input" @bind-Value="filterModel.RadSightVersion" />
+            </div>
+
+            <div class="form-field">
+                <label for="filter-windows-version">Windows version</label>
+                <InputText id="filter-windows-version" class="text-input" @bind-Value="filterModel.WindowsVersion" />
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="primary-button" disabled="@isLoading">Apply filters</button>
+            <button type="button" class="secondary-button" disabled="@isLoading || !hasActiveFilters" @onclick="ClearFiltersAsync">Clear filters</button>
+        </div>
+    </EditForm>
+</section>
+
 @if (buildRecords is null)
 {
     <section class="placeholder-panel" aria-live="polite">
@@ -28,8 +67,8 @@
 else if (buildRecords.Count == 0)
 {
     <section class="placeholder-panel" aria-labelledby="empty-build-register-heading">
-        <h2 id="empty-build-register-heading">No Build Records yet</h2>
-        <p>Add the first Build Record to start replacing the spreadsheet.</p>
+        <h2 id="empty-build-register-heading">No Build Records found</h2>
+        <p>@(hasActiveFilters ? "No Build Records match the current filters." : "Add the first Build Record to start replacing the spreadsheet.")</p>
     </section>
 }
 else
@@ -37,7 +76,7 @@ else
     <section class="table-panel" aria-labelledby="build-register-table-heading">
         <div class="table-panel-heading">
             <h2 id="build-register-table-heading">Build Records</h2>
-            <p>@buildRecords.Count active records</p>
+            <p>@buildRecords.Count @(hasActiveFilters ? "matching" : "active") records</p>
         </div>
 
         <div class="table-scroll">
@@ -84,10 +123,32 @@ else
 
 @code {
     private IReadOnlyList<BuildRegisterRow>? buildRecords;
+    private BuildRegisterFilter filterModel = new();
+    private bool hasActiveFilters;
+    private bool isLoading;
 
     protected override async Task OnInitializedAsync()
     {
-        buildRecords = await BuildRegisterReader.ListAsync();
+        await LoadBuildRecordsAsync();
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        await LoadBuildRecordsAsync(filterModel);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        filterModel = new BuildRegisterFilter();
+        await LoadBuildRecordsAsync();
+    }
+
+    private async Task LoadBuildRecordsAsync(BuildRegisterFilter? filter = null)
+    {
+        isLoading = true;
+        hasActiveFilters = filter?.HasAnyFilter() == true;
+        buildRecords = await BuildRegisterReader.ListAsync(filter);
+        isLoading = false;
     }
 
     private static string Display(string? value)

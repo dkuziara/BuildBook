@@ -249,6 +249,25 @@ body {
     margin-top: 1rem;
 }
 
+.filter-panel {
+    background: #ffffff;
+    border: 1px solid #d9e0ea;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 1.25rem;
+}
+
+.filter-panel h2 {
+    font-size: 1.05rem;
+    margin: 0 0 1rem;
+}
+
+.filter-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
 .table-panel {
     background: #ffffff;
     border: 1px solid #d9e0ea;
