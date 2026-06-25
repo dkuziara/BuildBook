@@ -237,6 +237,72 @@
                 </table>
             </div>
         }
+
+        <div class="form-actions">
+            <button type="button" class="primary-button" @onclick="ValidateImportAsync">Validate Import</button>
+        </div>
+    </section>
+}
+
+@if (importValidation is not null)
+{
+    <section class="detail-panel detail-section" aria-labelledby="import-validation-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="import-validation-heading">Import Validation</h2>
+                <p>Review the detected errors and warnings before moving on to the actual import.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list import-upload-summary">
+            <div>
+                <dt>Rows checked</dt>
+                <dd>@importValidation.RowsRead</dd>
+            </div>
+            <div>
+                <dt>Errors</dt>
+                <dd>@importValidation.ErrorCount</dd>
+            </div>
+            <div>
+                <dt>Warnings</dt>
+                <dd>@importValidation.WarningCount</dd>
+            </div>
+        </dl>
+
+        @if (importValidation.Issues.Count == 0)
+        {
+            <div class="status-message success" role="status">
+                No validation issues were found in the previewed import data.
+            </div>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table import-validation-table">
+                    <thead>
+                        <tr>
+                            <th>Spreadsheet row</th>
+                            <th>Severity</th>
+                            <th>Issue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var issue in importValidation.Issues)
+                        {
+                            <tr>
+                                <td>@issue.SourceRowNumber</td>
+                                <td>
+                                    <span class="validation-badge @(issue.Severity == SpreadsheetImportValidationSeverity.Error ? "error" : "warning")">
+                                        @issue.Severity
+                                    </span>
+                                </td>
+                                <td>@issue.Message</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </section>
 }
 
@@ -258,6 +324,7 @@
     private string statusMessage = string.Empty;
     private SpreadsheetColumnMappingReview? mappingReview;
     private SpreadsheetImportPreview? importPreview;
+    private SpreadsheetImportValidationResult? importValidation;
 
     private int SelectedMappingCount => selectedMappings.Values.Count(value => !string.IsNullOrWhiteSpace(value));
 
@@ -273,6 +340,7 @@
         statusMessage = string.Empty;
         mappingReview = null;
         importPreview = null;
+        importValidation = null;
         selectedMappings.Clear();
         selectedFile = eventArgs.File;
 
@@ -293,6 +361,7 @@
         statusMessage = string.Empty;
         mappingReview = null;
         importPreview = null;
+        importValidation = null;
         selectedMappings.Clear();
 
         if (selectedFile is null)
@@ -339,6 +408,7 @@
     {
         mappingValidationErrors.Clear();
         importPreview = null;
+        importValidation = null;
 
         if (mappingReview is null)
         {
@@ -386,8 +456,27 @@
             await using var uploadStream = selectedFile.OpenReadStream(MaximumUploadBytes);
             importPreview = await SpreadsheetImportMappingService.BuildPreviewAsync(selectedFile.Name, uploadStream, selectedMappings);
             uploadSucceeded = true;
-            statusMessage = "Column mapping saved. Review the import preview before moving on to validation.";
+            statusMessage = "Column mapping saved. Review the import preview, then run validation.";
         }
+    }
+
+    private async Task ValidateImportAsync()
+    {
+        importValidation = null;
+
+        if (selectedFile is null)
+        {
+            mappingValidationErrors.Clear();
+            mappingValidationErrors.Add("Choose the spreadsheet file again before validating the import.");
+            return;
+        }
+
+        await using var uploadStream = selectedFile.OpenReadStream(MaximumUploadBytes);
+        importValidation = await SpreadsheetImportMappingService.BuildValidationAsync(selectedFile.Name, uploadStream, selectedMappings);
+        uploadSucceeded = true;
+        statusMessage = importValidation.ErrorCount > 0
+            ? "Import validation found issues that need attention."
+            : "Import validation completed. Review the warnings before continuing.";
     }
 
     private void ValidateSelectedFile(IBrowserFile file)
@@ -424,6 +513,7 @@
     {
         mappingValidationErrors.Clear();
         importPreview = null;
+        importValidation = null;
         return Task.CompletedTask;
     }
 

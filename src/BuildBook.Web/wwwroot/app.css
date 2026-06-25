@@ -485,6 +485,24 @@ body {
     text-transform: none;
 }
 
+.validation-badge {
+    border-radius: 999px;
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+}
+
+.validation-badge.error {
+    background: #fcebea;
+    color: #7a1d16;
+}
+
+.validation-badge.warning {
+    background: #fff7df;
+    color: #5b4510;
+}
+
 @media (max-width: 52rem) {
     .mapping-table-header {
         display: none;

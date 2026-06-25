@@ -102,6 +102,68 @@ public class SpreadsheetImportMappingServiceTests
         Assert.Contains(preview.Notices, notice => notice.Contains("Showing the first 10 rows of 11 data rows.", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task BuildValidationAsync_FlagsRequiredFieldsDuplicateSerialsBadDatesAndIncompleteRows()
+    {
+        var service = new SpreadsheetImportMappingService();
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(
+            "Product Code,Product Name,Serial Number,Date Assembled,Date Shipped,Machine Name\r\n" +
+            "CDM61100,RadSight Access Terminal,1000000,2026-06-20,2026-06-21,RADSIGHT-11996\r\n" +
+            ",Missing Product Code,1000001,2026-06-20,2026-06-21,RADSIGHT-11997\r\n" +
+            "CDM61102,Duplicate Serial,1000000,2026-06-22,2026-06-23,RADSIGHT-11998\r\n" +
+            "CDM61103,Bad Dates,1000003,not-a-date,2026-06-19,RADSIGHT-11999\r\n" +
+            "CDM61104,Ship Before Assemble,1000004,2026-06-22,2026-06-21,RADSIGHT-12000\r\n" +
+            "CDM61105,,,2026-06-22,,\r\n"));
+
+        var validation = await service.BuildValidationAsync(
+            "buildbook-import.csv",
+            stream,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Product Code"] = "ProductCode",
+                ["Product Name"] = "ProductName",
+                ["Serial Number"] = "SerialNumber",
+                ["Date Assembled"] = "DateAssembled",
+                ["Date Shipped"] = "DateShipped",
+                ["Machine Name"] = "MachineName"
+            });
+
+        Assert.Equal(6, validation.RowsRead);
+        Assert.True(validation.ErrorCount >= 7);
+        Assert.True(validation.WarningCount >= 1);
+        Assert.Contains(validation.Issues, issue => issue.SourceRowNumber == 3 && issue.Message == "Product code is required.");
+        Assert.Contains(validation.Issues, issue => issue.SourceRowNumber == 2 && issue.Message == "Duplicate serial number '1000000'.");
+        Assert.Contains(validation.Issues, issue => issue.SourceRowNumber == 5 && issue.Message == "Date assembled is not a valid date.");
+        Assert.Contains(validation.Issues, issue => issue.SourceRowNumber == 6 && issue.Message == "Date shipped cannot be earlier than date assembled.");
+        Assert.Contains(validation.Issues, issue => issue.SourceRowNumber == 7 && issue.Message == "Row appears incomplete.");
+    }
+
+    [Fact]
+    public async Task BuildValidationAsync_ReturnsNoIssuesForValidRows()
+    {
+        var service = new SpreadsheetImportMappingService();
+        await using var stream = CreateXlsxStream(
+            ["Product Code", "Product Name", "Serial Number", "Date Assembled", "Date Shipped"],
+            [["CDM61100", "RadSight Access Terminal", "1000000", "2026-06-20", "2026-06-21"]]);
+
+        var validation = await service.BuildValidationAsync(
+            "buildbook-import.xlsx",
+            stream,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Product Code"] = "ProductCode",
+                ["Product Name"] = "ProductName",
+                ["Serial Number"] = "SerialNumber",
+                ["Date Assembled"] = "DateAssembled",
+                ["Date Shipped"] = "DateShipped"
+            });
+
+        Assert.Equal(1, validation.RowsRead);
+        Assert.Equal(0, validation.ErrorCount);
+        Assert.Equal(0, validation.WarningCount);
+        Assert.Empty(validation.Issues);
+    }
+
     private static MemoryStream CreateXlsxStream(IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>>? rows = null)
     {
         var stream = new MemoryStream();

@@ -50,8 +50,12 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("ISpreadsheetImportMappingService", pageContent);
         Assert.Contains("Column Mapping", pageContent);
         Assert.Contains("Import Preview", pageContent);
+        Assert.Contains("Import Validation", pageContent);
         Assert.Contains("SaveColumnMappingAsync", pageContent);
         Assert.Contains("BuildPreviewAsync", pageContent);
+        Assert.Contains("ValidateImportAsync", pageContent);
+        Assert.Contains("BuildValidationAsync", pageContent);
+        Assert.Contains("importValidation", pageContent);
         Assert.Contains("importPreview", pageContent);
         Assert.Contains("DisplayPreviewValue", pageContent);
         Assert.Contains("selectedMappings", pageContent);
@@ -63,7 +67,10 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("The spreadsheet must be 25 MB or smaller.", pageContent);
         Assert.Contains("must be mapped before import can continue.", pageContent);
         Assert.Contains("Stored separately, encrypted and excluded from normal search and exports.", pageContent);
-        Assert.Contains("Sensitive values are masked in the preview.", pageContent);
+        Assert.Contains("Review a sample of the mapped spreadsheet rows before moving on to validation.", pageContent);
+        Assert.Contains("Rows checked", pageContent);
+        Assert.Contains("Severity", pageContent);
+        Assert.Contains("No validation issues were found in the previewed import data.", pageContent);
     }
 
     [Fact]

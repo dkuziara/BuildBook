@@ -225,6 +225,74 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
         };
     }
 
+    public async Task<SpreadsheetImportValidationResult> BuildValidationAsync(
+        string fileName,
+        Stream fileStream,
+        IReadOnlyDictionary<string, string> selectedMappings,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        ArgumentNullException.ThrowIfNull(fileStream);
+        ArgumentNullException.ThrowIfNull(selectedMappings);
+
+        var worksheetData = await ReadWorksheetDataAsync(fileName, fileStream, cancellationToken);
+        var issues = new List<SpreadsheetImportValidationIssue>();
+        var effectiveMappings = selectedMappings
+            .Where(mapping => !string.IsNullOrWhiteSpace(mapping.Value))
+            .Where(mapping => worksheetData.Headers.Contains(mapping.Key, StringComparer.OrdinalIgnoreCase))
+            .ToArray();
+        var rowIndexByHeader = worksheetData.Headers
+            .Select((header, index) => new { header, index })
+            .ToDictionary(item => item.header, item => item.index, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in worksheetData.Rows)
+        {
+            var rowValues = effectiveMappings.ToDictionary(
+                mapping => mapping.Value,
+                mapping => row.Cells[rowIndexByHeader[mapping.Key]],
+                StringComparer.OrdinalIgnoreCase);
+
+            ValidateRequiredFields(row, rowValues, issues);
+            ValidateDates(row, rowValues, issues);
+            ValidateIncompleteRow(row, rowValues, issues);
+        }
+
+        var serialRows = worksheetData.Rows
+            .Select(row => new
+            {
+                row.RowNumber,
+                SerialNumber = GetMappedValue(row, effectiveMappings, rowIndexByHeader, "SerialNumber")
+            })
+            .Where(item => !string.IsNullOrWhiteSpace(item.SerialNumber))
+            .GroupBy(item => item.SerialNumber, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1);
+
+        foreach (var duplicateGroup in serialRows)
+        {
+            foreach (var row in duplicateGroup)
+            {
+                issues.Add(new SpreadsheetImportValidationIssue
+                {
+                    SourceRowNumber = row.RowNumber,
+                    Severity = SpreadsheetImportValidationSeverity.Error,
+                    Message = $"Duplicate serial number '{row.SerialNumber}'."
+                });
+            }
+        }
+
+        return new SpreadsheetImportValidationResult
+        {
+            RowsRead = worksheetData.Rows.Count,
+            Issues = issues
+                .OrderByDescending(issue => issue.Severity)
+                .ThenBy(issue => issue.SourceRowNumber)
+                .ThenBy(issue => issue.Message, StringComparer.Ordinal)
+                .ToArray(),
+            ErrorCount = issues.Count(issue => issue.Severity == SpreadsheetImportValidationSeverity.Error),
+            WarningCount = issues.Count(issue => issue.Severity == SpreadsheetImportValidationSeverity.Warning)
+        };
+    }
+
     private static SpreadsheetImportFieldOption CreateField(
         string key,
         string label,
@@ -364,6 +432,116 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
             .ToArray();
 
         return new WorksheetData(headers.ToArray(), dataRows, []);
+    }
+
+    private static void ValidateRequiredFields(
+        WorksheetRow row,
+        IReadOnlyDictionary<string, string> rowValues,
+        ICollection<SpreadsheetImportValidationIssue> issues)
+    {
+        foreach (var requiredField in AvailableFields.Where(field => field.IsRequired))
+        {
+            if (!rowValues.TryGetValue(requiredField.Key, out var value) || string.IsNullOrWhiteSpace(value))
+            {
+                issues.Add(new SpreadsheetImportValidationIssue
+                {
+                    SourceRowNumber = row.RowNumber,
+                    Severity = SpreadsheetImportValidationSeverity.Error,
+                    Message = $"{requiredField.Label} is required."
+                });
+            }
+        }
+    }
+
+    private static void ValidateDates(
+        WorksheetRow row,
+        IReadOnlyDictionary<string, string> rowValues,
+        ICollection<SpreadsheetImportValidationIssue> issues)
+    {
+        var hasDateAssembled = TryParseDate(rowValues, "DateAssembled", out var dateAssembled, out var dateAssembledValue);
+        if (!hasDateAssembled && !string.IsNullOrWhiteSpace(dateAssembledValue))
+        {
+            issues.Add(new SpreadsheetImportValidationIssue
+            {
+                SourceRowNumber = row.RowNumber,
+                Severity = SpreadsheetImportValidationSeverity.Error,
+                Message = "Date assembled is not a valid date."
+            });
+        }
+
+        var hasDateShipped = TryParseDate(rowValues, "DateShipped", out var dateShipped, out var dateShippedValue);
+        if (!hasDateShipped && !string.IsNullOrWhiteSpace(dateShippedValue))
+        {
+            issues.Add(new SpreadsheetImportValidationIssue
+            {
+                SourceRowNumber = row.RowNumber,
+                Severity = SpreadsheetImportValidationSeverity.Error,
+                Message = "Date shipped is not a valid date."
+            });
+        }
+
+        if (hasDateAssembled && hasDateShipped && dateShipped < dateAssembled)
+        {
+            issues.Add(new SpreadsheetImportValidationIssue
+            {
+                SourceRowNumber = row.RowNumber,
+                Severity = SpreadsheetImportValidationSeverity.Error,
+                Message = "Date shipped cannot be earlier than date assembled."
+            });
+        }
+    }
+
+    private static void ValidateIncompleteRow(
+        WorksheetRow row,
+        IReadOnlyDictionary<string, string> rowValues,
+        ICollection<SpreadsheetImportValidationIssue> issues)
+    {
+        var populatedFieldCount = rowValues.Count(value => !string.IsNullOrWhiteSpace(value.Value));
+        if (populatedFieldCount > 0 && populatedFieldCount <= 2)
+        {
+            issues.Add(new SpreadsheetImportValidationIssue
+            {
+                SourceRowNumber = row.RowNumber,
+                Severity = SpreadsheetImportValidationSeverity.Warning,
+                Message = "Row appears incomplete."
+            });
+        }
+    }
+
+    private static string GetMappedValue(
+        WorksheetRow row,
+        IReadOnlyList<KeyValuePair<string, string>> effectiveMappings,
+        IReadOnlyDictionary<string, int> rowIndexByHeader,
+        string fieldKey)
+    {
+        var mapping = effectiveMappings.FirstOrDefault(item => string.Equals(item.Value, fieldKey, StringComparison.OrdinalIgnoreCase));
+        return string.IsNullOrWhiteSpace(mapping.Key)
+            ? string.Empty
+            : row.Cells[rowIndexByHeader[mapping.Key]];
+    }
+
+    private static bool TryParseDate(
+        IReadOnlyDictionary<string, string> rowValues,
+        string fieldKey,
+        out DateOnly date,
+        out string rawValue)
+    {
+        rawValue = rowValues.TryGetValue(fieldKey, out var value) ? value : string.Empty;
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            date = default;
+            return false;
+        }
+
+        if (DateOnly.TryParse(rawValue, CultureInfo.InvariantCulture, out date)
+            || DateOnly.TryParse(rawValue, CultureInfo.GetCultureInfo("en-GB"), out date)
+            || DateOnly.TryParse(rawValue, CultureInfo.GetCultureInfo("en-US"), out date))
+        {
+            return true;
+        }
+
+        date = default;
+        return false;
     }
 
     private static string[] NormalizeRowCells(IReadOnlyList<string> cells, int headerCount)

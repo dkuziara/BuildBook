@@ -12,4 +12,10 @@ public interface ISpreadsheetImportMappingService
         Stream fileStream,
         IReadOnlyDictionary<string, string> selectedMappings,
         CancellationToken cancellationToken = default);
+
+    Task<SpreadsheetImportValidationResult> BuildValidationAsync(
+        string fileName,
+        Stream fileStream,
+        IReadOnlyDictionary<string, string> selectedMappings,
+        CancellationToken cancellationToken = default);
 }
