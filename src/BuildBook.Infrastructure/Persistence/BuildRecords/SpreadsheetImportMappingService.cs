@@ -14,6 +14,7 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
     private const string MaskedPreviewValue = "************";
     private readonly IDbContextFactory<BuildBookDbContext>? dbContextFactory;
     private readonly IBuildRecordAuditService? buildRecordAuditService;
+    private readonly IBuildRecordSecretService? buildRecordSecretService;
 
     private static readonly IReadOnlyList<SpreadsheetImportFieldOption> AvailableFields =
     [
@@ -138,10 +139,12 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
 
     public SpreadsheetImportMappingService(
         IDbContextFactory<BuildBookDbContext> dbContextFactory,
-        IBuildRecordAuditService buildRecordAuditService)
+        IBuildRecordAuditService buildRecordAuditService,
+        IBuildRecordSecretService buildRecordSecretService)
     {
         this.dbContextFactory = dbContextFactory;
         this.buildRecordAuditService = buildRecordAuditService;
+        this.buildRecordSecretService = buildRecordSecretService;
     }
 
     public async Task<SpreadsheetColumnMappingReview> BuildReviewAsync(
@@ -317,7 +320,7 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
         string importedBy,
         CancellationToken cancellationToken = default)
     {
-        if (dbContextFactory is null || buildRecordAuditService is null)
+        if (dbContextFactory is null || buildRecordAuditService is null || buildRecordSecretService is null)
         {
             throw new InvalidOperationException("Spreadsheet import execution requires database services.");
         }
@@ -330,7 +333,12 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
         var effectiveMappings = selectedMappings
             .Where(mapping => !string.IsNullOrWhiteSpace(mapping.Value))
             .Where(mapping => worksheetData.Headers.Contains(mapping.Key, StringComparer.OrdinalIgnoreCase))
+            .ToArray();
+        var normalMappings = effectiveMappings
             .Where(mapping => FieldLookup.TryGetValue(mapping.Value, out var field) && !field.IsSensitive)
+            .ToArray();
+        var sensitiveMappings = effectiveMappings
+            .Where(mapping => FieldLookup.TryGetValue(mapping.Value, out var field) && field.IsSensitive)
             .ToArray();
         var rowIndexByHeader = worksheetData.Headers
             .Select((header, index) => new { header, index })
@@ -362,7 +370,7 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
 
         foreach (var row in worksheetData.Rows)
         {
-            var rowValues = effectiveMappings.ToDictionary(
+            var rowValues = normalMappings.ToDictionary(
                 mapping => mapping.Value,
                 mapping => row.Cells[rowIndexByHeader[mapping.Key]],
                 StringComparer.OrdinalIgnoreCase);
@@ -447,6 +455,29 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
 
             dbContext.BuildRecords.Add(buildRecord);
             dbContext.BuildRecordAudit.Add(buildRecordAuditService.CreateRecordCreatedEntry(buildRecord, normalizedUserName));
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            foreach (var sensitiveMapping in sensitiveMappings)
+            {
+                var secretValue = NormalizeOptionalValue(row.Cells[rowIndexByHeader[sensitiveMapping.Key]]);
+                if (string.IsNullOrWhiteSpace(secretValue))
+                {
+                    continue;
+                }
+
+                var saveResult = await buildRecordSecretService.SaveAsync(
+                    buildRecord.Id,
+                    MapSecretType(sensitiveMapping.Value),
+                    secretValue,
+                    normalizedUserName,
+                    cancellationToken);
+
+                if (!saveResult.Succeeded)
+                {
+                    warningCount++;
+                }
+            }
+
             createdRecords++;
         }
 
@@ -707,6 +738,20 @@ public sealed class SpreadsheetImportMappingService : ISpreadsheetImportMappingS
     private static string? NormalizeOptionalValue(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static SecretType MapSecretType(string fieldKey)
+    {
+        return fieldKey switch
+        {
+            "RadSightUserPassword" => SecretType.RadSightUserPassword,
+            "WindowsAdminPassword" => SecretType.WindowsAdminPassword,
+            "KioskPassword" => SecretType.KioskPassword,
+            "WifiPassword" => SecretType.WifiPassword,
+            "RouterPassword" => SecretType.RouterPassword,
+            "BitLockerRecoveryKey" => SecretType.BitLockerRecoveryKey,
+            _ => throw new ArgumentOutOfRangeException(nameof(fieldKey), fieldKey, "No secret mapping is configured for this import field.")
+        };
     }
 
     private static DateOnly? ParseOptionalDate(string? value)

@@ -3,6 +3,7 @@ using System.Text;
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.BuildRecords;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Tests;
@@ -202,17 +203,21 @@ public class SpreadsheetImportMappingServiceTests
         var buildRecords = await verifyContext.BuildRecords.Include(record => record.Customer).OrderBy(record => record.SerialNumber).ToListAsync();
         var importBatch = await verifyContext.Imports.SingleAsync();
         var importAudit = await verifyContext.BuildRecordAudit.SingleAsync(entry => entry.Action == AuditAction.ImportPerformed);
+        var importedSecrets = await verifyContext.BuildRecordSecrets.OrderBy(secret => secret.BuildRecordId).ToListAsync();
 
         Assert.Equal(2, buildRecords.Count);
         Assert.Equal("APVL", buildRecords[0].Customer?.Name);
         Assert.Equal(new DateOnly(2026, 6, 20), buildRecords[0].DateAssembled);
         Assert.Equal(2, await verifyContext.BuildRecordAudit.CountAsync(entry => entry.Action == AuditAction.Created));
-        Assert.Empty(await verifyContext.BuildRecordSecrets.ToListAsync());
+        Assert.Equal(2, importedSecrets.Count);
+        Assert.All(importedSecrets, secret => Assert.Equal(SecretType.WifiPassword, secret.SecretType));
+        Assert.All(importedSecrets, secret => Assert.NotEqual("super-secret", Encoding.UTF8.GetString(secret.SecretValueEncrypted)));
         Assert.Equal(2, importBatch.RecordsCreated);
         Assert.Equal(0, importBatch.RecordsSkipped);
         Assert.Equal(0, importBatch.WarningCount);
         Assert.Equal(ImportStatus.Completed, importBatch.Status);
         Assert.Equal("Spreadsheet import", importAudit.FieldChanged);
+        Assert.Equal(2, await verifyContext.BuildRecordAudit.CountAsync(entry => entry.Action == AuditAction.SensitiveValueChanged));
     }
 
     [Fact]
@@ -247,6 +252,43 @@ public class SpreadsheetImportMappingServiceTests
 
         Assert.Equal(2, await verifyContext.BuildRecords.CountAsync());
         Assert.Equal(ImportStatus.CompletedWithWarnings, importBatch.Status);
+    }
+
+    [Fact]
+    public async Task BuildImportAsync_StoresMultipleSensitiveFieldTypesSecurely()
+    {
+        await using var harness = await ImportHarness.CreateAsync();
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(
+            "Product Code,Product Name,Serial Number,Windows Admin Password,BitLocker Recovery Key,Router Password\r\n" +
+            "CDM61100,RadSight Access Terminal,1000000,admin-secret,123456-123456-123456-123456-123456-123456-123456-123456,router-secret\r\n"));
+
+        var result = await harness.Service.BuildImportAsync(
+            "buildbook-import.csv",
+            stream,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Product Code"] = "ProductCode",
+                ["Product Name"] = "ProductName",
+                ["Serial Number"] = "SerialNumber",
+                ["Windows Admin Password"] = "WindowsAdminPassword",
+                ["BitLocker Recovery Key"] = "BitLockerRecoveryKey",
+                ["Router Password"] = "RouterPassword"
+            },
+            "DOMAIN\\importer");
+
+        Assert.Equal(1, result.RecordsCreated);
+
+        await using var verifyContext = harness.CreateContext();
+        var buildRecord = await verifyContext.BuildRecords.SingleAsync();
+        var secretService = harness.CreateSecretService();
+
+        var windowsSecret = await secretService.RetrieveAsync(buildRecord.Id, SecretType.WindowsAdminPassword, "viewer");
+        var bitLockerSecret = await secretService.RetrieveAsync(buildRecord.Id, SecretType.BitLockerRecoveryKey, "viewer");
+        var routerSecret = await secretService.RetrieveAsync(buildRecord.Id, SecretType.RouterPassword, "viewer");
+
+        Assert.Equal("admin-secret", windowsSecret.SecretValue);
+        Assert.Equal("123456-123456-123456-123456-123456-123456-123456-123456", bitLockerSecret.SecretValue);
+        Assert.Equal("router-secret", routerSecret.SecretValue);
     }
 
     private static MemoryStream CreateXlsxStream(IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string>>? rows = null)
@@ -395,13 +437,23 @@ public class SpreadsheetImportMappingServiceTests
 
     private sealed class ImportHarness : IAsyncDisposable
     {
-        private ImportHarness(DbContextOptions<BuildBookDbContext> options, SpreadsheetImportMappingService service)
+        private ImportHarness(
+            DbContextOptions<BuildBookDbContext> options,
+            string keyDirectory,
+            TestDbContextFactory factory,
+            SpreadsheetImportMappingService service)
         {
             Options = options;
+            KeyDirectory = keyDirectory;
+            Factory = factory;
             Service = service;
         }
 
         public DbContextOptions<BuildBookDbContext> Options { get; }
+
+        public string KeyDirectory { get; }
+
+        public TestDbContextFactory Factory { get; }
 
         public SpreadsheetImportMappingService Service { get; }
 
@@ -429,9 +481,14 @@ public class SpreadsheetImportMappingServiceTests
                 await setupContext.SaveChangesAsync();
             }
 
+            var keyDirectory = Path.Combine(Path.GetTempPath(), $"buildbook-import-service-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(keyDirectory);
+            var provider = DataProtectionProvider.Create(new DirectoryInfo(keyDirectory));
             var factory = new TestDbContextFactory(options);
-            var service = new SpreadsheetImportMappingService(factory, new BuildRecordAuditService());
-            return new ImportHarness(options, service);
+            var auditService = new BuildRecordAuditService();
+            var secretService = new BuildRecordSecretService(factory, provider, auditService);
+            var service = new SpreadsheetImportMappingService(factory, auditService, secretService);
+            return new ImportHarness(options, keyDirectory, factory, service);
         }
 
         public BuildBookDbContext CreateContext()
@@ -439,10 +496,17 @@ public class SpreadsheetImportMappingServiceTests
             return new BuildBookDbContext(Options);
         }
 
+        public BuildRecordSecretService CreateSecretService()
+        {
+            var provider = DataProtectionProvider.Create(new DirectoryInfo(KeyDirectory));
+            return new BuildRecordSecretService(Factory, provider, new BuildRecordAuditService());
+        }
+
         public async ValueTask DisposeAsync()
         {
             await using var context = CreateContext();
             await context.Database.EnsureDeletedAsync();
+            Directory.Delete(KeyDirectory, recursive: true);
         }
     }
 
