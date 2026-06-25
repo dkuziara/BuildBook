@@ -25,6 +25,7 @@ public class InfrastructureRegistrationTests
         var auditService = provider.GetRequiredService<IBuildRecordAuditService>();
         var auditHistoryReader = provider.GetRequiredService<IBuildRecordAuditHistoryReader>();
         var secretStore = provider.GetRequiredService<IBuildRecordSecretStore>();
+        var secretService = provider.GetRequiredService<IBuildRecordSecretService>();
         var creator = provider.GetRequiredService<IBuildRecordCreator>();
         var homePageReader = provider.GetRequiredService<IHomePageReader>();
         var registerReader = provider.GetRequiredService<IBuildRegisterReader>();
@@ -44,6 +45,7 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(auditService);
         Assert.NotNull(auditHistoryReader);
         Assert.NotNull(secretStore);
+        Assert.NotNull(secretService);
         Assert.NotNull(creator);
         Assert.NotNull(homePageReader);
         Assert.NotNull(registerReader);

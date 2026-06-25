@@ -2,6 +2,7 @@ using BuildBook.Application.BuildRecords;
 using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.BuildRecords;
 using BuildBook.Infrastructure.Persistence.SeedData;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,9 +37,11 @@ public static class DependencyInjection
 
         services.AddScoped<DevelopmentDataSeeder>();
         services.AddScoped<BuildBookDatabaseInitializer>();
+        services.AddDataProtection();
         services.AddScoped<IBuildRecordAuditService, BuildRecordAuditService>();
         services.AddScoped<IBuildRecordAuditHistoryReader, BuildRecordAuditHistoryReader>();
         services.AddScoped<IBuildRecordSecretStore, BuildRecordSecretStore>();
+        services.AddScoped<IBuildRecordSecretService, BuildRecordSecretService>();
         services.AddScoped<IBuildRecordCreator, BuildRecordCreator>();
         services.AddScoped<IHomePageReader, HomePageReader>();
         services.AddScoped<IBuildRegisterReader, BuildRegisterReader>();
