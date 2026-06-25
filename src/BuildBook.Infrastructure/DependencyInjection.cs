@@ -37,7 +37,14 @@ public static class DependencyInjection
 
         services.AddScoped<DevelopmentDataSeeder>();
         services.AddScoped<BuildBookDatabaseInitializer>();
-        services.AddDataProtection();
+        var dataProtectionBuilder = services.AddDataProtection()
+            .SetApplicationName("BuildBook");
+        var dataProtectionKeyDirectory = configuration["BuildBook:DataProtectionKeyDirectory"];
+        if (!string.IsNullOrWhiteSpace(dataProtectionKeyDirectory))
+        {
+            dataProtectionBuilder.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyDirectory));
+        }
+
         services.AddScoped<IBuildRecordAuditService, BuildRecordAuditService>();
         services.AddScoped<IBuildRecordAuditHistoryReader, BuildRecordAuditHistoryReader>();
         services.AddScoped<IBuildRecordSecretStore, BuildRecordSecretStore>();

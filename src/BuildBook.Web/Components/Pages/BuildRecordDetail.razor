@@ -12,7 +12,9 @@
 @inject IHardwareDetailsUpdater HardwareDetailsUpdater
 @inject ISoftwareFirmwareUpdater SoftwareFirmwareUpdater
 @inject INetworkNotesUpdater NetworkNotesUpdater
+@inject IBuildRecordSecretService BuildRecordSecretService
 @inject IRecentlyViewedBuildRecordTracker RecentlyViewedBuildRecordTracker
+@inject BuildBook.Web.Authorization.IBuildBookPermissionService BuildBookPermissionService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -750,27 +752,123 @@ else
             </div>
             <div>
                 <dt>RadSight user password</dt>
-                <dd><span class="secret-mask">@MaskedSecretDisplay</span></dd>
+                <dd>
+                    <span class="@SecretValueCssClass(SecretType.RadSightUserPassword)">@DisplaySecret(SecretType.RadSightUserPassword)</span>
+                    <AuthorizeView Policy="@BuildBookPolicies.RevealSensitiveData">
+                        <Authorized>
+                            @if (!IsSecretRevealed(SecretType.RadSightUserPassword))
+                            {
+                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(SecretType.RadSightUserPassword)" @onclick="() => RevealSecretAsync(SecretType.RadSightUserPassword)">
+                                    @(IsRevealingSecret(SecretType.RadSightUserPassword) ? "Revealing..." : "Reveal")
+                                </button>
+                            }
+                        </Authorized>
+                    </AuthorizeView>
+                    @if (GetSecretRevealError(SecretType.RadSightUserPassword) is { } radSightPasswordRevealError)
+                    {
+                        <span class="field-message error">@radSightPasswordRevealError</span>
+                    }
+                </dd>
             </div>
             <div>
                 <dt>Windows admin password</dt>
-                <dd><span class="secret-mask">@MaskedSecretDisplay</span></dd>
+                <dd>
+                    <span class="@SecretValueCssClass(SecretType.WindowsAdminPassword)">@DisplaySecret(SecretType.WindowsAdminPassword)</span>
+                    <AuthorizeView Policy="@BuildBookPolicies.RevealSensitiveData">
+                        <Authorized>
+                            @if (!IsSecretRevealed(SecretType.WindowsAdminPassword))
+                            {
+                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(SecretType.WindowsAdminPassword)" @onclick="() => RevealSecretAsync(SecretType.WindowsAdminPassword)">
+                                    @(IsRevealingSecret(SecretType.WindowsAdminPassword) ? "Revealing..." : "Reveal")
+                                </button>
+                            }
+                        </Authorized>
+                    </AuthorizeView>
+                    @if (GetSecretRevealError(SecretType.WindowsAdminPassword) is { } windowsAdminPasswordRevealError)
+                    {
+                        <span class="field-message error">@windowsAdminPasswordRevealError</span>
+                    }
+                </dd>
             </div>
             <div>
                 <dt>Kiosk password</dt>
-                <dd><span class="secret-mask">@MaskedSecretDisplay</span></dd>
+                <dd>
+                    <span class="@SecretValueCssClass(SecretType.KioskPassword)">@DisplaySecret(SecretType.KioskPassword)</span>
+                    <AuthorizeView Policy="@BuildBookPolicies.RevealSensitiveData">
+                        <Authorized>
+                            @if (!IsSecretRevealed(SecretType.KioskPassword))
+                            {
+                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(SecretType.KioskPassword)" @onclick="() => RevealSecretAsync(SecretType.KioskPassword)">
+                                    @(IsRevealingSecret(SecretType.KioskPassword) ? "Revealing..." : "Reveal")
+                                </button>
+                            }
+                        </Authorized>
+                    </AuthorizeView>
+                    @if (GetSecretRevealError(SecretType.KioskPassword) is { } kioskPasswordRevealError)
+                    {
+                        <span class="field-message error">@kioskPasswordRevealError</span>
+                    }
+                </dd>
             </div>
             <div>
                 <dt>Wi-Fi password</dt>
-                <dd><span class="secret-mask">@MaskedSecretDisplay</span></dd>
+                <dd>
+                    <span class="@SecretValueCssClass(SecretType.WifiPassword)">@DisplaySecret(SecretType.WifiPassword)</span>
+                    <AuthorizeView Policy="@BuildBookPolicies.RevealSensitiveData">
+                        <Authorized>
+                            @if (!IsSecretRevealed(SecretType.WifiPassword))
+                            {
+                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(SecretType.WifiPassword)" @onclick="() => RevealSecretAsync(SecretType.WifiPassword)">
+                                    @(IsRevealingSecret(SecretType.WifiPassword) ? "Revealing..." : "Reveal")
+                                </button>
+                            }
+                        </Authorized>
+                    </AuthorizeView>
+                    @if (GetSecretRevealError(SecretType.WifiPassword) is { } wifiPasswordRevealError)
+                    {
+                        <span class="field-message error">@wifiPasswordRevealError</span>
+                    }
+                </dd>
             </div>
             <div>
                 <dt>Router password</dt>
-                <dd><span class="secret-mask">@MaskedSecretDisplay</span></dd>
+                <dd>
+                    <span class="@SecretValueCssClass(SecretType.RouterPassword)">@DisplaySecret(SecretType.RouterPassword)</span>
+                    <AuthorizeView Policy="@BuildBookPolicies.RevealSensitiveData">
+                        <Authorized>
+                            @if (!IsSecretRevealed(SecretType.RouterPassword))
+                            {
+                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(SecretType.RouterPassword)" @onclick="() => RevealSecretAsync(SecretType.RouterPassword)">
+                                    @(IsRevealingSecret(SecretType.RouterPassword) ? "Revealing..." : "Reveal")
+                                </button>
+                            }
+                        </Authorized>
+                    </AuthorizeView>
+                    @if (GetSecretRevealError(SecretType.RouterPassword) is { } routerPasswordRevealError)
+                    {
+                        <span class="field-message error">@routerPasswordRevealError</span>
+                    }
+                </dd>
             </div>
             <div>
                 <dt>BitLocker recovery key</dt>
-                <dd><span class="secret-mask">@MaskedSecretDisplay</span></dd>
+                <dd>
+                    <span class="@SecretValueCssClass(SecretType.BitLockerRecoveryKey)">@DisplaySecret(SecretType.BitLockerRecoveryKey)</span>
+                    <AuthorizeView Policy="@BuildBookPolicies.RevealSensitiveData">
+                        <Authorized>
+                            @if (!IsSecretRevealed(SecretType.BitLockerRecoveryKey))
+                            {
+                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(SecretType.BitLockerRecoveryKey)" @onclick="() => RevealSecretAsync(SecretType.BitLockerRecoveryKey)">
+                                    @(IsRevealingSecret(SecretType.BitLockerRecoveryKey) ? "Revealing..." : "Reveal")
+                                </button>
+                            }
+                        </Authorized>
+                    </AuthorizeView>
+                    @if (GetSecretRevealError(SecretType.BitLockerRecoveryKey) is { } bitLockerRevealError)
+                    {
+                        <span class="field-message error">@bitLockerRevealError</span>
+                    }
+                </dd>
             </div>
         </dl>
     </section>
@@ -922,6 +1020,9 @@ else
     private string saveMessage = string.Empty;
     private readonly List<string> saveWarnings = [];
     private const string MaskedSecretDisplay = "************";
+    private readonly Dictionary<SecretType, string?> revealedSecrets = [];
+    private readonly Dictionary<SecretType, string> secretRevealErrors = [];
+    private readonly HashSet<SecretType> revealingSecretTypes = [];
 
     private static IReadOnlyList<InternalStatus> InternalStatusOptions { get; } =
         Enum.GetValues<InternalStatus>();
@@ -962,6 +1063,9 @@ else
         softwareFirmwareErrors.Clear();
         networkDetailErrors.Clear();
         notesErrors.Clear();
+        revealedSecrets.Clear();
+        secretRevealErrors.Clear();
+        revealingSecretTypes.Clear();
         isLoading = false;
     }
 
@@ -1460,6 +1564,78 @@ else
     {
         notesErrors.Clear();
         isEditingNotes = false;
+    }
+
+    private async Task RevealSecretAsync(SecretType secretType)
+    {
+        if (buildRecord is null || !revealingSecretTypes.Add(secretType))
+        {
+            return;
+        }
+
+        secretRevealErrors.Remove(secretType);
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authenticationState.User;
+            var userName = user.Identity?.Name ?? "Unknown";
+
+            await BuildBookPermissionService.EnsureAuthorizedAsync(
+                user,
+                BuildBookPolicies.RevealSensitiveData);
+
+            var result = await BuildRecordSecretService.RetrieveAsync(BuildRecordId, secretType, userName);
+
+            if (result.Succeeded)
+            {
+                revealedSecrets[secretType] = result.SecretValue;
+                auditHistory = await BuildRecordAuditHistoryReader.ListByBuildRecordIdAsync(BuildRecordId);
+            }
+            else
+            {
+                secretRevealErrors[secretType] = string.Join(" ", result.Errors);
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            secretRevealErrors[secretType] = "You are not authorised to reveal this value.";
+        }
+        catch
+        {
+            secretRevealErrors[secretType] = "This value could not be revealed. Try again.";
+        }
+        finally
+        {
+            revealingSecretTypes.Remove(secretType);
+        }
+    }
+
+    private bool IsSecretRevealed(SecretType secretType)
+    {
+        return revealedSecrets.ContainsKey(secretType);
+    }
+
+    private bool IsRevealingSecret(SecretType secretType)
+    {
+        return revealingSecretTypes.Contains(secretType);
+    }
+
+    private string? GetSecretRevealError(SecretType secretType)
+    {
+        return secretRevealErrors.TryGetValue(secretType, out var error) ? error : null;
+    }
+
+    private string DisplaySecret(SecretType secretType)
+    {
+        return revealedSecrets.TryGetValue(secretType, out var secretValue)
+            ? Display(secretValue)
+            : MaskedSecretDisplay;
+    }
+
+    private string SecretValueCssClass(SecretType secretType)
+    {
+        return IsSecretRevealed(secretType) ? "secret-value" : "secret-mask";
     }
 
     private static string Display(string? value)

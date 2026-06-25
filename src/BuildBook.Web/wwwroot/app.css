@@ -251,6 +251,27 @@ body {
     letter-spacing: 0.08em;
 }
 
+.secret-value {
+    color: #172033;
+    font-family: Consolas, "Courier New", monospace;
+}
+
+.secret-reveal-button {
+    margin-left: 0.75rem;
+    padding: 0.35rem 0.65rem;
+}
+
+.field-message {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 0.35rem;
+}
+
+.field-message.error {
+    color: #a12622;
+}
+
 .detail-actions {
     margin-top: 1rem;
 }

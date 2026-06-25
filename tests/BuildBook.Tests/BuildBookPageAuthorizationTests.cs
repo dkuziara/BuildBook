@@ -108,6 +108,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("IHardwareDetailsUpdater", pageContent);
         Assert.Contains("ISoftwareFirmwareUpdater", pageContent);
         Assert.Contains("INetworkNotesUpdater", pageContent);
+        Assert.Contains("IBuildRecordSecretService", pageContent);
+        Assert.Contains("IBuildBookPermissionService", pageContent);
         Assert.Contains("IRecentlyViewedBuildRecordTracker", pageContent);
         Assert.Contains("FormName=\"edit-product-details\"", pageContent);
         Assert.Contains("FormName=\"edit-build-details\"", pageContent);
@@ -178,11 +180,13 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("BitLocker recovery key", pageContent);
         Assert.Contains("MaskedSecretDisplay", pageContent);
         Assert.Contains("************", pageContent);
+        Assert.Contains("BuildBookPolicies.RevealSensitiveData", pageContent);
+        Assert.Contains("EnsureAuthorizedAsync", pageContent);
+        Assert.Contains("BuildRecordSecretService.RetrieveAsync", pageContent);
+        Assert.Contains("RevealSecretAsync", pageContent);
         Assert.Contains("RecentlyViewedBuildRecordTracker.TrackView", pageContent);
         Assert.DoesNotContain("BuildRecordSecret", pageContent);
-        Assert.DoesNotContain("WifiPassword", pageContent);
-        Assert.DoesNotContain("RouterPassword", pageContent);
-        Assert.DoesNotContain("BitLockerRecoveryKey", pageContent);
+        Assert.DoesNotContain("SecretValueEncrypted", pageContent);
     }
 
     [Fact]

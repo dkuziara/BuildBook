@@ -4,6 +4,7 @@ using System.Text;
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
 using BuildBook.Infrastructure.Persistence;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Playwright;
 
@@ -54,6 +55,19 @@ public class BuildRecordSmokeTests
         Assert.Contains("************", credentialsText, StringComparison.Ordinal);
         Assert.DoesNotContain(harness.SecretPlainText, credentialsText, StringComparison.Ordinal);
 
+        var routerPasswordRow = credentialsSection.Locator("div").Filter(new LocatorFilterOptions
+        {
+            HasText = "Router password"
+        });
+        await routerPasswordRow.GetByRole(AriaRole.Button, new() { Name = "Reveal" }).ClickAsync();
+        var revealSucceeded = await WaitForBodyTextAsync(page, harness.SecretPlainText, TimeSpan.FromSeconds(10));
+        var bodyTextAfterReveal = await page.Locator("body").InnerTextAsync();
+        Assert.True(
+            revealSucceeded,
+            $"Secret reveal did not show the expected value.{Environment.NewLine}{bodyTextAfterReveal}");
+        Assert.Contains("Sensitive value viewed", bodyTextAfterReveal, StringComparison.Ordinal);
+        Assert.Contains(nameof(SecretType.RouterPassword), bodyTextAfterReveal, StringComparison.Ordinal);
+
         var notesSection = page.Locator("section[aria-labelledby='notes-heading']");
         await notesSection.GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();
         await page.Locator("#edit-note").FillAsync(harness.UpdatedNote);
@@ -74,6 +88,33 @@ public class BuildRecordSmokeTests
         Assert.DoesNotContain(harness.SecretPlainText, await page.Locator("body").InnerTextAsync(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task ViewerCannotRevealSecrets()
+    {
+        await using var harness = await BuildBookSmokeTestHarness.StartAsync(developmentRole: "Viewer");
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        {
+            Channel = harness.BrowserChannel,
+            Headless = true
+        });
+
+        var page = await browser.NewPageAsync();
+        await page.GotoAsync($"{harness.BaseUrl}/build-records/{harness.BuildRecordId}", new PageGotoOptions
+        {
+            WaitUntil = WaitUntilState.NetworkIdle
+        });
+
+        var credentialsSection = page.Locator("section[aria-labelledby='credentials-recovery-heading']");
+        var credentialsText = await credentialsSection.InnerTextAsync();
+
+        Assert.Contains("Credentials & Recovery", credentialsText, StringComparison.Ordinal);
+        Assert.Contains("************", credentialsText, StringComparison.Ordinal);
+        Assert.DoesNotContain(harness.SecretPlainText, await page.Locator("body").InnerTextAsync(), StringComparison.Ordinal);
+        Assert.Equal(0, await credentialsSection.GetByRole(AriaRole.Button, new() { Name = "Reveal" }).CountAsync());
+    }
+
     private sealed class BuildBookSmokeTestHarness : IAsyncDisposable
     {
         private readonly Process process;
@@ -81,6 +122,7 @@ public class BuildRecordSmokeTests
         private readonly Task outputPump;
         private readonly Task errorPump;
         private readonly string connectionString;
+        private readonly string keyDirectory;
 
         private BuildBookSmokeTestHarness(
             Process process,
@@ -88,8 +130,10 @@ public class BuildRecordSmokeTests
             Task outputPump,
             Task errorPump,
             string connectionString,
+            string keyDirectory,
             string baseUrl,
             string browserChannel,
+            int buildRecordId,
             string productCode,
             string serialNumber,
             string secretPlainText,
@@ -100,8 +144,10 @@ public class BuildRecordSmokeTests
             this.outputPump = outputPump;
             this.errorPump = errorPump;
             this.connectionString = connectionString;
+            this.keyDirectory = keyDirectory;
             BaseUrl = baseUrl;
             BrowserChannel = browserChannel;
+            BuildRecordId = buildRecordId;
             ProductCode = productCode;
             SerialNumber = serialNumber;
             SecretPlainText = secretPlainText;
@@ -112,6 +158,8 @@ public class BuildRecordSmokeTests
 
         public string BrowserChannel { get; }
 
+        public int BuildRecordId { get; }
+
         public string ProductCode { get; }
 
         public string SerialNumber { get; }
@@ -120,7 +168,7 @@ public class BuildRecordSmokeTests
 
         public string UpdatedNote { get; }
 
-        public static async Task<BuildBookSmokeTestHarness> StartAsync()
+        public static async Task<BuildBookSmokeTestHarness> StartAsync(string developmentRole = "Administrator")
         {
             var testId = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
             var productCode = $"BI029-{testId}";
@@ -132,8 +180,16 @@ public class BuildRecordSmokeTests
             var baseUrl = $"http://127.0.0.1:{GetFreePort()}";
             var browserChannel = Environment.GetEnvironmentVariable("BUILDBOOK_SMOKE_BROWSER_CHANNEL") ?? "msedge";
             var connectionString = BuildConnectionString(databaseName);
+            var keyDirectory = Path.Combine(Path.GetTempPath(), $"buildbook-smoke-keys-{testId}");
+            Directory.CreateDirectory(keyDirectory);
 
-            await CreateDatabaseAsync(connectionString, productCode, serialNumber, initialNote, secretPlainText);
+            var buildRecordId = await CreateDatabaseAsync(
+                connectionString,
+                keyDirectory,
+                productCode,
+                serialNumber,
+                initialNote,
+                secretPlainText);
 
             var startInfo = new ProcessStartInfo
             {
@@ -149,8 +205,9 @@ public class BuildRecordSmokeTests
             startInfo.Environment["ConnectionStrings__BuildBookDatabase"] = connectionString;
             startInfo.Environment["BuildBook__SeedDevelopmentData"] = "false";
             startInfo.Environment["BuildBook__Authorization__UseDevelopmentAuthentication"] = "true";
-            startInfo.Environment["BuildBook__Authorization__DevelopmentRole"] = "Administrator";
+            startInfo.Environment["BuildBook__Authorization__DevelopmentRole"] = developmentRole;
             startInfo.Environment["BuildBook__EnableDetailedErrors"] = "true";
+            startInfo.Environment["BuildBook__DataProtectionKeyDirectory"] = keyDirectory;
 
             var process = Process.Start(startInfo)
                 ?? throw new InvalidOperationException("BuildBook smoke test could not start the web application process.");
@@ -162,8 +219,10 @@ public class BuildRecordSmokeTests
                 PumpAsync(process.StandardOutput, processLog),
                 PumpAsync(process.StandardError, processLog),
                 connectionString,
+                keyDirectory,
                 baseUrl,
                 browserChannel,
+                buildRecordId,
                 productCode,
                 serialNumber,
                 secretPlainText,
@@ -197,6 +256,14 @@ public class BuildRecordSmokeTests
             }
 
             await DeleteDatabaseAsync(connectionString);
+            try
+            {
+                Directory.Delete(keyDirectory, recursive: true);
+            }
+            catch
+            {
+                // Best-effort cleanup for temporary data protection keys.
+            }
         }
 
         private async Task WaitForApplicationAsync()
@@ -232,8 +299,9 @@ public class BuildRecordSmokeTests
                 $"BuildBook smoke test app did not become ready within the timeout.{Environment.NewLine}{processLog}");
         }
 
-        private static async Task CreateDatabaseAsync(
+        private static async Task<int> CreateDatabaseAsync(
             string connectionString,
+            string keyDirectory,
             string productCode,
             string serialNumber,
             string initialNote,
@@ -301,7 +369,7 @@ public class BuildRecordSmokeTests
             buildRecord.Secrets.Add(new BuildRecordSecret
             {
                 SecretType = SecretType.RouterPassword,
-                SecretValueEncrypted = Encoding.UTF8.GetBytes(secretPlainText),
+                SecretValueEncrypted = ProtectSecretValue(keyDirectory, secretPlainText),
                 CreatedBy = "Smoke test",
                 LastUpdatedBy = "Smoke test"
             });
@@ -309,6 +377,18 @@ public class BuildRecordSmokeTests
             await dbContext.Customers.AddAsync(customer);
             await dbContext.BuildRecords.AddAsync(buildRecord);
             await dbContext.SaveChangesAsync();
+
+            return buildRecord.Id;
+        }
+
+        private static byte[] ProtectSecretValue(string keyDirectory, string secretPlainText)
+        {
+            var provider = DataProtectionProvider.Create(
+                new DirectoryInfo(keyDirectory),
+                configuration => configuration.SetApplicationName("BuildBook"));
+            var protector = provider.CreateProtector("BuildBook.BuildRecordSecrets.v1");
+
+            return Encoding.UTF8.GetBytes(protector.Protect(secretPlainText));
         }
 
         private static async Task DeleteDatabaseAsync(string connectionString)
