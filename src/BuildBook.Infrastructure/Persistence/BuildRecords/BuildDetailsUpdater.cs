@@ -1,11 +1,11 @@
 using BuildBook.Application.BuildRecords;
-using BuildBook.Domain.BuildRecords;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence.BuildRecords;
 
 public sealed class BuildDetailsUpdater(
-    IDbContextFactory<BuildBookDbContext> dbContextFactory) : IBuildDetailsUpdater
+    IDbContextFactory<BuildBookDbContext> dbContextFactory,
+    IBuildRecordAuditService buildRecordAuditService) : IBuildDetailsUpdater
 {
     public async Task<UpdateBuildDetailsResult> UpdateAsync(
         int buildRecordId,
@@ -36,17 +36,19 @@ public sealed class BuildDetailsUpdater(
         var packingList = NormalizeOptionalValue(request.PackingList);
         var checkedBy = NormalizeOptionalValue(request.CheckedBy);
 
-        var auditEntries = CreateAuditEntries(
+        var auditEntries = buildRecordAuditService.CreateRecordUpdatedEntries(
             buildRecord,
-            assembledIn,
-            assembledBy,
-            request.DateAssembled,
-            hardwareManufacturer,
-            manufacturerPartNumber,
-            manufacturerRevision,
-            manufacturerSerialNumber,
-            packingList,
-            checkedBy,
+            [
+                new BuildRecordAuditChange("AssembledIn", buildRecord.AssembledIn, assembledIn),
+                new BuildRecordAuditChange("AssembledBy", buildRecord.AssembledBy, assembledBy),
+                new BuildRecordAuditChange("DateAssembled", FormatDate(buildRecord.DateAssembled), FormatDate(request.DateAssembled)),
+                new BuildRecordAuditChange("HardwareManufacturer", buildRecord.HardwareManufacturer, hardwareManufacturer),
+                new BuildRecordAuditChange("ManufacturerPartNumber", buildRecord.ManufacturerPartNumber, manufacturerPartNumber),
+                new BuildRecordAuditChange("ManufacturerRevision", buildRecord.ManufacturerRevision, manufacturerRevision),
+                new BuildRecordAuditChange("ManufacturerSerialNumber", buildRecord.ManufacturerSerialNumber, manufacturerSerialNumber),
+                new BuildRecordAuditChange("PackingList", buildRecord.PackingList, packingList),
+                new BuildRecordAuditChange("CheckedBy", buildRecord.CheckedBy, checkedBy)
+            ],
             userName);
 
         if (auditEntries.Count == 0)
@@ -77,61 +79,8 @@ public sealed class BuildDetailsUpdater(
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static List<BuildRecordAudit> CreateAuditEntries(
-        BuildRecord buildRecord,
-        string? assembledIn,
-        string? assembledBy,
-        DateOnly? dateAssembled,
-        string? hardwareManufacturer,
-        string? manufacturerPartNumber,
-        string? manufacturerRevision,
-        string? manufacturerSerialNumber,
-        string? packingList,
-        string? checkedBy,
-        string userName)
-    {
-        var auditEntries = new List<BuildRecordAudit>();
-
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "AssembledIn", buildRecord.AssembledIn, assembledIn, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "AssembledBy", buildRecord.AssembledBy, assembledBy, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "DateAssembled", FormatDate(buildRecord.DateAssembled), FormatDate(dateAssembled), userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "HardwareManufacturer", buildRecord.HardwareManufacturer, hardwareManufacturer, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "ManufacturerPartNumber", buildRecord.ManufacturerPartNumber, manufacturerPartNumber, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "ManufacturerRevision", buildRecord.ManufacturerRevision, manufacturerRevision, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "ManufacturerSerialNumber", buildRecord.ManufacturerSerialNumber, manufacturerSerialNumber, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "PackingList", buildRecord.PackingList, packingList, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "CheckedBy", buildRecord.CheckedBy, checkedBy, userName);
-
-        return auditEntries;
-    }
-
     private static string? FormatDate(DateOnly? value)
     {
         return value?.ToString("yyyy-MM-dd");
-    }
-
-    private static void AddAuditEntryIfChanged(
-        ICollection<BuildRecordAudit> auditEntries,
-        BuildRecord buildRecord,
-        string fieldChanged,
-        string? oldValue,
-        string? newValue,
-        string userName)
-    {
-        if (string.Equals(oldValue, newValue, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        auditEntries.Add(new BuildRecordAudit
-        {
-            BuildRecordId = buildRecord.Id,
-            OccurredAt = DateTimeOffset.UtcNow,
-            User = userName,
-            Action = AuditAction.Updated,
-            FieldChanged = fieldChanged,
-            OldValue = oldValue,
-            NewValue = newValue
-        });
     }
 }

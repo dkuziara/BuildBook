@@ -1,11 +1,11 @@
 using BuildBook.Application.BuildRecords;
-using BuildBook.Domain.BuildRecords;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence.BuildRecords;
 
 public sealed class CustomerShippingUpdater(
-    IDbContextFactory<BuildBookDbContext> dbContextFactory) : ICustomerShippingUpdater
+    IDbContextFactory<BuildBookDbContext> dbContextFactory,
+    IBuildRecordAuditService buildRecordAuditService) : ICustomerShippingUpdater
 {
     public async Task<UpdateCustomerShippingResult> UpdateAsync(
         int buildRecordId,
@@ -47,13 +47,15 @@ public sealed class CustomerShippingUpdater(
         var oaNumber = NormalizeOptionalValue(request.OANumber);
         var invoiceNumber = NormalizeOptionalValue(request.InvoiceNumber);
 
-        var auditEntries = CreateAuditEntries(
+        var auditEntries = buildRecordAuditService.CreateRecordUpdatedEntries(
             buildRecord,
-            newCustomerName,
-            customerOrder,
-            oaNumber,
-            invoiceNumber,
-            request.DateShipped,
+            [
+                new BuildRecordAuditChange("Customer", buildRecord.Customer?.Name, newCustomerName),
+                new BuildRecordAuditChange("CustomerOrder", buildRecord.CustomerOrder, customerOrder),
+                new BuildRecordAuditChange("OANumber", buildRecord.OANumber, oaNumber),
+                new BuildRecordAuditChange("InvoiceNumber", buildRecord.InvoiceNumber, invoiceNumber),
+                new BuildRecordAuditChange("DateShipped", FormatDate(buildRecord.DateShipped), FormatDate(request.DateShipped))
+            ],
             userName);
 
         if (auditEntries.Count == 0)
@@ -80,53 +82,8 @@ public sealed class CustomerShippingUpdater(
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    private static List<BuildRecordAudit> CreateAuditEntries(
-        BuildRecord buildRecord,
-        string? customerName,
-        string? customerOrder,
-        string? oaNumber,
-        string? invoiceNumber,
-        DateOnly? dateShipped,
-        string userName)
-    {
-        var auditEntries = new List<BuildRecordAudit>();
-
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "Customer", buildRecord.Customer?.Name, customerName, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "CustomerOrder", buildRecord.CustomerOrder, customerOrder, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "OANumber", buildRecord.OANumber, oaNumber, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "InvoiceNumber", buildRecord.InvoiceNumber, invoiceNumber, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "DateShipped", FormatDate(buildRecord.DateShipped), FormatDate(dateShipped), userName);
-
-        return auditEntries;
-    }
-
     private static string? FormatDate(DateOnly? value)
     {
         return value?.ToString("yyyy-MM-dd");
-    }
-
-    private static void AddAuditEntryIfChanged(
-        ICollection<BuildRecordAudit> auditEntries,
-        BuildRecord buildRecord,
-        string fieldChanged,
-        string? oldValue,
-        string? newValue,
-        string userName)
-    {
-        if (string.Equals(oldValue, newValue, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        auditEntries.Add(new BuildRecordAudit
-        {
-            BuildRecordId = buildRecord.Id,
-            OccurredAt = DateTimeOffset.UtcNow,
-            User = userName,
-            Action = AuditAction.Updated,
-            FieldChanged = fieldChanged,
-            OldValue = oldValue,
-            NewValue = newValue
-        });
     }
 }

@@ -1,11 +1,11 @@
 using BuildBook.Application.BuildRecords;
-using BuildBook.Domain.BuildRecords;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence.BuildRecords;
 
 public sealed class NetworkNotesUpdater(
-    IDbContextFactory<BuildBookDbContext> dbContextFactory) : INetworkNotesUpdater
+    IDbContextFactory<BuildBookDbContext> dbContextFactory,
+    IBuildRecordAuditService buildRecordAuditService) : INetworkNotesUpdater
 {
     public async Task<UpdateNetworkNotesResult> UpdateAsync(
         int buildRecordId,
@@ -31,7 +31,14 @@ public sealed class NetworkNotesUpdater(
         var routerUsed = NormalizeOptionalValue(request.RouterUsed);
         var note = NormalizeOptionalValue(request.Note);
 
-        var auditEntries = CreateAuditEntries(buildRecord, wifiSsid, routerUsed, note, userName);
+        var auditEntries = buildRecordAuditService.CreateRecordUpdatedEntries(
+            buildRecord,
+            [
+                new BuildRecordAuditChange("WifiSsid", buildRecord.WifiSsid, wifiSsid),
+                new BuildRecordAuditChange("RouterUsed", buildRecord.RouterUsed, routerUsed),
+                new BuildRecordAuditChange("Note", buildRecord.Note, note)
+            ],
+            userName);
 
         if (auditEntries.Count == 0)
         {
@@ -53,46 +60,5 @@ public sealed class NetworkNotesUpdater(
     private static string? NormalizeOptionalValue(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
-
-    private static List<BuildRecordAudit> CreateAuditEntries(
-        BuildRecord buildRecord,
-        string? wifiSsid,
-        string? routerUsed,
-        string? note,
-        string userName)
-    {
-        var auditEntries = new List<BuildRecordAudit>();
-
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "WifiSsid", buildRecord.WifiSsid, wifiSsid, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "RouterUsed", buildRecord.RouterUsed, routerUsed, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "Note", buildRecord.Note, note, userName);
-
-        return auditEntries;
-    }
-
-    private static void AddAuditEntryIfChanged(
-        ICollection<BuildRecordAudit> auditEntries,
-        BuildRecord buildRecord,
-        string fieldChanged,
-        string? oldValue,
-        string? newValue,
-        string userName)
-    {
-        if (string.Equals(oldValue, newValue, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        auditEntries.Add(new BuildRecordAudit
-        {
-            BuildRecordId = buildRecord.Id,
-            OccurredAt = DateTimeOffset.UtcNow,
-            User = userName,
-            Action = AuditAction.Updated,
-            FieldChanged = fieldChanged,
-            OldValue = oldValue,
-            NewValue = newValue
-        });
     }
 }

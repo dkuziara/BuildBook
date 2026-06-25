@@ -1,11 +1,11 @@
 using BuildBook.Application.BuildRecords;
-using BuildBook.Domain.BuildRecords;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence.BuildRecords;
 
 public sealed class ProductDetailsUpdater(
-    IDbContextFactory<BuildBookDbContext> dbContextFactory) : IProductDetailsUpdater
+    IDbContextFactory<BuildBookDbContext> dbContextFactory,
+    IBuildRecordAuditService buildRecordAuditService) : IProductDetailsUpdater
 {
     public async Task<UpdateProductDetailsResult> UpdateAsync(
         int buildRecordId,
@@ -47,13 +47,15 @@ public sealed class ProductDetailsUpdater(
             return UpdateProductDetailsResult.Failure("A Build Record with this serial number already exists.");
         }
 
-        var auditEntries = CreateAuditEntries(
+        var auditEntries = buildRecordAuditService.CreateRecordUpdatedEntries(
             buildRecord,
-            productCode,
-            productName,
-            productClassification,
-            serialNumber,
-            request.InternalStatus,
+            [
+                new BuildRecordAuditChange("ProductCode", buildRecord.ProductCode, productCode),
+                new BuildRecordAuditChange("ProductName", buildRecord.ProductName, productName),
+                new BuildRecordAuditChange("ProductClassification", buildRecord.ProductClassification, productClassification),
+                new BuildRecordAuditChange("SerialNumber", buildRecord.SerialNumber, serialNumber),
+                new BuildRecordAuditChange("InternalStatus", buildRecord.InternalStatus?.ToString(), request.InternalStatus?.ToString())
+            ],
             userName);
 
         if (auditEntries.Count == 0)
@@ -78,50 +80,5 @@ public sealed class ProductDetailsUpdater(
     private static string? NormalizeOptionalValue(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
-
-    private static List<BuildRecordAudit> CreateAuditEntries(
-        BuildRecord buildRecord,
-        string productCode,
-        string productName,
-        string? productClassification,
-        string serialNumber,
-        InternalStatus? internalStatus,
-        string userName)
-    {
-        var auditEntries = new List<BuildRecordAudit>();
-
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "ProductCode", buildRecord.ProductCode, productCode, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "ProductName", buildRecord.ProductName, productName, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "ProductClassification", buildRecord.ProductClassification, productClassification, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "SerialNumber", buildRecord.SerialNumber, serialNumber, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "InternalStatus", buildRecord.InternalStatus?.ToString(), internalStatus?.ToString(), userName);
-
-        return auditEntries;
-    }
-
-    private static void AddAuditEntryIfChanged(
-        ICollection<BuildRecordAudit> auditEntries,
-        BuildRecord buildRecord,
-        string fieldChanged,
-        string? oldValue,
-        string? newValue,
-        string userName)
-    {
-        if (string.Equals(oldValue, newValue, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        auditEntries.Add(new BuildRecordAudit
-        {
-            BuildRecordId = buildRecord.Id,
-            OccurredAt = DateTimeOffset.UtcNow,
-            User = userName,
-            Action = AuditAction.Updated,
-            FieldChanged = fieldChanged,
-            OldValue = oldValue,
-            NewValue = newValue
-        });
     }
 }

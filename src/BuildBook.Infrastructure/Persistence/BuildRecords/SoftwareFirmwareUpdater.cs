@@ -1,11 +1,11 @@
 using BuildBook.Application.BuildRecords;
-using BuildBook.Domain.BuildRecords;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence.BuildRecords;
 
 public sealed class SoftwareFirmwareUpdater(
-    IDbContextFactory<BuildBookDbContext> dbContextFactory) : ISoftwareFirmwareUpdater
+    IDbContextFactory<BuildBookDbContext> dbContextFactory,
+    IBuildRecordAuditService buildRecordAuditService) : ISoftwareFirmwareUpdater
 {
     public async Task<UpdateSoftwareFirmwareResult> UpdateAsync(
         int buildRecordId,
@@ -35,15 +35,17 @@ public sealed class SoftwareFirmwareUpdater(
         var charthouseIrdaFirmwareVersion = NormalizeOptionalValue(request.CharthouseIrdaFirmwareVersion);
         var radioFirmware = NormalizeOptionalValue(request.RadioFirmware);
 
-        var auditEntries = CreateAuditEntries(
+        var auditEntries = buildRecordAuditService.CreateRecordUpdatedEntries(
             buildRecord,
-            diskImageVersion,
-            radSightVersion,
-            windowsVersion,
-            windowsLatestPatch,
-            bleuvioFirmwareVersion,
-            charthouseIrdaFirmwareVersion,
-            radioFirmware,
+            [
+                new BuildRecordAuditChange("DiskImageVersion", buildRecord.DiskImageVersion, diskImageVersion),
+                new BuildRecordAuditChange("RadSightVersion", buildRecord.RadSightVersion, radSightVersion),
+                new BuildRecordAuditChange("WindowsVersion", buildRecord.WindowsVersion, windowsVersion),
+                new BuildRecordAuditChange("WindowsLatestPatch", buildRecord.WindowsLatestPatch, windowsLatestPatch),
+                new BuildRecordAuditChange("BleuvioFirmwareVersion", buildRecord.BleuvioFirmwareVersion, bleuvioFirmwareVersion),
+                new BuildRecordAuditChange("CharthouseIrdaFirmwareVersion", buildRecord.CharthouseIrdaFirmwareVersion, charthouseIrdaFirmwareVersion),
+                new BuildRecordAuditChange("RadioFirmware", buildRecord.RadioFirmware, radioFirmware)
+            ],
             userName);
 
         if (auditEntries.Count == 0)
@@ -70,54 +72,5 @@ public sealed class SoftwareFirmwareUpdater(
     private static string? NormalizeOptionalValue(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
-
-    private static List<BuildRecordAudit> CreateAuditEntries(
-        BuildRecord buildRecord,
-        string? diskImageVersion,
-        string? radSightVersion,
-        string? windowsVersion,
-        string? windowsLatestPatch,
-        string? bleuvioFirmwareVersion,
-        string? charthouseIrdaFirmwareVersion,
-        string? radioFirmware,
-        string userName)
-    {
-        var auditEntries = new List<BuildRecordAudit>();
-
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "DiskImageVersion", buildRecord.DiskImageVersion, diskImageVersion, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "RadSightVersion", buildRecord.RadSightVersion, radSightVersion, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "WindowsVersion", buildRecord.WindowsVersion, windowsVersion, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "WindowsLatestPatch", buildRecord.WindowsLatestPatch, windowsLatestPatch, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "BleuvioFirmwareVersion", buildRecord.BleuvioFirmwareVersion, bleuvioFirmwareVersion, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "CharthouseIrdaFirmwareVersion", buildRecord.CharthouseIrdaFirmwareVersion, charthouseIrdaFirmwareVersion, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "RadioFirmware", buildRecord.RadioFirmware, radioFirmware, userName);
-
-        return auditEntries;
-    }
-
-    private static void AddAuditEntryIfChanged(
-        ICollection<BuildRecordAudit> auditEntries,
-        BuildRecord buildRecord,
-        string fieldChanged,
-        string? oldValue,
-        string? newValue,
-        string userName)
-    {
-        if (string.Equals(oldValue, newValue, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        auditEntries.Add(new BuildRecordAudit
-        {
-            BuildRecordId = buildRecord.Id,
-            OccurredAt = DateTimeOffset.UtcNow,
-            User = userName,
-            Action = AuditAction.Updated,
-            FieldChanged = fieldChanged,
-            OldValue = oldValue,
-            NewValue = newValue
-        });
     }
 }

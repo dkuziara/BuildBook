@@ -5,7 +5,8 @@ using Microsoft.EntityFrameworkCore;
 namespace BuildBook.Infrastructure.Persistence.BuildRecords;
 
 public sealed class BuildRecordCreator(
-    IDbContextFactory<BuildBookDbContext> dbContextFactory) : IBuildRecordCreator
+    IDbContextFactory<BuildBookDbContext> dbContextFactory,
+    IBuildRecordAuditService buildRecordAuditService) : IBuildRecordCreator
 {
     public async Task<CreateBuildRecordResult> CreateAsync(
         CreateBuildRecordRequest request,
@@ -47,6 +48,7 @@ public sealed class BuildRecordCreator(
         };
 
         dbContext.BuildRecords.Add(buildRecord);
+        dbContext.BuildRecordAudit.Add(buildRecordAuditService.CreateRecordCreatedEntry(buildRecord, userName));
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return CreateBuildRecordResult.Success(buildRecord.Id);

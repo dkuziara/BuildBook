@@ -1,11 +1,11 @@
 using BuildBook.Application.BuildRecords;
-using BuildBook.Domain.BuildRecords;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence.BuildRecords;
 
 public sealed class HardwareDetailsUpdater(
-    IDbContextFactory<BuildBookDbContext> dbContextFactory) : IHardwareDetailsUpdater
+    IDbContextFactory<BuildBookDbContext> dbContextFactory,
+    IBuildRecordAuditService buildRecordAuditService) : IHardwareDetailsUpdater
 {
     public async Task<UpdateHardwareDetailsResult> UpdateAsync(
         int buildRecordId,
@@ -46,14 +46,16 @@ public sealed class HardwareDetailsUpdater(
             warnings.Add("Another Build Record already uses this machine name.");
         }
 
-        var auditEntries = CreateAuditEntries(
+        var auditEntries = buildRecordAuditService.CreateRecordUpdatedEntries(
             buildRecord,
-            panelDeviceModel,
-            panelDeviceSerial,
-            panelFirmwareVersion,
-            machineName,
-            radioSerialNumber,
-            hardwareNotes,
+            [
+                new BuildRecordAuditChange("PanelDeviceModel", buildRecord.PanelDeviceModel, panelDeviceModel),
+                new BuildRecordAuditChange("PanelDeviceSerial", buildRecord.PanelDeviceSerial, panelDeviceSerial),
+                new BuildRecordAuditChange("PanelFirmwareVersion", buildRecord.PanelFirmwareVersion, panelFirmwareVersion),
+                new BuildRecordAuditChange("MachineName", buildRecord.MachineName, machineName),
+                new BuildRecordAuditChange("RadioSerialNumber", buildRecord.RadioSerialNumber, radioSerialNumber),
+                new BuildRecordAuditChange("HardwareNotes", buildRecord.HardwareNotes, hardwareNotes)
+            ],
             userName);
 
         if (auditEntries.Count == 0)
@@ -79,52 +81,5 @@ public sealed class HardwareDetailsUpdater(
     private static string? NormalizeOptionalValue(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
-
-    private static List<BuildRecordAudit> CreateAuditEntries(
-        BuildRecord buildRecord,
-        string? panelDeviceModel,
-        string? panelDeviceSerial,
-        string? panelFirmwareVersion,
-        string? machineName,
-        string? radioSerialNumber,
-        string? hardwareNotes,
-        string userName)
-    {
-        var auditEntries = new List<BuildRecordAudit>();
-
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "PanelDeviceModel", buildRecord.PanelDeviceModel, panelDeviceModel, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "PanelDeviceSerial", buildRecord.PanelDeviceSerial, panelDeviceSerial, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "PanelFirmwareVersion", buildRecord.PanelFirmwareVersion, panelFirmwareVersion, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "MachineName", buildRecord.MachineName, machineName, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "RadioSerialNumber", buildRecord.RadioSerialNumber, radioSerialNumber, userName);
-        AddAuditEntryIfChanged(auditEntries, buildRecord, "HardwareNotes", buildRecord.HardwareNotes, hardwareNotes, userName);
-
-        return auditEntries;
-    }
-
-    private static void AddAuditEntryIfChanged(
-        ICollection<BuildRecordAudit> auditEntries,
-        BuildRecord buildRecord,
-        string fieldChanged,
-        string? oldValue,
-        string? newValue,
-        string userName)
-    {
-        if (string.Equals(oldValue, newValue, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        auditEntries.Add(new BuildRecordAudit
-        {
-            BuildRecordId = buildRecord.Id,
-            OccurredAt = DateTimeOffset.UtcNow,
-            User = userName,
-            Action = AuditAction.Updated,
-            FieldChanged = fieldChanged,
-            OldValue = oldValue,
-            NewValue = newValue
-        });
     }
 }
