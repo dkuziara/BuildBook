@@ -49,6 +49,22 @@ public class BuildBookPageAuthorizationTests
     }
 
     [Fact]
+    public void HomePageDefinesRecentActivityPanels()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("Home.razor"));
+
+        Assert.Contains("IHomePageReader", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("Recently viewed", pageContent);
+        Assert.Contains("Recently updated", pageContent);
+        Assert.Contains("Build Records you opened recently.", pageContent);
+        Assert.Contains("Build Records with the latest saved changes.", pageContent);
+        Assert.Contains("/build-records/@record.Id", pageContent);
+        Assert.DoesNotContain("BuildRecordSecret", pageContent);
+        Assert.DoesNotContain("Password", pageContent);
+    }
+
+    [Fact]
     public void BuildRegisterPageDefinesExpectedTable()
     {
         var pageContent = File.ReadAllText(GetPagePath("BuildRegister.razor"));
@@ -91,6 +107,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("IHardwareDetailsUpdater", pageContent);
         Assert.Contains("ISoftwareFirmwareUpdater", pageContent);
         Assert.Contains("INetworkNotesUpdater", pageContent);
+        Assert.Contains("IRecentlyViewedBuildRecordTracker", pageContent);
         Assert.Contains("FormName=\"edit-product-details\"", pageContent);
         Assert.Contains("FormName=\"edit-build-details\"", pageContent);
         Assert.Contains("FormName=\"edit-customer-shipping\"", pageContent);
@@ -142,6 +159,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Bleuvio firmware version", pageContent);
         Assert.Contains("Charthouse IRDA firmware version", pageContent);
         Assert.Contains("Radio firmware", pageContent);
+        Assert.Contains("RecentlyViewedBuildRecordTracker.TrackView", pageContent);
         Assert.DoesNotContain("BuildRecordSecret", pageContent);
         Assert.DoesNotContain("WifiPassword", pageContent);
         Assert.DoesNotContain("RouterPassword", pageContent);

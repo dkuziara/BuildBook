@@ -11,6 +11,7 @@
 @inject IHardwareDetailsUpdater HardwareDetailsUpdater
 @inject ISoftwareFirmwareUpdater SoftwareFirmwareUpdater
 @inject INetworkNotesUpdater NetworkNotesUpdater
+@inject IRecentlyViewedBuildRecordTracker RecentlyViewedBuildRecordTracker
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -838,6 +839,13 @@ else
     {
         isLoading = true;
         buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
+        if (buildRecord is not null)
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name;
+            RecentlyViewedBuildRecordTracker.TrackView(buildRecord.Id, userName);
+        }
+
         customerOptions = await CustomerOptionsReader.ListActiveAsync();
         saveWarnings.Clear();
         isEditingProductDetails = false;

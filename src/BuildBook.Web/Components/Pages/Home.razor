@@ -1,25 +1,128 @@
-﻿@page "/"
+@page "/"
 
 @attribute [Authorize(Policy = BuildBookPolicies.ViewBuildRecords)]
 
+@inject IHomePageReader HomePageReader
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
 <PageTitle>BuildBook</PageTitle>
 
-<section class="page-heading">
-    <p class="eyebrow">BuildBook</p>
-    <h1>Find and manage internal build records.</h1>
-    <p>
-        Foundation screens are being added in backlog order. Use the navigation to move between the Version 1 work areas.
-    </p>
-    <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
-        <Authorized>
-            <p class="page-actions">
-                <a class="primary-button" href="/build-records/new">Add Build Record</a>
-            </p>
-        </Authorized>
-    </AuthorizeView>
-</section>
+@if (isLoading)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading home page...</p>
+    </section>
+}
+else
+{
+    <section class="page-heading">
+        <p class="eyebrow">BuildBook</p>
+        <h1>Find and manage internal build records.</h1>
+        <p>
+            Recent activity is shown below. Global search and summary counts will be added in later backlog items.
+        </p>
+        <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+            <Authorized>
+                <p class="page-actions">
+                    <a class="primary-button" href="/build-records/new">Add Build Record</a>
+                </p>
+            </Authorized>
+        </AuthorizeView>
+    </section>
 
-<section class="placeholder-panel" aria-labelledby="foundation-status">
-    <h2 id="foundation-status">Foundation status</h2>
-    <p>Navigation and layout are available. Search, record entry, reports and administration will be added in later backlog items.</p>
-</section>
+    <section class="home-activity-grid" aria-label="Recent build activity">
+        <section class="detail-panel" aria-labelledby="recently-viewed-heading">
+            <div class="detail-panel-header">
+                <div>
+                    <h2 id="recently-viewed-heading">Recently viewed</h2>
+                    <p>Build Records you opened recently.</p>
+                </div>
+            </div>
+
+            @if (homePageModel.RecentlyViewedRecords.Count == 0)
+            {
+                <p class="empty-state">Open a Build Record to see it here.</p>
+            }
+            else
+            {
+                <ul class="recent-record-list">
+                    @foreach (var record in homePageModel.RecentlyViewedRecords)
+                    {
+                        <li>
+                            <a class="recent-record-link" href="/build-records/@record.Id">
+                                <span class="recent-record-title">@record.ProductCode - Serial @record.SerialNumber</span>
+                                <span class="recent-record-meta">@record.ProductName</span>
+                                <span class="recent-record-meta">@ContextText(record)</span>
+                                <span class="recent-record-meta">Viewed @FormatTimestamp(record.ActivityAt)</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="detail-panel" aria-labelledby="recently-updated-heading">
+            <div class="detail-panel-header">
+                <div>
+                    <h2 id="recently-updated-heading">Recently updated</h2>
+                    <p>Build Records with the latest saved changes.</p>
+                </div>
+            </div>
+
+            @if (homePageModel.RecentlyUpdatedRecords.Count == 0)
+            {
+                <p class="empty-state">No Build Records have been updated yet.</p>
+            }
+            else
+            {
+                <ul class="recent-record-list">
+                    @foreach (var record in homePageModel.RecentlyUpdatedRecords)
+                    {
+                        <li>
+                            <a class="recent-record-link" href="/build-records/@record.Id">
+                                <span class="recent-record-title">@record.ProductCode - Serial @record.SerialNumber</span>
+                                <span class="recent-record-meta">@record.ProductName</span>
+                                <span class="recent-record-meta">@ContextText(record)</span>
+                                <span class="recent-record-meta">Updated @FormatTimestamp(record.ActivityAt)</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    </section>
+}
+
+@code {
+    private BuildBookHomePageModel homePageModel = new([], []);
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdentity = authenticationState.User.Identity?.Name;
+
+        homePageModel = await HomePageReader.GetAsync(userIdentity);
+        isLoading = false;
+    }
+
+    private static string ContextText(HomePageRecordSummary record)
+    {
+        if (!string.IsNullOrWhiteSpace(record.CustomerName))
+        {
+            return $"Customer {record.CustomerName}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(record.MachineName))
+        {
+            return $"Machine {record.MachineName}";
+        }
+
+        return "No customer or machine recorded";
+    }
+
+    private static string FormatTimestamp(DateTimeOffset timestamp)
+    {
+        return timestamp.ToLocalTime().ToString("d MMM yyyy HH:mm");
+    }
+}

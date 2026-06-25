@@ -36,6 +36,7 @@ public static class DependencyInjection
 
         services.AddScoped<DevelopmentDataSeeder>();
         services.AddScoped<IBuildRecordCreator, BuildRecordCreator>();
+        services.AddScoped<IHomePageReader, HomePageReader>();
         services.AddScoped<IBuildRegisterReader, BuildRegisterReader>();
         services.AddScoped<IBuildRecordSearchService, BuildRecordSearchService>();
         services.AddScoped<IBuildRecordDetailReader, BuildRecordDetailReader>();
@@ -46,6 +47,7 @@ public static class DependencyInjection
         services.AddScoped<IHardwareDetailsUpdater, HardwareDetailsUpdater>();
         services.AddScoped<ISoftwareFirmwareUpdater, SoftwareFirmwareUpdater>();
         services.AddScoped<INetworkNotesUpdater, NetworkNotesUpdater>();
+        services.AddSingleton<IRecentlyViewedBuildRecordTracker, RecentlyViewedBuildRecordTracker>();
 
         return services;
     }

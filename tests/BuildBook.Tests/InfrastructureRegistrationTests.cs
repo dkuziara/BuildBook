@@ -21,6 +21,7 @@ public class InfrastructureRegistrationTests
         using var provider = services.BuildServiceProvider();
         var factory = provider.GetRequiredService<IDbContextFactory<BuildBookDbContext>>();
         var creator = provider.GetRequiredService<IBuildRecordCreator>();
+        var homePageReader = provider.GetRequiredService<IHomePageReader>();
         var registerReader = provider.GetRequiredService<IBuildRegisterReader>();
         var searchService = provider.GetRequiredService<IBuildRecordSearchService>();
         var detailReader = provider.GetRequiredService<IBuildRecordDetailReader>();
@@ -31,9 +32,11 @@ public class InfrastructureRegistrationTests
         var hardwareDetailsUpdater = provider.GetRequiredService<IHardwareDetailsUpdater>();
         var softwareFirmwareUpdater = provider.GetRequiredService<ISoftwareFirmwareUpdater>();
         var networkNotesUpdater = provider.GetRequiredService<INetworkNotesUpdater>();
+        var recentlyViewedTracker = provider.GetRequiredService<IRecentlyViewedBuildRecordTracker>();
 
         Assert.NotNull(factory);
         Assert.NotNull(creator);
+        Assert.NotNull(homePageReader);
         Assert.NotNull(registerReader);
         Assert.NotNull(searchService);
         Assert.NotNull(detailReader);
@@ -44,6 +47,7 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(hardwareDetailsUpdater);
         Assert.NotNull(softwareFirmwareUpdater);
         Assert.NotNull(networkNotesUpdater);
+        Assert.NotNull(recentlyViewedTracker);
     }
 
     [Fact]
