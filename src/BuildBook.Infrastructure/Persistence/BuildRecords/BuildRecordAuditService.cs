@@ -25,13 +25,18 @@ public sealed class BuildRecordAuditService : IBuildRecordAuditService
 
         return changes
             .Where(change => !string.Equals(change.OldValue, change.NewValue, StringComparison.Ordinal))
-            .Select(change => CreateAuditEntry(
-                buildRecord,
-                normalizedUserName,
-                AuditAction.Updated,
-                change.FieldChanged,
-                change.OldValue,
-                change.NewValue))
+            .Select(change =>
+            {
+                var storesValues = !IsSensitiveFieldName(change.FieldChanged);
+
+                return CreateAuditEntry(
+                    buildRecord,
+                    normalizedUserName,
+                    AuditAction.Updated,
+                    change.FieldChanged,
+                    storesValues ? change.OldValue : null,
+                    storesValues ? change.NewValue : null);
+            })
             .ToArray();
     }
 
@@ -87,5 +92,12 @@ public sealed class BuildRecordAuditService : IBuildRecordAuditService
     private static string NormalizeUserName(string userName)
     {
         return string.IsNullOrWhiteSpace(userName) ? "Unknown" : userName.Trim();
+    }
+
+    private static bool IsSensitiveFieldName(string fieldChanged)
+    {
+        return fieldChanged.Contains("Password", StringComparison.OrdinalIgnoreCase)
+            || fieldChanged.Contains("BitLocker", StringComparison.OrdinalIgnoreCase)
+            || fieldChanged.Contains("RecoveryKey", StringComparison.OrdinalIgnoreCase);
     }
 }

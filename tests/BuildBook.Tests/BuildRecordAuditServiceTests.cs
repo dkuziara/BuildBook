@@ -68,4 +68,27 @@ public class BuildRecordAuditServiceTests
         Assert.Null(changedEntry.OldValue);
         Assert.Null(changedEntry.NewValue);
     }
+
+    [Theory]
+    [InlineData("RouterPassword")]
+    [InlineData("WifiPassword")]
+    [InlineData("BitLockerRecoveryKey")]
+    public void CreateRecordUpdatedEntries_DoesNotStoreSensitiveFieldValues(string fieldChanged)
+    {
+        var service = new BuildRecordAuditService();
+        var buildRecord = new BuildRecord { Id = 11 };
+
+        var entries = service.CreateRecordUpdatedEntries(
+            buildRecord,
+            [
+                new BuildRecordAuditChange(fieldChanged, "old-secret", "new-secret")
+            ],
+            "editor");
+
+        var entry = Assert.Single(entries);
+        Assert.Equal(AuditAction.Updated, entry.Action);
+        Assert.Equal(fieldChanged, entry.FieldChanged);
+        Assert.Null(entry.OldValue);
+        Assert.Null(entry.NewValue);
+    }
 }
