@@ -80,6 +80,20 @@ app.MapGet(
                 fileName);
         })
     .RequireAuthorization(BuildBookPolicies.ExportNonSensitiveData);
+app.MapGet(
+        "/reports/build-register.xlsx",
+        async (HttpRequest request, IBuildRegisterExcelExporter buildRegisterExcelExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateBuildRegisterFilter(request);
+            var workbook = await buildRegisterExcelExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"build-register-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.xlsx";
+
+            return Results.File(
+                workbook,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookPolicies.ExportNonSensitiveData);
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()

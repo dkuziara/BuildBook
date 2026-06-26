@@ -30,6 +30,7 @@ public class InfrastructureRegistrationTests
         var homePageReader = provider.GetRequiredService<IHomePageReader>();
         var importHistoryReader = provider.GetRequiredService<IImportHistoryReader>();
         var buildRegisterCsvExporter = provider.GetRequiredService<IBuildRegisterCsvExporter>();
+        var buildRegisterExcelExporter = provider.GetRequiredService<IBuildRegisterExcelExporter>();
         var registerReader = provider.GetRequiredService<IBuildRegisterReader>();
         var searchService = provider.GetRequiredService<IBuildRecordSearchService>();
         var detailReader = provider.GetRequiredService<IBuildRecordDetailReader>();
@@ -52,6 +53,7 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(homePageReader);
         Assert.NotNull(importHistoryReader);
         Assert.NotNull(buildRegisterCsvExporter);
+        Assert.NotNull(buildRegisterExcelExporter);
         Assert.NotNull(registerReader);
         Assert.NotNull(searchService);
         Assert.NotNull(detailReader);

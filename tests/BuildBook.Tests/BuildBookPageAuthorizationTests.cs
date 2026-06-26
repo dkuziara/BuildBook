@@ -150,8 +150,10 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Clear filters", pageContent);
         Assert.Contains("BuildBookPolicies.ExportNonSensitiveData", pageContent);
         Assert.Contains("Export current results to CSV", pageContent);
-        Assert.Contains("/reports/build-register.csv", pageContent);
+        Assert.Contains("Export current results to Excel", pageContent);
+        Assert.Contains("/reports/build-register.{format}", pageContent);
         Assert.Contains("BuildRegisterCsvDownloadUrl", pageContent);
+        Assert.Contains("BuildRegisterExcelDownloadUrl", pageContent);
         Assert.Contains("SortByAsync(BuildRegisterSortColumn.ProductCode)", pageContent);
         Assert.Contains("SortByAsync(BuildRegisterSortColumn.LastUpdated)", pageContent);
         Assert.Contains("SortIndicator(BuildRegisterSortColumn.ProductCode)", pageContent);
@@ -177,7 +179,7 @@ public class BuildBookPageAuthorizationTests
     {
         var pageContent = File.ReadAllText(GetPagePath("Reports.razor"));
 
-        Assert.Contains("Export current Build Register results to CSV", pageContent);
+        Assert.Contains("Export current Build Register results to CSV or Excel", pageContent);
         Assert.Contains("Current search results", pageContent);
         Assert.Contains("/build-register", pageContent);
         Assert.DoesNotContain("Password", pageContent);

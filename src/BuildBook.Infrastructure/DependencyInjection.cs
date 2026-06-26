@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<IHomePageReader, HomePageReader>();
         services.AddScoped<IImportHistoryReader, ImportHistoryReader>();
         services.AddScoped<IBuildRegisterCsvExporter, BuildRegisterCsvExporter>();
+        services.AddScoped<IBuildRegisterExcelExporter, BuildRegisterExcelExporter>();
         services.AddScoped<IBuildRegisterReader, BuildRegisterReader>();
         services.AddScoped<IBuildRecordSearchService, BuildRecordSearchService>();
         services.AddScoped<IBuildRecordDetailReader, BuildRecordDetailReader>();

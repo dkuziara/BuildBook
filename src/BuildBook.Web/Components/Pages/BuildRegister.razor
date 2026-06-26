@@ -59,6 +59,7 @@
                     @if (buildRecords is { Count: > 0 })
                     {
                         <a class="secondary-link" href="@BuildRegisterCsvDownloadUrl">Export current results to CSV</a>
+                        <a class="secondary-link" href="@BuildRegisterExcelDownloadUrl">Export current results to Excel</a>
                     }
                 </Authorized>
             </AuthorizeView>
@@ -135,6 +136,7 @@ else
     private bool hasActiveFilters;
     private bool isLoading;
     private string BuildRegisterCsvDownloadUrl => BuildExportUrl();
+    private string BuildRegisterExcelDownloadUrl => BuildExportUrl("xlsx");
 
     protected override async Task OnInitializedAsync()
     {
@@ -195,7 +197,7 @@ else
         return filterModel.SortDescending ? "v" : "^";
     }
 
-    private string BuildExportUrl()
+    private string BuildExportUrl(string format = "csv")
     {
         var queryParameters = new List<string>
         {
@@ -213,7 +215,7 @@ else
             queryParameters.Add(CreateQueryParameter("dateShipped", filterModel.DateShipped.Value.ToString("yyyy-MM-dd")));
         }
 
-        return $"/reports/build-register.csv?{string.Join("&", queryParameters)}";
+        return $"/reports/build-register.{format}?{string.Join("&", queryParameters)}";
     }
 
     private static void AddQueryParameter(ICollection<string> queryParameters, string key, string? value)

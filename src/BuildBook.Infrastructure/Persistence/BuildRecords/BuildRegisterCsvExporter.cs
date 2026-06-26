@@ -6,21 +6,6 @@ namespace BuildBook.Infrastructure.Persistence.BuildRecords;
 public sealed class BuildRegisterCsvExporter(
     IBuildRegisterReader buildRegisterReader) : IBuildRegisterCsvExporter
 {
-    private static readonly string[] Headers =
-    [
-        "Product code",
-        "Product name",
-        "Serial number",
-        "Customer",
-        "Machine name",
-        "RadSight version",
-        "Windows version",
-        "Date assembled",
-        "Date shipped",
-        "Checked by",
-        "Last updated"
-    ];
-
     public async Task<string> ExportAsync(
         BuildRegisterFilter? filter = null,
         CancellationToken cancellationToken = default)
@@ -28,7 +13,7 @@ public sealed class BuildRegisterCsvExporter(
         var rows = await buildRegisterReader.ListAsync(filter, cancellationToken);
         var builder = new StringBuilder();
 
-        AppendRow(builder, Headers);
+        AppendRow(builder, BuildRegisterExportColumns.Headers);
 
         foreach (var row in rows)
         {
