@@ -1,6 +1,7 @@
 using System.Reflection;
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
+using BuildBook.Domain.Security;
 using BuildBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -51,6 +52,9 @@ public class DomainEntityTests
         Assert.IsAssignableFrom<DbSet<BuildRecordSecret>>(context.BuildRecordSecrets);
         Assert.IsAssignableFrom<DbSet<BuildRecordAudit>>(context.BuildRecordAudit);
         Assert.IsAssignableFrom<DbSet<ImportBatch>>(context.Imports);
+        Assert.IsAssignableFrom<DbSet<ApplicationUser>>(context.ApplicationUsers);
+        Assert.IsAssignableFrom<DbSet<ApplicationRole>>(context.ApplicationRoles);
+        Assert.IsAssignableFrom<DbSet<ApplicationUserRole>>(context.ApplicationUserRoles);
     }
 
     [Fact]
@@ -120,5 +124,32 @@ public class DomainEntityTests
             .ToArray();
 
         Assert.Contains("BuildRecordId,SecretType", uniqueIndexes);
+    }
+
+    [Fact]
+    public void ApplicationUserAndRoleModelsHaveUniqueLookupIndexes()
+    {
+        var options = new DbContextOptionsBuilder<BuildBookDbContext>()
+            .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=BuildBookUserIndexTest;Trusted_Connection=True;TrustServerCertificate=True")
+            .Options;
+
+        using var context = new BuildBookDbContext(options);
+        var applicationUser = context.Model.FindEntityType(typeof(ApplicationUser));
+        var applicationRole = context.Model.FindEntityType(typeof(ApplicationRole));
+        var applicationUserRole = context.Model.FindEntityType(typeof(ApplicationUserRole));
+
+        Assert.NotNull(applicationUser);
+        Assert.NotNull(applicationRole);
+        Assert.NotNull(applicationUserRole);
+
+        Assert.Contains(
+            applicationUser.GetIndexes().Where(index => index.IsUnique).Select(index => string.Join(",", index.Properties.Select(property => property.Name))),
+            index => index == nameof(ApplicationUser.WindowsUserName));
+        Assert.Contains(
+            applicationRole.GetIndexes().Where(index => index.IsUnique).Select(index => string.Join(",", index.Properties.Select(property => property.Name))),
+            index => index == nameof(ApplicationRole.Name));
+        Assert.Equal(
+            "ApplicationUserId,ApplicationRoleId",
+            string.Join(",", applicationUserRole.FindPrimaryKey()!.Properties.Select(property => property.Name)));
     }
 }

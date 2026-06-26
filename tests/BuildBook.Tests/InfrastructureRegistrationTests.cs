@@ -1,4 +1,5 @@
 using BuildBook.Application.BuildRecords;
+using BuildBook.Application.Security;
 using BuildBook.Infrastructure;
 using BuildBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,7 @@ public class InfrastructureRegistrationTests
             "Server=(localdb)\\MSSQLLocalDB;Database=BuildBookTest;Trusted_Connection=True;TrustServerCertificate=True");
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddSingleton(configuration);
 
         services.AddBuildBookInfrastructure(configuration);
 
@@ -42,6 +44,8 @@ public class InfrastructureRegistrationTests
         var hardwareDetailsUpdater = provider.GetRequiredService<IHardwareDetailsUpdater>();
         var softwareFirmwareUpdater = provider.GetRequiredService<ISoftwareFirmwareUpdater>();
         var networkNotesUpdater = provider.GetRequiredService<INetworkNotesUpdater>();
+        var applicationUserManagementService = provider.GetRequiredService<IApplicationUserManagementService>();
+        var buildBookRoleResolver = provider.GetRequiredService<IBuildBookRoleResolver>();
         var recentlyViewedTracker = provider.GetRequiredService<IRecentlyViewedBuildRecordTracker>();
 
         Assert.NotNull(factory);
@@ -66,6 +70,8 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(hardwareDetailsUpdater);
         Assert.NotNull(softwareFirmwareUpdater);
         Assert.NotNull(networkNotesUpdater);
+        Assert.NotNull(applicationUserManagementService);
+        Assert.NotNull(buildBookRoleResolver);
         Assert.NotNull(recentlyViewedTracker);
     }
 

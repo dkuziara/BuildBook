@@ -31,11 +31,12 @@ public sealed class BuildBookAuthorizationOptions
 {
     public bool UseDevelopmentAuthentication { get; init; }
 
-    public string? DevelopmentRole { get; init; }
+    public string? DevelopmentUserName { get; init; }
+
+    public string[] BootstrapAdministrators { get; init; } = [];
 
     public bool IsValid()
     {
-        return string.IsNullOrWhiteSpace(DevelopmentRole)
-            || BuildBookRoles.All.Contains(DevelopmentRole, StringComparer.Ordinal);
+        return BootstrapAdministrators.All(userName => !string.IsNullOrWhiteSpace(userName));
     }
 }

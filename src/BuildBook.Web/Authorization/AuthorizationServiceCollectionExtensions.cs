@@ -53,7 +53,7 @@ public static class AuthorizationServiceCollectionExtensions
                 policy => policy.RequireRole(BuildBookRoles.Administrator));
         });
         services.AddScoped<IBuildBookPermissionService, BuildBookPermissionService>();
-        services.AddTransient<IClaimsTransformation, DevelopmentBuildBookRoleClaimsTransformation>();
+        services.AddTransient<IClaimsTransformation, BuildBookRoleClaimsTransformation>();
 
         return services;
     }

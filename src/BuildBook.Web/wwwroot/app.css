@@ -37,9 +37,43 @@ body {
     margin-top: 1rem;
 }
 
+.app-header-top {
+    align-items: center;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.current-user-panel {
+    background: #f7faff;
+    border: 1px solid #d9e0ea;
+    border-radius: 0.5rem;
+    color: #172033;
+    display: grid;
+    gap: 0.1rem;
+    min-width: 16rem;
+    padding: 0.75rem 1rem;
+}
+
+.current-user-label,
+.current-user-mode {
+    color: #4b596d;
+    font-size: 0.85rem;
+}
+
 @media (max-width: 42rem) {
     .page-heading h1 {
         font-size: 2rem;
+    }
+
+    .app-header-top {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .current-user-panel {
+        min-width: 0;
     }
 }
 
@@ -446,6 +480,85 @@ body {
     border-top: 1px solid #e7ebf1;
     display: grid;
     margin-top: 1rem;
+}
+
+.form-introduction {
+    color: #4b596d;
+    margin: 0 0 1rem;
+}
+
+.empty-state {
+    color: #4b596d;
+}
+
+.user-management-card {
+    border-top: 1px solid #e7ebf1;
+    margin-top: 1rem;
+    padding-top: 1rem;
+}
+
+.user-management-card:first-of-type {
+    border-top: 0;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.user-management-card-header {
+    align-items: start;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.user-management-card-header h3 {
+    margin: 0 0 0.35rem;
+}
+
+.user-management-card-header p {
+    color: #4b596d;
+    margin: 0;
+}
+
+.user-management-card-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.user-summary-list {
+    margin-top: 0.5rem;
+}
+
+.role-assignment-section {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.user-active-toggle,
+.role-checkbox {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.role-checkbox-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.user-name-chip {
+    background: #f7faff;
+    border: 1px solid #d9e0ea;
+    border-radius: 999px;
+    color: #163354;
+    display: inline-block;
+    font-weight: 600;
+    padding: 0.45rem 0.8rem;
 }
 
 .mapping-table-header,

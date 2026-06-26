@@ -1,6 +1,8 @@
 using BuildBook.Application.BuildRecords;
+using BuildBook.Application.Security;
 using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.BuildRecords;
+using BuildBook.Infrastructure.Persistence.Security;
 using BuildBook.Infrastructure.Persistence.SeedData;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -66,6 +68,8 @@ public static class DependencyInjection
         services.AddScoped<IHardwareDetailsUpdater, HardwareDetailsUpdater>();
         services.AddScoped<ISoftwareFirmwareUpdater, SoftwareFirmwareUpdater>();
         services.AddScoped<INetworkNotesUpdater, NetworkNotesUpdater>();
+        services.AddScoped<IApplicationUserManagementService, ApplicationUserManagementService>();
+        services.AddScoped<IBuildBookRoleResolver, ApplicationUserManagementService>();
         services.AddSingleton<IRecentlyViewedBuildRecordTracker, RecentlyViewedBuildRecordTracker>();
 
         return services;

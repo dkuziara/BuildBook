@@ -1,5 +1,6 @@
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
+using BuildBook.Domain.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence;
@@ -15,6 +16,12 @@ public sealed class BuildBookDbContext(DbContextOptions<BuildBookDbContext> opti
     public DbSet<BuildRecordAudit> BuildRecordAudit => Set<BuildRecordAudit>();
 
     public DbSet<ImportBatch> Imports => Set<ImportBatch>();
+
+    public DbSet<ApplicationUser> ApplicationUsers => Set<ApplicationUser>();
+
+    public DbSet<ApplicationRole> ApplicationRoles => Set<ApplicationRole>();
+
+    public DbSet<ApplicationUserRole> ApplicationUserRoles => Set<ApplicationUserRole>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

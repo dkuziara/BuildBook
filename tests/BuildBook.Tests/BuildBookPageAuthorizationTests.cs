@@ -35,6 +35,9 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ViewBuildRecords)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ExportNonSensitiveData)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ManageUsers)}\"", layoutContent);
+        Assert.Contains("Signed in as", layoutContent);
+        Assert.Contains("Windows Authentication", layoutContent);
+        Assert.Contains("Local development authentication bypass", layoutContent);
     }
 
     [Fact]
@@ -341,10 +344,29 @@ public class BuildBookPageAuthorizationTests
     }
 
     [Fact]
-    public void AdminPageLinksToSpreadsheetUpload()
+    public void AdminPageSupportsUserAndRoleManagement()
     {
         var pageContent = File.ReadAllText(GetPagePath("Admin.razor"));
 
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("IApplicationUserManagementService", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("Users &amp; Roles", pageContent);
+        Assert.Contains("Windows Authentication identifies each person.", pageContent);
+        Assert.Contains("BuildBook has no separate login form.", pageContent);
+        Assert.Contains("Bootstrap administrators", pageContent);
+        Assert.Contains("Add Windows user", pageContent);
+        Assert.Contains("Windows username", pageContent);
+        Assert.Contains("Display name", pageContent);
+        Assert.Contains("Email address", pageContent);
+        Assert.Contains("Managed users", pageContent);
+        Assert.Contains("Active user", pageContent);
+        Assert.Contains("BuildBookRoles.All", pageContent);
+        Assert.Contains("Edit user", pageContent);
+        Assert.Contains("Save user", pageContent);
+        Assert.Contains("Cancel", pageContent);
+        Assert.Contains("Status", pageContent);
+        Assert.Contains("Roles", pageContent);
         Assert.Contains("Spreadsheet Import", pageContent);
         Assert.Contains("/imports/upload", pageContent);
         Assert.Contains("Open Upload Screen", pageContent);

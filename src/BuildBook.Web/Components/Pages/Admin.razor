@@ -1,30 +1,451 @@
 @page "/admin"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.Security
+@using BuildBook.Web.Authorization
+@using BuildBook.Web.Configuration
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.Extensions.Options
 
 @attribute [Authorize(Policy = BuildBookPolicies.ManageUsers)]
 
-<PageTitle>Admin</PageTitle>
+@inject IApplicationUserManagementService ApplicationUserManagementService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IOptions<BuildBookOptions> BuildBookOptions
 
-<section class="page-heading">
-    <p class="eyebrow">Admin</p>
-    <h1>Admin</h1>
-    <p>Internal administration tools will appear here in later backlog items.</p>
-</section>
+<PageTitle>Users &amp; Roles</PageTitle>
 
-<section class="placeholder-panel" aria-labelledby="admin-placeholder">
-    <h2 id="admin-placeholder">Placeholder</h2>
-    <p>This page is reserved for internal system settings, access management and import administration.</p>
-</section>
+@if (isLoading)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading users and roles...</p>
+    </section>
+}
+else
+{
+    <section class="page-heading">
+        <p class="eyebrow">Admin</p>
+        <h1>Users &amp; Roles</h1>
+        <p>Windows Authentication identifies each person. BuildBook roles decide what they can view, edit, reveal and administer.</p>
+    </section>
 
-<section class="detail-panel" aria-labelledby="admin-import-heading">
-    <div class="detail-panel-header">
-        <div>
-            <h2 id="admin-import-heading">Spreadsheet Import</h2>
-            <p>Upload the existing spreadsheet to begin the import workflow.</p>
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="status-message @(statusIsError ? "error" : "success")" role="alert">
+            <p>@statusMessage</p>
         </div>
-    </div>
+    }
 
-    <div class="detail-actions">
-        <a class="primary-button" href="/imports/upload">Open Upload Screen</a>
-        <a class="secondary-link" href="/imports">View Import History</a>
-    </div>
-</section>
+    <section class="detail-panel" aria-labelledby="current-access-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="current-access-heading">Current access</h2>
+                <p>BuildBook has no separate login form. The signed-in Windows username is matched to BuildBook roles.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Signed-in username</dt>
+                <dd>@currentUserName</dd>
+            </div>
+            <div>
+                <dt>Authentication mode</dt>
+                <dd>@authenticationMode</dd>
+            </div>
+            <div>
+                <dt>Bootstrap administrators</dt>
+                <dd>@bootstrapAdministrators.Count</dd>
+            </div>
+            <div>
+                <dt>Managed users</dt>
+                <dd>@editableUsers.Count</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="bootstrap-administrators-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="bootstrap-administrators-heading">Bootstrap administrators</h2>
+                <p>These usernames always keep Administrator access while they remain configured in app settings.</p>
+            </div>
+        </div>
+
+        @if (bootstrapAdministrators.Count == 0)
+        {
+            <p class="empty-state">No bootstrap administrators are configured.</p>
+        }
+        else
+        {
+            <ul class="recent-record-list">
+                @foreach (var bootstrapAdministrator in bootstrapAdministrators)
+                {
+                    <li class="user-name-chip">@bootstrapAdministrator</li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="form-panel detail-section" aria-labelledby="add-user-heading">
+        <h2 id="add-user-heading">Add Windows user</h2>
+        <p class="form-introduction">Add a Windows username first, then assign the BuildBook roles the user needs.</p>
+
+        <div class="form-grid">
+            <div class="form-field">
+                <label for="new-user-name">Windows username</label>
+                <InputText id="new-user-name" class="text-input" @bind-Value="newUser.WindowsUserName" />
+            </div>
+            <div class="form-field">
+                <label for="new-display-name">Display name</label>
+                <InputText id="new-display-name" class="text-input" @bind-Value="newUser.DisplayName" />
+            </div>
+            <div class="form-field">
+                <label for="new-email-address">Email address</label>
+                <InputText id="new-email-address" class="text-input" @bind-Value="newUser.EmailAddress" />
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" class="primary-button" disabled="@isSavingNewUser" @onclick="AddUserAsync">Add user</button>
+        </div>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="managed-users-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="managed-users-heading">Managed users</h2>
+                <p>Update contact details, activation status and role assignments. BuildBook never stores separate passwords.</p>
+            </div>
+        </div>
+
+        @if (editableUsers.Count == 0)
+        {
+            <p class="empty-state">No Windows users have been added yet.</p>
+        }
+        else
+        {
+            @foreach (var user in editableUsers)
+            {
+                <section class="user-management-card">
+                    <div class="user-management-card-header">
+                        <div>
+                            <h3>@user.WindowsUserName</h3>
+                            <p>@DescribeUser(user)</p>
+                        </div>
+                        <div class="user-management-card-actions">
+                            @if (user.IsBootstrapAdministrator)
+                            {
+                                <span class="validation-badge warning">Bootstrap administrator</span>
+                            }
+
+                            @if (!user.IsEditing)
+                            {
+                                <button type="button" class="secondary-button" @onclick="() => EditUser(user)">Edit user</button>
+                            }
+                        </div>
+                    </div>
+
+                    @if (user.Errors.Count > 0)
+                    {
+                        <div class="status-message error" role="alert">
+                            <ul>
+                                @foreach (var error in user.Errors)
+                                {
+                                    <li>@error</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+
+                    @if (!user.IsEditing)
+                    {
+                        <dl class="summary-list user-summary-list">
+                            <div>
+                                <dt>Display name</dt>
+                                <dd>@DisplayValue(user.DisplayName)</dd>
+                            </div>
+                            <div>
+                                <dt>Email address</dt>
+                                <dd>@DisplayValue(user.EmailAddress)</dd>
+                            </div>
+                            <div>
+                                <dt>Status</dt>
+                                <dd>@(user.IsActive ? "Active" : "Inactive")</dd>
+                            </div>
+                            <div>
+                                <dt>Roles</dt>
+                                <dd>@FormatRoles(user)</dd>
+                            </div>
+                        </dl>
+                    }
+                    else
+                    {
+                        <div class="form-grid">
+                            <div class="form-field">
+                                <label for="@($"display-name-{user.Id}")">Display name</label>
+                                <InputText id="@($"display-name-{user.Id}")" class="text-input" @bind-Value="user.DisplayName" />
+                            </div>
+                            <div class="form-field">
+                                <label for="@($"email-address-{user.Id}")">Email address</label>
+                                <InputText id="@($"email-address-{user.Id}")" class="text-input" @bind-Value="user.EmailAddress" />
+                            </div>
+                        </div>
+
+                        <div class="role-assignment-section">
+                            <label class="user-active-toggle" for="is-active-@user.Id">
+                                <input id="is-active-@user.Id"
+                                       type="checkbox"
+                                       checked="@user.IsActive"
+                                       disabled="@user.IsBootstrapAdministrator"
+                                       @onchange="args => user.IsActive = args.Value is true" />
+                                Active user
+                            </label>
+
+                            <div class="role-checkbox-grid">
+                                @foreach (var roleName in BuildBookRoles.All)
+                                {
+                                    <label class="role-checkbox" for="@($"role-{user.Id}-{SanitizeRoleName(roleName)}")">
+                                        <input id="@($"role-{user.Id}-{SanitizeRoleName(roleName)}")"
+                                               type="checkbox"
+                                               checked="@user.HasRole(roleName)"
+                                               disabled="@IsRoleLocked(user, roleName)"
+                                               @onchange="args => user.SetRole(roleName, args.Value is true)" />
+                                        @roleName
+                                    </label>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="primary-button" disabled="@user.IsSaving" @onclick="() => SaveUserAsync(user)">Save user</button>
+                            <button type="button" class="secondary-button" disabled="@user.IsSaving" @onclick="() => CancelEdit(user)">Cancel</button>
+                        </div>
+                    }
+                </section>
+            }
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="admin-import-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="admin-import-heading">Spreadsheet Import</h2>
+                <p>Upload the existing spreadsheet to begin the import workflow.</p>
+            </div>
+        </div>
+
+        <div class="detail-actions">
+            <a class="primary-button" href="/imports/upload">Open Upload Screen</a>
+            <a class="secondary-link" href="/imports">View Import History</a>
+        </div>
+    </section>
+}
+
+@code {
+    private readonly AddUserModel newUser = new();
+    private List<EditableUserModel> editableUsers = [];
+    private List<string> bootstrapAdministrators = [];
+    private string currentUserName = "Unknown";
+    private string authenticationMode = "Windows Authentication";
+    private string? statusMessage;
+    private bool statusIsError;
+    private bool isLoading = true;
+    private bool isSavingNewUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        currentUserName = authenticationState.User.Identity?.Name ?? "Unknown";
+        authenticationMode = authenticationState.User.Identity?.AuthenticationType == BuildBookAuthenticationSchemes.Development
+            ? "Local development authentication bypass"
+            : "Windows Authentication";
+        bootstrapAdministrators = BuildBookOptions.Value.Authorization.BootstrapAdministrators
+            .Where(userName => !string.IsNullOrWhiteSpace(userName))
+            .Select(userName => userName.Trim())
+            .OrderBy(userName => userName, StringComparer.Ordinal)
+            .ToList();
+
+        await ReloadUsersAsync();
+        isLoading = false;
+    }
+
+    private async Task AddUserAsync()
+    {
+        statusMessage = null;
+        statusIsError = false;
+        isSavingNewUser = true;
+
+        var result = await ApplicationUserManagementService.CreateAsync(
+            new CreateApplicationUserRequest(
+                newUser.WindowsUserName ?? string.Empty,
+                newUser.DisplayName,
+                newUser.EmailAddress),
+            currentUserName);
+
+        isSavingNewUser = false;
+
+        if (!result.Succeeded)
+        {
+            statusMessage = result.Errors.FirstOrDefault() ?? "The Windows user could not be added.";
+            statusIsError = true;
+            return;
+        }
+
+        newUser.WindowsUserName = string.Empty;
+        newUser.DisplayName = null;
+        newUser.EmailAddress = null;
+        statusMessage = "Windows user added. Use Edit user below to assign BuildBook roles.";
+        await ReloadUsersAsync();
+    }
+
+    private async Task SaveUserAsync(EditableUserModel user)
+    {
+        user.IsSaving = true;
+        user.Errors.Clear();
+        statusMessage = null;
+        statusIsError = false;
+
+        var result = await ApplicationUserManagementService.UpdateAsync(
+            new UpdateApplicationUserRequest(
+                user.Id,
+                user.DisplayName,
+                user.EmailAddress,
+                user.IsActive,
+                user.SelectedRoles.ToArray()),
+            currentUserName);
+
+        user.IsSaving = false;
+
+        if (!result.Succeeded)
+        {
+            user.Errors.AddRange(result.Errors);
+            statusMessage = "The user changes could not be saved.";
+            statusIsError = true;
+            return;
+        }
+
+        statusMessage = $"Saved access changes for {user.WindowsUserName}.";
+        user.IsEditing = false;
+        await ReloadUsersAsync();
+    }
+
+    private async Task ReloadUsersAsync()
+    {
+        editableUsers = (await ApplicationUserManagementService.ListAsync())
+            .Select(user => new EditableUserModel(user))
+            .ToList();
+    }
+
+    private void EditUser(EditableUserModel user)
+    {
+        foreach (var editableUser in editableUsers)
+        {
+            editableUser.IsEditing = false;
+            editableUser.Errors.Clear();
+        }
+
+        user.IsEditing = true;
+    }
+
+    private void CancelEdit(EditableUserModel user)
+    {
+        user.IsEditing = false;
+        user.Errors.Clear();
+    }
+
+    private static bool IsRoleLocked(EditableUserModel user, string roleName)
+    {
+        return user.IsBootstrapAdministrator && roleName == BuildBookRoles.Administrator;
+    }
+
+    private static string SanitizeRoleName(string roleName)
+    {
+        return roleName.Replace(" ", "-", StringComparison.Ordinal).ToLowerInvariant();
+    }
+
+    private static string DescribeUser(EditableUserModel user)
+    {
+        if (user.SelectedRoles.Count == 0)
+        {
+            return user.IsBootstrapAdministrator
+                ? "Administrator access is coming from bootstrap configuration."
+                : "No BuildBook roles assigned yet.";
+        }
+
+        return $"Assigned roles: {string.Join(", ", user.SelectedRoles.OrderBy(role => role, StringComparer.Ordinal))}.";
+    }
+
+    private static string DisplayValue(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not set" : value;
+    }
+
+    private static string FormatRoles(EditableUserModel user)
+    {
+        return user.SelectedRoles.Count == 0
+            ? "No BuildBook roles assigned"
+            : string.Join(", ", user.SelectedRoles.OrderBy(role => role, StringComparer.Ordinal));
+    }
+
+    private sealed class AddUserModel
+    {
+        public string? WindowsUserName { get; set; }
+
+        public string? DisplayName { get; set; }
+
+        public string? EmailAddress { get; set; }
+    }
+
+    private sealed class EditableUserModel
+    {
+        private readonly HashSet<string> selectedRoles;
+
+        public EditableUserModel(ApplicationUserSummary user)
+        {
+            Id = user.Id;
+            WindowsUserName = user.WindowsUserName;
+            DisplayName = user.DisplayName;
+            EmailAddress = user.EmailAddress;
+            IsActive = user.IsActive;
+            IsBootstrapAdministrator = user.IsBootstrapAdministrator;
+            selectedRoles = user.AssignedRoles.ToHashSet(StringComparer.Ordinal);
+        }
+
+        public int Id { get; }
+
+        public string WindowsUserName { get; }
+
+        public string? DisplayName { get; set; }
+
+        public string? EmailAddress { get; set; }
+
+        public bool IsActive { get; set; }
+
+        public bool IsBootstrapAdministrator { get; }
+
+        public bool IsEditing { get; set; }
+
+        public bool IsSaving { get; set; }
+
+        public List<string> Errors { get; } = [];
+
+        public IReadOnlyCollection<string> SelectedRoles => selectedRoles;
+
+        public bool HasRole(string roleName)
+        {
+            return selectedRoles.Contains(roleName);
+        }
+
+        public void SetRole(string roleName, bool isSelected)
+        {
+            if (isSelected)
+            {
+                selectedRoles.Add(roleName);
+                return;
+            }
+
+            selectedRoles.Remove(roleName);
+        }
+    }
+}

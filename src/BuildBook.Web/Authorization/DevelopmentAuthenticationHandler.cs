@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Principal;
 using System.Text.Encodings.Web;
 using BuildBook.Web.Configuration;
 using Microsoft.AspNetCore.Authentication;
@@ -18,18 +19,31 @@ public sealed class DevelopmentAuthenticationHandler(
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, "development-user"),
-            new(ClaimTypes.Name, "Development User")
+            new(ClaimTypes.Name, ResolveDevelopmentUserName())
         };
-
-        if (!string.IsNullOrWhiteSpace(buildBookOptions.Value.Authorization.DevelopmentRole))
-        {
-            claims.Add(new Claim(ClaimTypes.Role, buildBookOptions.Value.Authorization.DevelopmentRole));
-        }
 
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, Scheme.Name);
 
         return Task.FromResult(AuthenticateResult.Success(ticket));
+    }
+
+    private string ResolveDevelopmentUserName()
+    {
+        if (!string.IsNullOrWhiteSpace(buildBookOptions.Value.Authorization.DevelopmentUserName))
+        {
+            return buildBookOptions.Value.Authorization.DevelopmentUserName.Trim();
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            return WindowsIdentity.GetCurrent()?.Name
+                ?? Environment.UserName
+                ?? "Development User";
+        }
+
+        return Environment.UserName
+            ?? "Development User";
     }
 }

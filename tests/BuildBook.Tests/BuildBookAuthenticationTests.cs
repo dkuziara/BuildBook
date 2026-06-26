@@ -40,7 +40,7 @@ public class BuildBookAuthenticationTests
     }
 
     [Fact]
-    public async Task DevelopmentAuthenticationCreatesSignedInUserWithConfiguredRole()
+    public async Task DevelopmentAuthenticationCreatesSignedInUserWithConfiguredUserName()
     {
         using var provider = CreateProvider("Development", useDevelopmentAuthentication: true);
         var authenticationService = provider.GetRequiredService<IAuthenticationService>();
@@ -52,8 +52,8 @@ public class BuildBookAuthenticationTests
         var result = await authenticationService.AuthenticateAsync(context, BuildBookAuthenticationSchemes.Development);
 
         Assert.True(result.Succeeded);
-        Assert.Equal("Development User", result.Principal?.Identity?.Name);
-        Assert.True(result.Principal?.IsInRole(BuildBookRoles.Administrator));
+        Assert.Equal("AzureAD\\DavidKuziara", result.Principal?.Identity?.Name);
+        Assert.False(result.Principal?.IsInRole(BuildBookRoles.Administrator));
     }
 
     private static ServiceProvider CreateProvider(string environmentName, bool useDevelopmentAuthentication)
@@ -63,7 +63,7 @@ public class BuildBookAuthenticationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 [$"{BuildBookOptions.SectionName}:Authorization:UseDevelopmentAuthentication"] = useDevelopmentAuthentication.ToString(),
-                [$"{BuildBookOptions.SectionName}:Authorization:DevelopmentRole"] = BuildBookRoles.Administrator
+                [$"{BuildBookOptions.SectionName}:Authorization:DevelopmentUserName"] = "AzureAD\\DavidKuziara"
             })
             .Build();
 
