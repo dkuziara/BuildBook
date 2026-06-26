@@ -11,7 +11,7 @@
 <section class="page-heading">
     <p class="eyebrow">Reports</p>
     <h1>Reports</h1>
-    <p>Export current Build Register results to CSV or Excel, and review non-sensitive device lists for a selected customer.</p>
+    <p>Export current Build Register results to CSV or Excel, and review non-sensitive customer and software version reports.</p>
 </section>
 
 <section class="detail-panel" aria-labelledby="reports-export-heading">
@@ -133,27 +133,171 @@
     }
 </section>
 
+<section class="detail-panel" aria-labelledby="software-version-reports-heading">
+    <div class="detail-panel-header">
+        <div>
+            <h2 id="software-version-reports-heading">Software and version reports</h2>
+            <p>Review active device counts by RadSight version and Windows version.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(versionReportError))
+    {
+        <div class="status-message error" role="alert">
+            <p>@versionReportError</p>
+        </div>
+    }
+    else if (isLoadingVersionReports)
+    {
+        <div class="placeholder-panel" aria-live="polite">
+            <p>Loading version reports...</p>
+        </div>
+    }
+    else
+    {
+        <div class="home-activity-grid">
+            <section class="table-panel" aria-labelledby="radsight-version-report-heading">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3 id="radsight-version-report-heading">RadSight versions</h3>
+                        <p>Grouped from active Build Records.</p>
+                    </div>
+                </div>
+
+                @if (radSightVersionRows.Count == 0)
+                {
+                    <div class="placeholder-panel">
+                        <p>No RadSight versions have been recorded yet.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Version</th>
+                                    <th scope="col">Devices</th>
+                                    <th scope="col">Open records</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in radSightVersionRows)
+                                {
+                                    <tr>
+                                        <td>@row.Label</td>
+                                        <td>@row.Count</td>
+                                        <td>
+                                            @if (row.HasFilterValue)
+                                            {
+                                                <a class="table-link" href="@BuildVersionReportLink("radSightVersion", row.FilterValue!)">Open matching records</a>
+                                            }
+                                            else
+                                            {
+                                                <span>Unavailable</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+
+            <section class="table-panel" aria-labelledby="windows-version-report-heading">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3 id="windows-version-report-heading">Windows versions</h3>
+                        <p>Grouped from active Build Records.</p>
+                    </div>
+                </div>
+
+                @if (windowsVersionRows.Count == 0)
+                {
+                    <div class="placeholder-panel">
+                        <p>No Windows versions have been recorded yet.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Version</th>
+                                    <th scope="col">Devices</th>
+                                    <th scope="col">Open records</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in windowsVersionRows)
+                                {
+                                    <tr>
+                                        <td>@row.Label</td>
+                                        <td>@row.Count</td>
+                                        <td>
+                                            @if (row.HasFilterValue)
+                                            {
+                                                <a class="table-link" href="@BuildVersionReportLink("windowsVersion", row.FilterValue!)">Open matching records</a>
+                                            }
+                                            else
+                                            {
+                                                <span>Unavailable</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        </div>
+    }
+</section>
+
 <section class="placeholder-panel" aria-labelledby="reports-placeholder">
     <h2 id="reports-placeholder">Coming later</h2>
-    <p>This page is reserved for product, version, shipped-date and missing-data reports.</p>
+    <p>This page is reserved for product, shipped-date and missing-data reports.</p>
 </section>
 
 @code {
     private IReadOnlyList<CustomerOption> customerOptions = [];
     private IReadOnlyList<BuildRegisterRow> customerBuildRecords = [];
+    private IReadOnlyList<VersionReportRow> radSightVersionRows = [];
+    private IReadOnlyList<VersionReportRow> windowsVersionRows = [];
     private CustomerOption? selectedCustomer;
     private int? selectedCustomerId;
     private bool isLoadingCustomers;
     private bool isLoadingReport;
+    private bool isLoadingVersionReports;
     private string? reportError;
+    private string? versionReportError;
     private bool canRunReport => !isLoadingCustomers && !isLoadingReport && selectedCustomerId is not null;
     private bool canClearReport => !isLoadingReport && (selectedCustomerId is not null || selectedCustomer is not null || customerBuildRecords.Count > 0);
 
     protected override async Task OnInitializedAsync()
     {
         isLoadingCustomers = true;
-        customerOptions = await CustomerOptionsReader.ListActiveAsync();
-        isLoadingCustomers = false;
+        isLoadingVersionReports = true;
+
+        try
+        {
+            customerOptions = await CustomerOptionsReader.ListActiveAsync();
+            var activeBuildRecords = await BuildRegisterReader.ListAsync();
+            radSightVersionRows = BuildVersionReportRows(activeBuildRecords, row => row.RadSightVersion);
+            windowsVersionRows = BuildVersionReportRows(activeBuildRecords, row => row.WindowsVersion);
+        }
+        catch
+        {
+            versionReportError = "The version reports could not be loaded. Refresh the page and try again.";
+        }
+        finally
+        {
+            isLoadingCustomers = false;
+            isLoadingVersionReports = false;
+        }
     }
 
     private async Task LoadCustomerReportAsync()
@@ -204,5 +348,35 @@
     private static string Display(DateOnly? value)
     {
         return value?.ToString("d MMM yyyy") ?? "Not recorded";
+    }
+
+    private static IReadOnlyList<VersionReportRow> BuildVersionReportRows(
+        IReadOnlyList<BuildRegisterRow> buildRecords,
+        Func<BuildRegisterRow, string?> selector)
+    {
+        return buildRecords
+            .GroupBy(buildRecord => NormalizeVersion(selector(buildRecord)))
+            .Select(group => new VersionReportRow(
+                group.Key,
+                string.IsNullOrWhiteSpace(group.Key) ? "Not recorded" : group.Key,
+                group.Count()))
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static string? NormalizeVersion(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static string BuildVersionReportLink(string filterKey, string filterValue)
+    {
+        return $"/build-register?{Uri.EscapeDataString(filterKey)}={Uri.EscapeDataString(filterValue)}";
+    }
+
+    private sealed record VersionReportRow(string? FilterValue, string Label, int Count)
+    {
+        public bool HasFilterValue => !string.IsNullOrWhiteSpace(FilterValue);
     }
 }

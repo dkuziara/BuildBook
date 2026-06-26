@@ -185,6 +185,17 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Export current Build Register results to CSV or Excel", pageContent);
         Assert.Contains("Current search results", pageContent);
         Assert.Contains("Devices by customer", pageContent);
+        Assert.Contains("Software and version reports", pageContent);
+        Assert.Contains("RadSight versions", pageContent);
+        Assert.Contains("Windows versions", pageContent);
+        Assert.Contains("BuildVersionReportRows", pageContent);
+        Assert.Contains("BuildVersionReportLink", pageContent);
+        Assert.Contains("The version reports could not be loaded. Refresh the page and try again.", pageContent);
+        Assert.Contains("BuildVersionReportLink(\"radSightVersion\"", pageContent);
+        Assert.Contains("BuildVersionReportLink(\"windowsVersion\"", pageContent);
+        Assert.Contains("Open matching records", pageContent);
+        Assert.Contains("No RadSight versions have been recorded yet.", pageContent);
+        Assert.Contains("No Windows versions have been recorded yet.", pageContent);
         Assert.Contains("InputSelect", pageContent);
         Assert.Contains("Select customer", pageContent);
         Assert.Contains("Show report", pageContent);
@@ -196,6 +207,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("selectedCustomerId", pageContent);
         Assert.Contains("canRunReport", pageContent);
         Assert.Contains("reportError", pageContent);
+        Assert.Contains("versionReportError", pageContent);
         Assert.Contains("The customer report could not be loaded. Refresh the page and try again.", pageContent);
         Assert.Contains("No Build Records were found for the selected customer.", pageContent);
         Assert.Contains("Select a customer to list all matching Build Records.", pageContent);
