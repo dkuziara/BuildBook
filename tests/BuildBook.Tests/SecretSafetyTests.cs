@@ -57,6 +57,27 @@ public class SecretSafetyTests
     }
 
     [Fact]
+    public void ExportProjectionDoesNotReferenceSensitiveFields()
+    {
+        var projectionPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Infrastructure",
+            "Persistence",
+            "BuildRecords",
+            "BuildRegisterExportProjection.cs");
+        var projectionContent = File.ReadAllText(projectionPath);
+
+        Assert.DoesNotContain("WindowsAdminPassword", projectionContent);
+        Assert.DoesNotContain("RadSightUserPassword", projectionContent);
+        Assert.DoesNotContain("KioskPassword", projectionContent);
+        Assert.DoesNotContain("WifiPassword", projectionContent);
+        Assert.DoesNotContain("RouterPassword", projectionContent);
+        Assert.DoesNotContain("BitLockerRecoveryKey", projectionContent);
+        Assert.DoesNotContain("BuildRecordSecret", projectionContent);
+    }
+
+    [Fact]
     public void SecretServiceDoesNotWriteSensitiveValuesToLogs()
     {
         var secretServicePath = Path.Combine(

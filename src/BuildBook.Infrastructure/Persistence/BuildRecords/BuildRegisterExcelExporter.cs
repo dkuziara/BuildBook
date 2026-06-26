@@ -42,25 +42,11 @@ public sealed class BuildRegisterExcelExporter(
         builder.Append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">");
         builder.Append("<sheetData>");
 
-        AppendRow(builder, 1, BuildRegisterExportColumns.Headers);
+        AppendRow(builder, 1, [.. BuildRegisterExportProjection.Headers]);
 
         for (var index = 0; index < rows.Count; index++)
         {
-            var row = rows[index];
-            AppendRow(
-                builder,
-                index + 2,
-                row.ProductCode,
-                row.ProductName,
-                row.SerialNumber,
-                row.CustomerName,
-                row.MachineName,
-                row.RadSightVersion,
-                row.WindowsVersion,
-                FormatDate(row.DateAssembled),
-                FormatDate(row.DateShipped),
-                row.CheckedBy,
-                row.LastUpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"));
+            AppendRow(builder, index + 2, BuildRegisterExportProjection.Project(rows[index]));
         }
 
         builder.Append("</sheetData></worksheet>");
@@ -125,12 +111,6 @@ public sealed class BuildRegisterExcelExporter(
             .Replace("<", "&lt;", StringComparison.Ordinal)
             .Replace(">", "&gt;", StringComparison.Ordinal);
     }
-
-    private static string? FormatDate(DateOnly? value)
-    {
-        return value?.ToString("yyyy-MM-dd");
-    }
-
     private const string ContentTypesXml =
         """
         <?xml version="1.0" encoding="UTF-8"?>

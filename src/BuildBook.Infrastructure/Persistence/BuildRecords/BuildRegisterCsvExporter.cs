@@ -13,23 +13,11 @@ public sealed class BuildRegisterCsvExporter(
         var rows = await buildRegisterReader.ListAsync(filter, cancellationToken);
         var builder = new StringBuilder();
 
-        AppendRow(builder, BuildRegisterExportColumns.Headers);
+        AppendRow(builder, BuildRegisterExportProjection.Headers.ToArray());
 
         foreach (var row in rows)
         {
-            AppendRow(
-                builder,
-                row.ProductCode,
-                row.ProductName,
-                row.SerialNumber,
-                row.CustomerName,
-                row.MachineName,
-                row.RadSightVersion,
-                row.WindowsVersion,
-                FormatDate(row.DateAssembled),
-                FormatDate(row.DateShipped),
-                row.CheckedBy,
-                row.LastUpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"));
+            AppendRow(builder, BuildRegisterExportProjection.Project(row));
         }
 
         return builder.ToString();
@@ -52,10 +40,5 @@ public sealed class BuildRegisterCsvExporter(
         return normalized.IndexOfAny([',', '"', '\r', '\n']) >= 0
             ? $"\"{normalized}\""
             : normalized;
-    }
-
-    private static string? FormatDate(DateOnly? value)
-    {
-        return value?.ToString("yyyy-MM-dd");
     }
 }
