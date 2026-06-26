@@ -1,0 +1,26 @@
+name: Pull Request Build
+
+on:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore BuildBook.sln
+
+      - name: Build solution
+        run: dotnet build BuildBook.sln --configuration Release --no-restore -m:1 -nr:false
+
+      - name: Run automated tests
+        run: dotnet test tests/BuildBook.Tests/BuildBook.Tests.csproj --configuration Release --no-build --filter "FullyQualifiedName!~BuildRecordSmokeTests" -m:1 -nr:false
