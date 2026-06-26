@@ -32,6 +32,7 @@ public class InfrastructureRegistrationTests
         var buildRegisterCsvExporter = provider.GetRequiredService<IBuildRegisterCsvExporter>();
         var buildRegisterExcelExporter = provider.GetRequiredService<IBuildRegisterExcelExporter>();
         var registerReader = provider.GetRequiredService<IBuildRegisterReader>();
+        var missingDataReportReader = provider.GetRequiredService<IMissingDataReportReader>();
         var searchService = provider.GetRequiredService<IBuildRecordSearchService>();
         var detailReader = provider.GetRequiredService<IBuildRecordDetailReader>();
         var productDetailsUpdater = provider.GetRequiredService<IProductDetailsUpdater>();
@@ -55,6 +56,7 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(buildRegisterCsvExporter);
         Assert.NotNull(buildRegisterExcelExporter);
         Assert.NotNull(registerReader);
+        Assert.NotNull(missingDataReportReader);
         Assert.NotNull(searchService);
         Assert.NotNull(detailReader);
         Assert.NotNull(productDetailsUpdater);

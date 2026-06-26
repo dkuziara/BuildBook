@@ -5,13 +5,14 @@
 
 @inject IBuildRegisterReader BuildRegisterReader
 @inject ICustomerOptionsReader CustomerOptionsReader
+@inject IMissingDataReportReader MissingDataReportReader
 
 <PageTitle>Reports</PageTitle>
 
 <section class="page-heading">
     <p class="eyebrow">Reports</p>
     <h1>Reports</h1>
-    <p>Export current Build Register results to CSV or Excel, and review non-sensitive customer and software version reports.</p>
+    <p>Export current Build Register results to CSV or Excel, and review non-sensitive customer, software version and missing-data reports.</p>
 </section>
 
 <section class="detail-panel" aria-labelledby="reports-export-heading">
@@ -130,6 +131,136 @@
                 </tbody>
             </table>
         </div>
+    }
+</section>
+
+<section class="detail-panel" aria-labelledby="missing-data-reports-heading">
+    <div class="detail-panel-header">
+        <div>
+            <h2 id="missing-data-reports-heading">Missing data reports</h2>
+            <p>Find active Build Records that still need customer, shipped date or recovery information.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(missingDataReportError))
+    {
+        <div class="status-message error" role="alert">
+            <p>@missingDataReportError</p>
+        </div>
+    }
+    else if (isLoadingMissingDataReports)
+    {
+        <div class="placeholder-panel" aria-live="polite">
+            <p>Loading missing data reports...</p>
+        </div>
+    }
+    else
+    {
+        <div class="home-activity-grid">
+            <section class="table-panel" aria-labelledby="missing-customer-heading">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3 id="missing-customer-heading">Missing customer</h3>
+                        <p>@missingCustomerRecords.Count active Build Records</p>
+                    </div>
+                    <button type="button" class="secondary-button" disabled="@(missingCustomerRecords.Count == 0)" @onclick="() => ShowMissingDataRecords(MissingDataReportType.Customer)">
+                        Show missing records
+                    </button>
+                </div>
+            </section>
+
+            <section class="table-panel" aria-labelledby="missing-qa-heading">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3 id="missing-qa-heading">Missing QA number</h3>
+                        <p>Not yet available</p>
+                    </div>
+                </div>
+                <p>QA number reporting will be available once the field is added to Build Records.</p>
+            </section>
+
+            <section class="table-panel" aria-labelledby="missing-recovery-heading">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3 id="missing-recovery-heading">Missing recovery key</h3>
+                        <p>@missingRecoveryRecords.Count active Build Records</p>
+                    </div>
+                    <button type="button" class="secondary-button" disabled="@(missingRecoveryRecords.Count == 0)" @onclick="() => ShowMissingDataRecords(MissingDataReportType.RecoveryData)">
+                        Show missing records
+                    </button>
+                </div>
+            </section>
+
+            <section class="table-panel" aria-labelledby="missing-shipped-date-heading">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3 id="missing-shipped-date-heading">Missing shipped date</h3>
+                        <p>@missingShippedDateRecords.Count active Build Records</p>
+                    </div>
+                    <button type="button" class="secondary-button" disabled="@(missingShippedDateRecords.Count == 0)" @onclick="() => ShowMissingDataRecords(MissingDataReportType.DateShipped)">
+                        Show missing records
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        @if (selectedMissingDataReport is not null)
+        {
+            <section class="table-panel detail-section" aria-labelledby="missing-data-records-heading">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3 id="missing-data-records-heading">@selectedMissingDataReportTitle</h3>
+                        <p>@selectedMissingDataRecords.Count active Build Records</p>
+                    </div>
+                    <button type="button" class="secondary-button" @onclick="ClearMissingDataRecords">Clear</button>
+                </div>
+
+                @if (selectedMissingDataRecords.Count == 0)
+                {
+                    <div class="placeholder-panel">
+                        <p>No Build Records match this missing-data report.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Product code</th>
+                                    <th scope="col">Product name</th>
+                                    <th scope="col">Serial number</th>
+                                    <th scope="col">Customer</th>
+                                    <th scope="col">Machine name</th>
+                                    <th scope="col">RadSight version</th>
+                                    <th scope="col">Windows version</th>
+                                    <th scope="col">Date shipped</th>
+                                    <th scope="col">Last updated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var buildRecord in selectedMissingDataRecords)
+                                {
+                                    <tr>
+                                        <td>@Display(buildRecord.ProductCode)</td>
+                                        <td>@Display(buildRecord.ProductName)</td>
+                                        <td>
+                                            <a class="table-link" href="@($"/build-records/{buildRecord.Id}")">@buildRecord.SerialNumber</a>
+                                        </td>
+                                        <td>@Display(buildRecord.CustomerName)</td>
+                                        <td>@Display(buildRecord.MachineName)</td>
+                                        <td>@Display(buildRecord.RadSightVersion)</td>
+                                        <td>@Display(buildRecord.WindowsVersion)</td>
+                                        <td>@Display(buildRecord.DateShipped)</td>
+                                        <td>@buildRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        }
     }
 </section>
 
@@ -259,45 +390,54 @@
 
 <section class="placeholder-panel" aria-labelledby="reports-placeholder">
     <h2 id="reports-placeholder">Coming later</h2>
-    <p>This page is reserved for product, shipped-date and missing-data reports.</p>
+    <p>This page is reserved for product reports and future QA-number tracking once that field is added.</p>
 </section>
 
 @code {
     private IReadOnlyList<CustomerOption> customerOptions = [];
     private IReadOnlyList<BuildRegisterRow> customerBuildRecords = [];
+    private IReadOnlyList<MissingDataReportRow> missingDataRecords = [];
     private IReadOnlyList<VersionReportRow> radSightVersionRows = [];
     private IReadOnlyList<VersionReportRow> windowsVersionRows = [];
     private CustomerOption? selectedCustomer;
     private int? selectedCustomerId;
     private bool isLoadingCustomers;
     private bool isLoadingReport;
+    private bool isLoadingMissingDataReports;
     private bool isLoadingVersionReports;
     private string? reportError;
+    private string? missingDataReportError;
     private string? versionReportError;
+    private MissingDataReportType? selectedMissingDataReport;
     private bool canRunReport => !isLoadingCustomers && !isLoadingReport && selectedCustomerId is not null;
     private bool canClearReport => !isLoadingReport && (selectedCustomerId is not null || selectedCustomer is not null || customerBuildRecords.Count > 0);
+    private IReadOnlyList<MissingDataReportRow> missingCustomerRecords => missingDataRecords.Where(record => record.IsMissingCustomer).ToList();
+    private IReadOnlyList<MissingDataReportRow> missingRecoveryRecords => missingDataRecords.Where(record => record.IsMissingRecoveryData).ToList();
+    private IReadOnlyList<MissingDataReportRow> missingShippedDateRecords => missingDataRecords.Where(record => record.IsMissingDateShipped).ToList();
+    private IReadOnlyList<MissingDataReportRow> selectedMissingDataRecords => selectedMissingDataReport switch
+    {
+        MissingDataReportType.Customer => missingCustomerRecords,
+        MissingDataReportType.RecoveryData => missingRecoveryRecords,
+        MissingDataReportType.DateShipped => missingShippedDateRecords,
+        _ => []
+    };
+    private string selectedMissingDataReportTitle => selectedMissingDataReport switch
+    {
+        MissingDataReportType.Customer => "Build Records missing customer",
+        MissingDataReportType.RecoveryData => "Build Records missing recovery key",
+        MissingDataReportType.DateShipped => "Build Records missing shipped date",
+        _ => "Missing data"
+    };
 
     protected override async Task OnInitializedAsync()
     {
         isLoadingCustomers = true;
+        isLoadingMissingDataReports = true;
         isLoadingVersionReports = true;
 
-        try
-        {
-            customerOptions = await CustomerOptionsReader.ListActiveAsync();
-            var activeBuildRecords = await BuildRegisterReader.ListAsync();
-            radSightVersionRows = BuildVersionReportRows(activeBuildRecords, row => row.RadSightVersion);
-            windowsVersionRows = BuildVersionReportRows(activeBuildRecords, row => row.WindowsVersion);
-        }
-        catch
-        {
-            versionReportError = "The version reports could not be loaded. Refresh the page and try again.";
-        }
-        finally
-        {
-            isLoadingCustomers = false;
-            isLoadingVersionReports = false;
-        }
+        await LoadCustomerOptionsAsync();
+        await LoadMissingDataReportsAsync();
+        await LoadVersionReportsAsync();
     }
 
     private async Task LoadCustomerReportAsync()
@@ -340,6 +480,64 @@
         return Task.CompletedTask;
     }
 
+    private async Task LoadCustomerOptionsAsync()
+    {
+        try
+        {
+            customerOptions = await CustomerOptionsReader.ListActiveAsync();
+        }
+        finally
+        {
+            isLoadingCustomers = false;
+        }
+    }
+
+    private async Task LoadMissingDataReportsAsync()
+    {
+        try
+        {
+            missingDataRecords = await MissingDataReportReader.ListActiveAsync();
+            missingDataReportError = null;
+        }
+        catch
+        {
+            missingDataReportError = "The missing data reports could not be loaded. Refresh the page and try again.";
+        }
+        finally
+        {
+            isLoadingMissingDataReports = false;
+        }
+    }
+
+    private async Task LoadVersionReportsAsync()
+    {
+        try
+        {
+            var activeBuildRecords = await BuildRegisterReader.ListAsync();
+            radSightVersionRows = BuildVersionReportRows(activeBuildRecords, row => row.RadSightVersion);
+            windowsVersionRows = BuildVersionReportRows(activeBuildRecords, row => row.WindowsVersion);
+            versionReportError = null;
+        }
+        catch
+        {
+            versionReportError = "The version reports could not be loaded. Refresh the page and try again.";
+        }
+        finally
+        {
+            isLoadingVersionReports = false;
+        }
+    }
+
+    private void ShowMissingDataRecords(MissingDataReportType reportType)
+    {
+        selectedMissingDataReport = reportType;
+    }
+
+    private void ClearMissingDataRecords()
+    {
+        selectedMissingDataReport = null;
+    }
+
     private static string Display(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
@@ -378,5 +576,12 @@
     private sealed record VersionReportRow(string? FilterValue, string Label, int Count)
     {
         public bool HasFilterValue => !string.IsNullOrWhiteSpace(FilterValue);
+    }
+
+    private enum MissingDataReportType
+    {
+        Customer,
+        RecoveryData,
+        DateShipped
     }
 }

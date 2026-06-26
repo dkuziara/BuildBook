@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<IBuildRegisterCsvExporter, BuildRegisterCsvExporter>();
         services.AddScoped<IBuildRegisterExcelExporter, BuildRegisterExcelExporter>();
         services.AddScoped<IBuildRegisterReader, BuildRegisterReader>();
+        services.AddScoped<IMissingDataReportReader, MissingDataReportReader>();
         services.AddScoped<IBuildRecordSearchService, BuildRecordSearchService>();
         services.AddScoped<IBuildRecordDetailReader, BuildRecordDetailReader>();
         services.AddScoped<ISpreadsheetImportMappingService, SpreadsheetImportMappingService>();
