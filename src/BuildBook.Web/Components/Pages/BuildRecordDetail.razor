@@ -733,7 +733,7 @@ else
         <div class="detail-panel-header">
             <div>
                 <h2 id="credentials-recovery-heading">Credentials &amp; Recovery</h2>
-                <p>User account names and protected recovery information.</p>
+                <p>User account names and protected recovery information. Secret values stay hidden unless an authorised user explicitly reveals or updates them.</p>
             </div>
         </div>
 
@@ -750,126 +750,85 @@ else
                 <dt>Windows admin user</dt>
                 <dd>@Display(buildRecord.WindowsAdminUser)</dd>
             </div>
-            <div>
-                <dt>RadSight user password</dt>
-                <dd>
-                    <span class="@SecretValueCssClass(SecretType.RadSightUserPassword)">@DisplaySecret(SecretType.RadSightUserPassword)</span>
-                    <AuthorizeView Policy="@BuildBookPolicies.RevealSensitiveData">
-                        <Authorized>
-                            @if (!IsSecretRevealed(SecretType.RadSightUserPassword))
+            @foreach (var secretType in SupportedSecretTypes)
+            {
+                <div class="secret-summary-item">
+                    <dt>@GetSecretLabel(secretType)</dt>
+                    <dd>
+                        <div class="secret-status-row">
+                            <span class="validation-badge @(IsSecretSet(secretType) ? "warning" : "error")">@SecretStatus(secretType)</span>
+                            <span class="@SecretValueCssClass(secretType)">@DisplaySecret(secretType)</span>
+                        </div>
+
+                        <div class="form-actions">
+                            @if (canRevealSensitiveData && IsSecretSet(secretType) && !IsSecretRevealed(secretType))
                             {
-                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(SecretType.RadSightUserPassword)" @onclick="() => RevealSecretAsync(SecretType.RadSightUserPassword)">
-                                    @(IsRevealingSecret(SecretType.RadSightUserPassword) ? "Revealing..." : "Reveal")
+                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(secretType)" @onclick="() => RevealSecretAsync(secretType)">
+                                    @(IsRevealingSecret(secretType) ? "Revealing..." : "Reveal")
                                 </button>
                             }
-                        </Authorized>
-                    </AuthorizeView>
-                    @if (GetSecretRevealError(SecretType.RadSightUserPassword) is { } radSightPasswordRevealError)
-                    {
-                        <span class="field-message error">@radSightPasswordRevealError</span>
-                    }
-                </dd>
-            </div>
-            <div>
-                <dt>Windows admin password</dt>
-                <dd>
-                    <span class="@SecretValueCssClass(SecretType.WindowsAdminPassword)">@DisplaySecret(SecretType.WindowsAdminPassword)</span>
-                    <AuthorizeView Policy="@BuildBookPolicies.RevealSensitiveData">
-                        <Authorized>
-                            @if (!IsSecretRevealed(SecretType.WindowsAdminPassword))
+                            else if (canRevealSensitiveData && IsSecretRevealed(secretType))
                             {
-                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(SecretType.WindowsAdminPassword)" @onclick="() => RevealSecretAsync(SecretType.WindowsAdminPassword)">
-                                    @(IsRevealingSecret(SecretType.WindowsAdminPassword) ? "Revealing..." : "Reveal")
+                                <button type="button" class="secondary-button secret-reveal-button" @onclick="() => HideSecret(secretType)">
+                                    Hide
                                 </button>
                             }
-                        </Authorized>
-                    </AuthorizeView>
-                    @if (GetSecretRevealError(SecretType.WindowsAdminPassword) is { } windowsAdminPasswordRevealError)
-                    {
-                        <span class="field-message error">@windowsAdminPasswordRevealError</span>
-                    }
-                </dd>
-            </div>
-            <div>
-                <dt>Kiosk password</dt>
-                <dd>
-                    <span class="@SecretValueCssClass(SecretType.KioskPassword)">@DisplaySecret(SecretType.KioskPassword)</span>
-                    <AuthorizeView Policy="@BuildBookPolicies.RevealSensitiveData">
-                        <Authorized>
-                            @if (!IsSecretRevealed(SecretType.KioskPassword))
+
+                            @if (canManageSensitiveData && !IsEditingSecret(secretType))
                             {
-                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(SecretType.KioskPassword)" @onclick="() => RevealSecretAsync(SecretType.KioskPassword)">
-                                    @(IsRevealingSecret(SecretType.KioskPassword) ? "Revealing..." : "Reveal")
+                                <button type="button" class="secondary-button" @onclick="() => StartEditingSecret(secretType)">
+                                    @(IsSecretSet(secretType) ? "Update" : "Set")
                                 </button>
                             }
-                        </Authorized>
-                    </AuthorizeView>
-                    @if (GetSecretRevealError(SecretType.KioskPassword) is { } kioskPasswordRevealError)
-                    {
-                        <span class="field-message error">@kioskPasswordRevealError</span>
-                    }
-                </dd>
-            </div>
-            <div>
-                <dt>Wi-Fi password</dt>
-                <dd>
-                    <span class="@SecretValueCssClass(SecretType.WifiPassword)">@DisplaySecret(SecretType.WifiPassword)</span>
-                    <AuthorizeView Policy="@BuildBookPolicies.RevealSensitiveData">
-                        <Authorized>
-                            @if (!IsSecretRevealed(SecretType.WifiPassword))
+                        </div>
+
+                        @if (GetSecretRevealError(secretType) is { } revealError)
+                        {
+                            <span class="field-message error">@revealError</span>
+                        }
+
+                        @if (IsEditingSecret(secretType))
+                        {
+                            @if (secretSaveErrors.Count > 0)
                             {
-                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(SecretType.WifiPassword)" @onclick="() => RevealSecretAsync(SecretType.WifiPassword)">
-                                    @(IsRevealingSecret(SecretType.WifiPassword) ? "Revealing..." : "Reveal")
-                                </button>
+                                <div class="status-message error" role="alert">
+                                    <p>@GetSecretLabel(secretType) could not be saved.</p>
+                                    <ul>
+                                        @foreach (var error in secretSaveErrors)
+                                        {
+                                            <li>@error</li>
+                                        }
+                                    </ul>
+                                </div>
                             }
-                        </Authorized>
-                    </AuthorizeView>
-                    @if (GetSecretRevealError(SecretType.WifiPassword) is { } wifiPasswordRevealError)
-                    {
-                        <span class="field-message error">@wifiPasswordRevealError</span>
-                    }
-                </dd>
-            </div>
-            <div>
-                <dt>Router password</dt>
-                <dd>
-                    <span class="@SecretValueCssClass(SecretType.RouterPassword)">@DisplaySecret(SecretType.RouterPassword)</span>
-                    <AuthorizeView Policy="@BuildBookPolicies.RevealSensitiveData">
-                        <Authorized>
-                            @if (!IsSecretRevealed(SecretType.RouterPassword))
-                            {
-                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(SecretType.RouterPassword)" @onclick="() => RevealSecretAsync(SecretType.RouterPassword)">
-                                    @(IsRevealingSecret(SecretType.RouterPassword) ? "Revealing..." : "Reveal")
-                                </button>
-                            }
-                        </Authorized>
-                    </AuthorizeView>
-                    @if (GetSecretRevealError(SecretType.RouterPassword) is { } routerPasswordRevealError)
-                    {
-                        <span class="field-message error">@routerPasswordRevealError</span>
-                    }
-                </dd>
-            </div>
-            <div>
-                <dt>BitLocker recovery key</dt>
-                <dd>
-                    <span class="@SecretValueCssClass(SecretType.BitLockerRecoveryKey)">@DisplaySecret(SecretType.BitLockerRecoveryKey)</span>
-                    <AuthorizeView Policy="@BuildBookPolicies.RevealSensitiveData">
-                        <Authorized>
-                            @if (!IsSecretRevealed(SecretType.BitLockerRecoveryKey))
-                            {
-                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(SecretType.BitLockerRecoveryKey)" @onclick="() => RevealSecretAsync(SecretType.BitLockerRecoveryKey)">
-                                    @(IsRevealingSecret(SecretType.BitLockerRecoveryKey) ? "Revealing..." : "Reveal")
-                                </button>
-                            }
-                        </Authorized>
-                    </AuthorizeView>
-                    @if (GetSecretRevealError(SecretType.BitLockerRecoveryKey) is { } bitLockerRevealError)
-                    {
-                        <span class="field-message error">@bitLockerRevealError</span>
-                    }
-                </dd>
-            </div>
+
+                            <EditForm Model="secretEditModel" OnValidSubmit="SaveSecretAsync" FormName="@($"edit-secret-{SanitizeSecretType(secretType)}")">
+                                <div class="form-grid">
+                                    <div class="form-field">
+                                        <label for="@($"secret-value-{SanitizeSecretType(secretType)}")">New value</label>
+                                        <InputText id="@($"secret-value-{SanitizeSecretType(secretType)}")" class="text-input" type="password" @bind-Value="secretEditModel.NewValue" />
+                                        @if (secretType == SecretType.BitLockerRecoveryKey)
+                                        {
+                                            <span class="field-message">Use eight groups of six digits separated by hyphens.</span>
+                                        }
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="@($"secret-confirm-{SanitizeSecretType(secretType)}")">Confirm value</label>
+                                        <InputText id="@($"secret-confirm-{SanitizeSecretType(secretType)}")" class="text-input" type="password" @bind-Value="secretEditModel.ConfirmValue" />
+                                    </div>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button type="submit" class="primary-button" disabled="@IsSavingSecret(secretType)">
+                                        @(IsSavingSecret(secretType) ? "Saving..." : "Save")
+                                    </button>
+                                    <button type="button" class="secondary-button" disabled="@IsSavingSecret(secretType)" @onclick="CancelSecretEdit">Cancel</button>
+                                </div>
+                            </EditForm>
+                        }
+                    </dd>
+                </div>
+            }
         </dl>
     </section>
 
@@ -1020,9 +979,24 @@ else
     private string saveMessage = string.Empty;
     private readonly List<string> saveWarnings = [];
     private const string MaskedSecretDisplay = "************";
+    private static IReadOnlyList<SecretType> SupportedSecretTypes { get; } =
+    [
+        SecretType.RadSightUserPassword,
+        SecretType.WindowsAdminPassword,
+        SecretType.KioskPassword,
+        SecretType.WifiPassword,
+        SecretType.RouterPassword,
+        SecretType.BitLockerRecoveryKey
+    ];
     private readonly Dictionary<SecretType, string?> revealedSecrets = [];
     private readonly Dictionary<SecretType, string> secretRevealErrors = [];
     private readonly HashSet<SecretType> revealingSecretTypes = [];
+    private readonly HashSet<SecretType> savingSecretTypes = [];
+    private readonly List<string> secretSaveErrors = [];
+    private SecretType? editingSecretType;
+    private SecretEditModel secretEditModel = new();
+    private bool canRevealSensitiveData;
+    private bool canManageSensitiveData;
 
     private static IReadOnlyList<InternalStatus> InternalStatusOptions { get; } =
         Enum.GetValues<InternalStatus>();
@@ -1038,13 +1012,22 @@ else
         if (buildRecord is not null)
         {
             var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            var userName = authenticationState.User.Identity?.Name;
+            var user = authenticationState.User;
+            var userName = user.Identity?.Name;
             RecentlyViewedBuildRecordTracker.TrackView(buildRecord.Id, userName);
             auditHistory = await BuildRecordAuditHistoryReader.ListByBuildRecordIdAsync(BuildRecordId);
+            canRevealSensitiveData = await BuildBookPermissionService.IsAuthorizedAsync(
+                user,
+                BuildBookPolicies.RevealSensitiveData);
+            canManageSensitiveData = await BuildBookPermissionService.IsAuthorizedAsync(
+                user,
+                BuildBookPolicies.ManageSensitiveData);
         }
         else
         {
             auditHistory = [];
+            canRevealSensitiveData = false;
+            canManageSensitiveData = false;
         }
 
         customerOptions = await CustomerOptionsReader.ListActiveAsync();
@@ -1066,6 +1049,10 @@ else
         revealedSecrets.Clear();
         secretRevealErrors.Clear();
         revealingSecretTypes.Clear();
+        savingSecretTypes.Clear();
+        secretSaveErrors.Clear();
+        editingSecretType = null;
+        secretEditModel = new();
         isLoading = false;
     }
 
@@ -1566,6 +1553,90 @@ else
         isEditingNotes = false;
     }
 
+    private void StartEditingSecret(SecretType secretType)
+    {
+        if (!canManageSensitiveData)
+        {
+            return;
+        }
+
+        secretSaveErrors.Clear();
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        saveWarnings.Clear();
+        editingSecretType = secretType;
+        secretEditModel = new SecretEditModel();
+    }
+
+    private void CancelSecretEdit()
+    {
+        secretSaveErrors.Clear();
+        editingSecretType = null;
+        secretEditModel = new SecretEditModel();
+    }
+
+    private async Task SaveSecretAsync()
+    {
+        if (buildRecord is null || editingSecretType is not { } secretType || !savingSecretTypes.Add(secretType))
+        {
+            return;
+        }
+
+        saveSucceeded = false;
+        saveMessage = string.Empty;
+        saveWarnings.Clear();
+        secretSaveErrors.Clear();
+
+        try
+        {
+            if (!string.Equals(secretEditModel.NewValue, secretEditModel.ConfirmValue, StringComparison.Ordinal))
+            {
+                secretSaveErrors.Add("The new value and confirmation value must match.");
+                return;
+            }
+
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authenticationState.User;
+            var userName = user.Identity?.Name ?? "Unknown";
+
+            await BuildBookPermissionService.EnsureAuthorizedAsync(
+                user,
+                BuildBookPolicies.ManageSensitiveData);
+
+            var result = IsSecretSet(secretType)
+                ? await BuildRecordSecretService.UpdateAsync(BuildRecordId, secretType, secretEditModel.NewValue ?? string.Empty, userName)
+                : await BuildRecordSecretService.SaveAsync(BuildRecordId, secretType, secretEditModel.NewValue ?? string.Empty, userName);
+
+            if (result.Succeeded)
+            {
+                buildRecord = await BuildRecordDetailReader.GetByIdAsync(BuildRecordId);
+                auditHistory = await BuildRecordAuditHistoryReader.ListByBuildRecordIdAsync(BuildRecordId);
+                revealedSecrets.Remove(secretType);
+                secretRevealErrors.Remove(secretType);
+                saveSucceeded = true;
+                saveMessage = $"{GetSecretLabel(secretType)} was saved.";
+                editingSecretType = null;
+                secretEditModel = new SecretEditModel();
+            }
+            else
+            {
+                secretSaveErrors.AddRange(result.Errors);
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            secretSaveErrors.Add("You are not authorised to set or update this value.");
+        }
+        catch
+        {
+            secretSaveErrors.Add("This value could not be saved. Try again.");
+        }
+        finally
+        {
+            savingSecretTypes.Remove(secretType);
+        }
+    }
+
     private async Task RevealSecretAsync(SecretType secretType)
     {
         if (buildRecord is null || !revealingSecretTypes.Add(secretType))
@@ -1616,9 +1687,30 @@ else
         return revealedSecrets.ContainsKey(secretType);
     }
 
+    private void HideSecret(SecretType secretType)
+    {
+        revealedSecrets.Remove(secretType);
+        secretRevealErrors.Remove(secretType);
+    }
+
+    private bool IsSecretSet(SecretType secretType)
+    {
+        return buildRecord?.SecretTypesSet.Contains(secretType) == true;
+    }
+
     private bool IsRevealingSecret(SecretType secretType)
     {
         return revealingSecretTypes.Contains(secretType);
+    }
+
+    private bool IsSavingSecret(SecretType secretType)
+    {
+        return savingSecretTypes.Contains(secretType);
+    }
+
+    private bool IsEditingSecret(SecretType secretType)
+    {
+        return editingSecretType == secretType;
     }
 
     private string? GetSecretRevealError(SecretType secretType)
@@ -1628,6 +1720,11 @@ else
 
     private string DisplaySecret(SecretType secretType)
     {
+        if (!IsSecretSet(secretType))
+        {
+            return "Not set";
+        }
+
         return revealedSecrets.TryGetValue(secretType, out var secretValue)
             ? Display(secretValue)
             : MaskedSecretDisplay;
@@ -1635,7 +1732,36 @@ else
 
     private string SecretValueCssClass(SecretType secretType)
     {
+        if (!IsSecretSet(secretType))
+        {
+            return string.Empty;
+        }
+
         return IsSecretRevealed(secretType) ? "secret-value" : "secret-mask";
+    }
+
+    private static string GetSecretLabel(SecretType secretType)
+    {
+        return secretType switch
+        {
+            SecretType.RadSightUserPassword => "RadSight user password",
+            SecretType.WindowsAdminPassword => "Windows admin password",
+            SecretType.KioskPassword => "Kiosk password",
+            SecretType.WifiPassword => "Wi-Fi password",
+            SecretType.RouterPassword => "Router password",
+            SecretType.BitLockerRecoveryKey => "BitLocker recovery key",
+            _ => secretType.ToString()
+        };
+    }
+
+    private string SecretStatus(SecretType secretType)
+    {
+        return IsSecretSet(secretType) ? "Set" : "Not set";
+    }
+
+    private static string SanitizeSecretType(SecretType secretType)
+    {
+        return secretType.ToString().ToLowerInvariant();
     }
 
     private static string Display(string? value)
@@ -1665,5 +1791,12 @@ else
             AuditAction.ImportPerformed => "Import performed",
             _ => action.ToString()
         };
+    }
+
+    private sealed class SecretEditModel
+    {
+        public string? NewValue { get; set; }
+
+        public string? ConfirmValue { get; set; }
     }
 }

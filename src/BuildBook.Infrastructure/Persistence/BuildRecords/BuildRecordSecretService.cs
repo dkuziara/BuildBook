@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using BuildBook.Application.BuildRecords;
 using BuildBook.Domain.BuildRecords;
 using Microsoft.AspNetCore.DataProtection;
@@ -12,6 +13,9 @@ public sealed class BuildRecordSecretService(
     IBuildRecordAuditService buildRecordAuditService) : IBuildRecordSecretService
 {
     private const string SecretProtectionPurpose = "BuildBook.BuildRecordSecrets.v1";
+    private static readonly Regex BitLockerRecoveryKeyPattern = new(
+        @"^\d{6}(-\d{6}){7}$",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private readonly IDataProtector protector = dataProtectionProvider.CreateProtector(SecretProtectionPurpose);
 
     public Task<BuildRecordSecretSaveResult> SaveAsync(
@@ -100,6 +104,13 @@ public sealed class BuildRecordSecretService(
         if (string.IsNullOrWhiteSpace(secretValue))
         {
             return BuildRecordSecretSaveResult.Failure("Secret value must not be blank.");
+        }
+
+        if (secretType == SecretType.BitLockerRecoveryKey
+            && !BitLockerRecoveryKeyPattern.IsMatch(secretValue))
+        {
+            return BuildRecordSecretSaveResult.Failure(
+                "BitLocker recovery key must use eight groups of six digits separated by hyphens.");
         }
 
         var userName = NormalizeUserName(updatedBy);

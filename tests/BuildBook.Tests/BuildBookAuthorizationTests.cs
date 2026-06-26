@@ -43,6 +43,25 @@ public class BuildBookAuthorizationTests
         Assert.Equal(expectedRoles, GetRequiredRoles(policy));
     }
 
+    [Theory]
+    [InlineData(true, BuildBookRoles.Administrator)]
+    [InlineData(true, BuildBookRoles.Editor, BuildBookRoles.SensitiveDataViewer)]
+    [InlineData(false, BuildBookRoles.Editor)]
+    [InlineData(false, BuildBookRoles.SensitiveDataViewer)]
+    [InlineData(false, BuildBookRoles.Viewer)]
+    public async Task ManageSensitiveDataPolicy_RequiresAdministratorOrEditorWithSensitiveDataViewer(
+        bool expectedAuthorized,
+        params string[] roles)
+    {
+        using var provider = CreateServiceProvider();
+        var permissionService = provider.GetRequiredService<IBuildBookPermissionService>();
+        var user = CreateUser(roles);
+
+        var isAuthorized = await permissionService.IsAuthorizedAsync(user, BuildBookPolicies.ManageSensitiveData);
+
+        Assert.Equal(expectedAuthorized, isAuthorized);
+    }
+
     [Fact]
     public void FallbackPolicyRequiresAuthenticatedUser()
     {

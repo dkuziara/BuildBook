@@ -40,6 +40,14 @@ public class BuildRecordDetailReaderIntegrationTests
                     LastUpdatedBy = "tester"
                 };
 
+                buildRecord.Secrets.Add(new BuildRecordSecret
+                {
+                    SecretType = SecretType.RouterPassword,
+                    SecretValueEncrypted = [1, 2, 3],
+                    CreatedBy = "tester",
+                    LastUpdatedBy = "tester"
+                });
+
                 setupContext.BuildRecords.Add(buildRecord);
                 await setupContext.SaveChangesAsync();
                 buildRecordId = buildRecord.Id;
@@ -59,6 +67,7 @@ public class BuildRecordDetailReaderIntegrationTests
             Assert.Equal("1.3.6", detail.RadSightVersion);
             Assert.Equal("Windows 10", detail.WindowsVersion);
             Assert.Equal(new DateOnly(2026, 6, 26), detail.DateShipped);
+            Assert.Contains(SecretType.RouterPassword, detail.SecretTypesSet);
         }
         finally
         {

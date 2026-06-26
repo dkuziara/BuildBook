@@ -34,6 +34,13 @@ public static class AuthorizationServiceCollectionExtensions
                     BuildBookRoles.Administrator));
 
             options.AddPolicy(
+                BuildBookPolicies.ManageSensitiveData,
+                policy => policy.RequireAssertion(context =>
+                    context.User.IsInRole(BuildBookRoles.Administrator)
+                    || (context.User.IsInRole(BuildBookRoles.Editor)
+                        && context.User.IsInRole(BuildBookRoles.SensitiveDataViewer))));
+
+            options.AddPolicy(
                 BuildBookPolicies.ImportSpreadsheet,
                 policy => policy.RequireRole(BuildBookRoles.Administrator));
 

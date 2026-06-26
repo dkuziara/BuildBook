@@ -279,6 +279,18 @@ body {
     overflow-wrap: anywhere;
 }
 
+.secret-summary-item {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.secret-status-row {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
 .secret-mask {
     color: #4b596d;
     font-family: Consolas, "Courier New", monospace;

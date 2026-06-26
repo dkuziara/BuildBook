@@ -1,4 +1,5 @@
 using BuildBook.Application.BuildRecords;
+using BuildBook.Domain.BuildRecords;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence.BuildRecords;
@@ -57,6 +58,9 @@ public sealed class BuildRecordDetailReader(
                 buildRecord.ManufacturerSerialNumber,
                 buildRecord.PackingList,
                 buildRecord.CheckedBy,
+                SecretTypesSet = buildRecord.Secrets
+                    .Select(secret => secret.SecretType)
+                    .ToArray(),
                 buildRecord.LastUpdatedAt,
                 buildRecord.LastUpdatedBy
             })
@@ -105,6 +109,7 @@ public sealed class BuildRecordDetailReader(
                 buildRecord.ManufacturerSerialNumber,
                 buildRecord.PackingList,
                 buildRecord.CheckedBy,
+                buildRecord.SecretTypesSet,
                 buildRecord.LastUpdatedAt,
                 buildRecord.LastUpdatedBy);
     }

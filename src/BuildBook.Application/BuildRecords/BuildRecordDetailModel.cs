@@ -1,3 +1,5 @@
+using BuildBook.Domain.BuildRecords;
+
 namespace BuildBook.Application.BuildRecords;
 
 public sealed record BuildRecordDetailModel(
@@ -41,5 +43,6 @@ public sealed record BuildRecordDetailModel(
     string? ManufacturerSerialNumber,
     string? PackingList,
     string? CheckedBy,
+    IReadOnlyCollection<SecretType> SecretTypesSet,
     DateTimeOffset LastUpdatedAt,
     string LastUpdatedBy);

@@ -231,6 +231,34 @@ public class BuildRecordSecretServiceTests
         }
     }
 
+    [Fact]
+    public async Task SaveAsync_ReturnsFailureForInvalidBitLockerRecoveryKeyFormat()
+    {
+        var harness = await SecretServiceHarness.CreateAsync();
+
+        try
+        {
+            var result = await harness.Service.SaveAsync(
+                harness.BuildRecordId,
+                SecretType.BitLockerRecoveryKey,
+                "123456-ABCDEF",
+                "editor");
+
+            Assert.False(result.Succeeded);
+            Assert.Contains(
+                "BitLocker recovery key must use eight groups of six digits separated by hyphens.",
+                result.Errors);
+
+            await using var verifyContext = harness.CreateContext();
+            Assert.Empty(await verifyContext.BuildRecordSecrets.ToListAsync());
+            Assert.Empty(await verifyContext.BuildRecordAudit.ToListAsync());
+        }
+        finally
+        {
+            await harness.DisposeAsync();
+        }
+    }
+
     private sealed class SecretServiceHarness
     {
         private SecretServiceHarness(
