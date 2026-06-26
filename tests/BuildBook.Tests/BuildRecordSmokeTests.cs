@@ -89,6 +89,110 @@ public class BuildRecordSmokeTests
     }
 
     [Fact]
+    public async Task BuildRegister_SearchByCustomerAndVersion_OpenRecord_SmokePath()
+    {
+        await using var harness = await BuildBookSmokeTestHarness.StartAsync();
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        {
+            Channel = harness.BrowserChannel,
+            Headless = true
+        });
+
+        var page = await browser.NewPageAsync();
+        await page.GotoAsync($"{harness.BaseUrl}/build-register", new PageGotoOptions
+        {
+            WaitUntil = WaitUntilState.NetworkIdle
+        });
+
+        await page.GetByLabel("Customer").FillAsync("Smoke Test");
+        await page.GetByLabel("RadSight version").FillAsync(harness.RadSightVersion);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Apply filters" }).ClickAsync();
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+
+        var resultRow = page.Locator("tbody tr").Filter(new LocatorFilterOptions
+        {
+            HasText = harness.SerialNumber
+        });
+
+        Assert.Equal(1, await resultRow.CountAsync());
+        var resultText = await resultRow.InnerTextAsync();
+        Assert.Contains(harness.CustomerName, resultText, StringComparison.Ordinal);
+        Assert.Contains(harness.RadSightVersion, resultText, StringComparison.Ordinal);
+        Assert.DoesNotContain(harness.SecretPlainText, await page.Locator("table").InnerTextAsync(), StringComparison.Ordinal);
+
+        await resultRow.GetByRole(AriaRole.Link, new() { Name = harness.SerialNumber }).ClickAsync();
+        await page.WaitForURLAsync("**/build-records/*");
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+
+        var pageBody = await page.Locator("body").InnerTextAsync();
+        Assert.Contains(harness.ProductName, pageBody, StringComparison.Ordinal);
+        Assert.Contains(harness.CustomerName, pageBody, StringComparison.Ordinal);
+        Assert.Contains(harness.RadSightVersion, pageBody, StringComparison.Ordinal);
+        Assert.DoesNotContain(harness.SecretPlainText, pageBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BuildRecord_EditProductAndCustomerShipping_SmokePath()
+    {
+        await using var harness = await BuildBookSmokeTestHarness.StartAsync();
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        {
+            Channel = harness.BrowserChannel,
+            Headless = true
+        });
+
+        var page = await browser.NewPageAsync();
+        await page.GotoAsync($"{harness.BaseUrl}/build-records/{harness.BuildRecordId}", new PageGotoOptions
+        {
+            WaitUntil = WaitUntilState.NetworkIdle
+        });
+
+        var productSection = page.Locator("section[aria-labelledby='product-details-heading']");
+        await productSection.GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();
+        await page.Locator("#edit-product-name").FillAsync(harness.UpdatedProductName);
+        await page.Locator("#edit-product-classification").FillAsync(harness.UpdatedProductClassification);
+        await page.Locator("#edit-internal-status").SelectOptionAsync(new[] { "Shipped" });
+        await page.GetByRole(AriaRole.Button, new() { Name = "Save Product Details" }).ClickAsync();
+
+        var productSaveSucceeded = await WaitForBodyTextAsync(page, "Product details were saved.", TimeSpan.FromSeconds(10));
+        var bodyTextAfterProductSave = await page.Locator("body").InnerTextAsync();
+        Assert.True(
+            productSaveSucceeded,
+            $"Product details save did not report success.{Environment.NewLine}{bodyTextAfterProductSave}");
+
+        var shippingSection = page.Locator("section[aria-labelledby='customer-shipping-heading']");
+        await shippingSection.GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();
+        await page.Locator("#edit-customer-order").FillAsync(harness.UpdatedCustomerOrder);
+        await page.Locator("#edit-invoice-number").FillAsync(harness.UpdatedInvoiceNumber);
+        await page.Locator("#edit-date-shipped").FillAsync(harness.UpdatedDateShipped.ToString("yyyy-MM-dd"));
+        await page.GetByRole(AriaRole.Button, new() { Name = "Save Customer & Shipping" }).ClickAsync();
+
+        var shippingSaveSucceeded = await WaitForBodyTextAsync(page, "Customer and shipping details were saved.", TimeSpan.FromSeconds(10));
+        var bodyTextAfterShippingSave = await page.Locator("body").InnerTextAsync();
+        Assert.True(
+            shippingSaveSucceeded,
+            $"Customer and shipping save did not report success.{Environment.NewLine}{bodyTextAfterShippingSave}");
+
+        await page.ReloadAsync(new PageReloadOptions
+        {
+            WaitUntil = WaitUntilState.NetworkIdle
+        });
+
+        var reloadedBody = await page.Locator("body").InnerTextAsync();
+        Assert.Contains(harness.UpdatedProductName, reloadedBody, StringComparison.Ordinal);
+        Assert.Contains(harness.UpdatedProductClassification, reloadedBody, StringComparison.Ordinal);
+        Assert.Contains("Shipped", reloadedBody, StringComparison.Ordinal);
+        Assert.Contains(harness.UpdatedCustomerOrder, reloadedBody, StringComparison.Ordinal);
+        Assert.Contains(harness.UpdatedInvoiceNumber, reloadedBody, StringComparison.Ordinal);
+        Assert.Contains(harness.UpdatedDateShipped.ToString("d MMM yyyy"), reloadedBody, StringComparison.Ordinal);
+        Assert.DoesNotContain(harness.SecretPlainText, reloadedBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ViewerCannotRevealSecrets()
     {
         await using var harness = await BuildBookSmokeTestHarness.StartAsync(developmentRole: "Viewer");
@@ -134,10 +238,18 @@ public class BuildRecordSmokeTests
             string baseUrl,
             string browserChannel,
             int buildRecordId,
+            string customerName,
+            string productName,
+            string radSightVersion,
             string productCode,
             string serialNumber,
             string secretPlainText,
-            string updatedNote)
+            string updatedNote,
+            string updatedProductName,
+            string updatedProductClassification,
+            string updatedCustomerOrder,
+            string updatedInvoiceNumber,
+            DateOnly updatedDateShipped)
         {
             this.process = process;
             this.processLog = processLog;
@@ -148,10 +260,18 @@ public class BuildRecordSmokeTests
             BaseUrl = baseUrl;
             BrowserChannel = browserChannel;
             BuildRecordId = buildRecordId;
+            CustomerName = customerName;
+            ProductName = productName;
+            RadSightVersion = radSightVersion;
             ProductCode = productCode;
             SerialNumber = serialNumber;
             SecretPlainText = secretPlainText;
             UpdatedNote = updatedNote;
+            UpdatedProductName = updatedProductName;
+            UpdatedProductClassification = updatedProductClassification;
+            UpdatedCustomerOrder = updatedCustomerOrder;
+            UpdatedInvoiceNumber = updatedInvoiceNumber;
+            UpdatedDateShipped = updatedDateShipped;
         }
 
         public string BaseUrl { get; }
@@ -159,6 +279,12 @@ public class BuildRecordSmokeTests
         public string BrowserChannel { get; }
 
         public int BuildRecordId { get; }
+
+        public string CustomerName { get; }
+
+        public string ProductName { get; }
+
+        public string RadSightVersion { get; }
 
         public string ProductCode { get; }
 
@@ -168,13 +294,31 @@ public class BuildRecordSmokeTests
 
         public string UpdatedNote { get; }
 
+        public string UpdatedProductName { get; }
+
+        public string UpdatedProductClassification { get; }
+
+        public string UpdatedCustomerOrder { get; }
+
+        public string UpdatedInvoiceNumber { get; }
+
+        public DateOnly UpdatedDateShipped { get; }
+
         public static async Task<BuildBookSmokeTestHarness> StartAsync(string developmentRole = "Administrator")
         {
             var testId = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
             var productCode = $"BI029-{testId}";
             var serialNumber = $"SMOKE-{testId}";
+            var productName = "Smoke Test Device";
+            var customerName = "Smoke Test Customer";
+            var radSightVersion = "SmokeRad-1";
             var initialNote = $"Initial smoke note {testId}";
             var updatedNote = $"Updated smoke note {testId}";
+            var updatedProductName = $"Updated Smoke Device {testId}";
+            var updatedProductClassification = $"Updated Class {testId}";
+            var updatedCustomerOrder = $"CO-UPDATED-{testId}";
+            var updatedInvoiceNumber = $"INV-UPDATED-{testId}";
+            var updatedDateShipped = new DateOnly(2026, 6, 26);
             var secretPlainText = $"router-secret-{testId}";
             var databaseName = $"BuildBook_Smoke_{testId}";
             var baseUrl = $"http://127.0.0.1:{GetFreePort()}";
@@ -223,10 +367,18 @@ public class BuildRecordSmokeTests
                 baseUrl,
                 browserChannel,
                 buildRecordId,
+                customerName,
+                productName,
+                radSightVersion,
                 productCode,
                 serialNumber,
                 secretPlainText,
-                updatedNote);
+                updatedNote,
+                updatedProductName,
+                updatedProductClassification,
+                updatedCustomerOrder,
+                updatedInvoiceNumber,
+                updatedDateShipped);
 
             await harness.WaitForApplicationAsync();
             return harness;
