@@ -1,7 +1,7 @@
 :root {
-    --color-brand-700: #1f4f7d;
-    --color-brand-600: #2d638f;
-    --color-brand-100: #eaf2fb;
+    --color-brand-700: #ff6200;
+    --color-brand-600: #ff6200;
+    --color-brand-100: #fff0e5;
     --color-accent-amber: #9a6a12;
     --color-accent-amber-bg: #fff6dc;
     --color-success: #1f6a3b;
@@ -19,7 +19,7 @@
     --color-text-subtle: #74849a;
     --shadow-panel: 0 14px 40px rgba(24, 38, 59, 0.06);
     --shadow-soft: 0 6px 18px rgba(24, 38, 59, 0.07);
-    --shadow-focus: 0 0 0 4px rgba(45, 99, 143, 0.18);
+    --shadow-focus: 0 0 0 4px rgba(255, 98, 0, 0.18);
     --radius-sm: 0.55rem;
     --radius-md: 0.85rem;
     --radius-lg: 1rem;
