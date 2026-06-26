@@ -18,6 +18,11 @@ public sealed class BuildRegisterReader(
 
         if (filter is not null)
         {
+            if (filter.CustomerId is not null)
+            {
+                query = query.Where(buildRecord => buildRecord.CustomerId == filter.CustomerId);
+            }
+
             if (!string.IsNullOrWhiteSpace(filter.Customer))
             {
                 var customerPattern = CreateLikePattern(filter.Customer);

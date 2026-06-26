@@ -179,8 +179,27 @@ public class BuildBookPageAuthorizationTests
     {
         var pageContent = File.ReadAllText(GetPagePath("Reports.razor"));
 
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("IBuildRegisterReader", pageContent);
+        Assert.Contains("ICustomerOptionsReader", pageContent);
         Assert.Contains("Export current Build Register results to CSV or Excel", pageContent);
         Assert.Contains("Current search results", pageContent);
+        Assert.Contains("Devices by customer", pageContent);
+        Assert.Contains("InputSelect", pageContent);
+        Assert.Contains("Select customer", pageContent);
+        Assert.Contains("Show report", pageContent);
+        Assert.Contains("ClearCustomerReportAsync", pageContent);
+        Assert.Contains("LoadCustomerReportAsync", pageContent);
+        Assert.Contains("CustomerOptionsReader.ListActiveAsync", pageContent);
+        Assert.Contains("BuildRegisterReader.ListAsync", pageContent);
+        Assert.Contains("BuildRegisterFilter", pageContent);
+        Assert.Contains("selectedCustomerId", pageContent);
+        Assert.Contains("canRunReport", pageContent);
+        Assert.Contains("reportError", pageContent);
+        Assert.Contains("The customer report could not be loaded. Refresh the page and try again.", pageContent);
+        Assert.Contains("No Build Records were found for the selected customer.", pageContent);
+        Assert.Contains("Select a customer to list all matching Build Records.", pageContent);
+        Assert.Contains("/build-records/{buildRecord.Id}", pageContent);
         Assert.Contains("/build-register", pageContent);
         Assert.DoesNotContain("Password", pageContent);
         Assert.DoesNotContain("BitLocker", pageContent);

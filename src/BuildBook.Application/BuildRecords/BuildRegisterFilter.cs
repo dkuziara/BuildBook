@@ -6,6 +6,8 @@ public sealed class BuildRegisterFilter
 
     public bool SortDescending { get; set; } = true;
 
+    public int? CustomerId { get; set; }
+
     public string? Customer { get; set; }
 
     public string? ProductCode { get; set; }
@@ -18,7 +20,8 @@ public sealed class BuildRegisterFilter
 
     public bool HasAnyFilter()
     {
-        return !string.IsNullOrWhiteSpace(Customer)
+        return CustomerId is not null
+            || !string.IsNullOrWhiteSpace(Customer)
             || !string.IsNullOrWhiteSpace(ProductCode)
             || DateShipped is not null
             || !string.IsNullOrWhiteSpace(RadSightVersion)

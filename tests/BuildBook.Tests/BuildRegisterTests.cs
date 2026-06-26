@@ -38,10 +38,12 @@ public class BuildRegisterTests
     public void FilterReportsWhetherAnyFilterIsSet()
     {
         var emptyFilter = new BuildRegisterFilter();
+        var customerIdFilter = new BuildRegisterFilter { CustomerId = 42 };
         var customerFilter = new BuildRegisterFilter { Customer = "APVL" };
         var dateFilter = new BuildRegisterFilter { DateShipped = new DateOnly(2026, 6, 24) };
 
         Assert.False(emptyFilter.HasAnyFilter());
+        Assert.True(customerIdFilter.HasAnyFilter());
         Assert.True(customerFilter.HasAnyFilter());
         Assert.True(dateFilter.HasAnyFilter());
     }
