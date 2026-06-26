@@ -36,6 +36,27 @@ public class CreateBuildRecordTests
     }
 
     [Fact]
+    public void ValidatorRejectsWhitespaceOnlyRequiredFields()
+    {
+        var request = new CreateBuildRecordRequest
+        {
+            ProductCode = "   ",
+            ProductName = "\t",
+            SerialNumber = " "
+        };
+
+        var errors = CreateBuildRecordValidator.Validate(request);
+
+        Assert.Equal(
+            [
+                "Product code is required.",
+                "Product name is required.",
+                "Serial number is required."
+            ],
+            errors);
+    }
+
+    [Fact]
     public void FailureResultDoesNotExposeBuildRecordId()
     {
         var result = CreateBuildRecordResult.Failure("A Build Record with this serial number already exists.");

@@ -39,6 +39,27 @@ public class ProductDetailsTests
     }
 
     [Fact]
+    public void ValidatorRejectsWhitespaceOnlyProductDetailsFields()
+    {
+        var request = new UpdateProductDetailsRequest
+        {
+            ProductCode = " ",
+            ProductName = "\t",
+            SerialNumber = "   "
+        };
+
+        var errors = UpdateProductDetailsValidator.Validate(request);
+
+        Assert.Equal(
+            [
+                "Product code is required.",
+                "Product name is required.",
+                "Serial number is required."
+            ],
+            errors);
+    }
+
+    [Fact]
     public void FailureResultReturnsErrors()
     {
         var result = UpdateProductDetailsResult.Failure("A Build Record with this serial number already exists.");
