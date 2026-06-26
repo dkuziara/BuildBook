@@ -148,6 +148,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("FormName=\"build-register-filters\"", pageContent);
         Assert.Contains("Apply filters", pageContent);
         Assert.Contains("Clear filters", pageContent);
+        Assert.Contains("canClearFilters", pageContent);
         Assert.Contains("BuildBookPolicies.ExportNonSensitiveData", pageContent);
         Assert.Contains("Export current results to CSV", pageContent);
         Assert.Contains("Export current results to Excel", pageContent);

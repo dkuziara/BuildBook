@@ -53,7 +53,7 @@
 
         <div class="form-actions">
             <button type="submit" class="primary-button" disabled="@isLoading">Apply filters</button>
-            <button type="button" class="secondary-button" disabled="@isLoading || !hasActiveFilters" @onclick="ClearFiltersAsync">Clear filters</button>
+            <button type="button" class="secondary-button" disabled="@(!canClearFilters)" @onclick="ClearFiltersAsync">Clear filters</button>
             <AuthorizeView Policy="@BuildBookPolicies.ExportNonSensitiveData">
                 <Authorized Context="exportAuthorizationState">
                     @if (buildRecords is { Count: > 0 })
@@ -135,6 +135,7 @@ else
     private BuildRegisterFilter filterModel = new();
     private bool hasActiveFilters;
     private bool isLoading;
+    private bool canClearFilters => !isLoading && hasActiveFilters;
     private string BuildRegisterCsvDownloadUrl => BuildExportUrl();
     private string BuildRegisterExcelDownloadUrl => BuildExportUrl("xlsx");
 
