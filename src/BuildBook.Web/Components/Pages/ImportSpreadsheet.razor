@@ -66,8 +66,8 @@
         <button type="button" class="primary-button" disabled="@isUploading" @onclick="UploadSpreadsheetAsync">
             @(isUploading ? "Uploading..." : "Upload Spreadsheet")
         </button>
-        <a class="secondary-link" href="/imports">Import History</a>
-        <a class="secondary-link" href="/admin">Back to Admin</a>
+        <a class="action-link" href="/imports">Import History</a>
+        <a class="action-link" href="/admin">Back to Admin</a>
     </div>
 </section>
 
@@ -356,7 +356,7 @@
         </div>
 
         <p class="detail-actions">
-            <a class="secondary-link" href="/imports">View Import History</a>
+            <a class="action-link" href="/imports">View Import History</a>
         </p>
     </section>
 }

@@ -763,20 +763,20 @@ else
                         <div class="form-actions">
                             @if (canRevealSensitiveData && IsSecretSet(secretType) && !IsSecretRevealed(secretType))
                             {
-                                <button type="button" class="secondary-button secret-reveal-button" disabled="@IsRevealingSecret(secretType)" @onclick="() => RevealSecretAsync(secretType)">
+                                <button type="button" class="secondary-button button-small secret-action-button" disabled="@IsRevealingSecret(secretType)" @onclick="() => RevealSecretAsync(secretType)">
                                     @(IsRevealingSecret(secretType) ? "Revealing..." : "Reveal")
                                 </button>
                             }
                             else if (canRevealSensitiveData && IsSecretRevealed(secretType))
                             {
-                                <button type="button" class="secondary-button secret-reveal-button" @onclick="() => HideSecret(secretType)">
+                                <button type="button" class="secondary-button button-small secret-action-button" @onclick="() => HideSecret(secretType)">
                                     Hide
                                 </button>
                             }
 
                             @if (canManageSensitiveData && !IsEditingSecret(secretType))
                             {
-                                <button type="button" class="secondary-button" @onclick="() => StartEditingSecret(secretType)">
+                                <button type="button" class="secondary-button button-small secret-action-button" @onclick="() => StartEditingSecret(secretType)">
                                     @(IsSecretSet(secretType) ? "Update" : "Set")
                                 </button>
                             }
@@ -803,10 +803,10 @@ else
                             }
 
                             <EditForm Model="secretEditModel" OnValidSubmit="SaveSecretAsync" FormName="@($"edit-secret-{SanitizeSecretType(secretType)}")">
-                                <div class="form-grid">
+                                <div class="form-grid secret-edit-grid">
                                     <div class="form-field">
                                         <label for="@($"secret-value-{SanitizeSecretType(secretType)}")">New value</label>
-                                        <InputText id="@($"secret-value-{SanitizeSecretType(secretType)}")" class="text-input" type="password" @bind-Value="secretEditModel.NewValue" />
+                                        <InputText id="@($"secret-value-{SanitizeSecretType(secretType)}")" class="text-input secret-edit-input" type="password" @bind-Value="secretEditModel.NewValue" />
                                         @if (secretType == SecretType.BitLockerRecoveryKey)
                                         {
                                             <span class="field-message">Use eight groups of six digits separated by hyphens.</span>
@@ -814,7 +814,7 @@ else
                                     </div>
                                     <div class="form-field">
                                         <label for="@($"secret-confirm-{SanitizeSecretType(secretType)}")">Confirm value</label>
-                                        <InputText id="@($"secret-confirm-{SanitizeSecretType(secretType)}")" class="text-input" type="password" @bind-Value="secretEditModel.ConfirmValue" />
+                                        <InputText id="@($"secret-confirm-{SanitizeSecretType(secretType)}")" class="text-input secret-edit-input" type="password" @bind-Value="secretEditModel.ConfirmValue" />
                                     </div>
                                 </div>
 

@@ -195,8 +195,14 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Missing QA number", pageContent);
         Assert.Contains("Missing recovery key", pageContent);
         Assert.Contains("Missing shipped date", pageContent);
-        Assert.Contains("ShowMissingDataRecords", pageContent);
-        Assert.Contains("ClearMissingDataRecords", pageContent);
+        Assert.Contains("SupplyParameterFromQuery", pageContent);
+        Assert.Contains("MissingDataReportQuery", pageContent);
+        Assert.Contains("MissingDataReportLink", pageContent);
+        Assert.Contains("?missingData=", pageContent);
+        Assert.Contains("#missing-data-records-heading", pageContent);
+        Assert.Contains("report-scroll-heading", pageContent);
+        Assert.Contains("missing-data-records-section", pageContent);
+        Assert.Contains("report-scroll-target", pageContent);
         Assert.Contains("QA number reporting will be available once the field is added to Build Records.", pageContent);
         Assert.Contains("The missing data reports could not be loaded. Refresh the page and try again.", pageContent);
         Assert.Contains("Build Records missing customer", pageContent);

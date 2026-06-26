@@ -5,48 +5,52 @@
 
 <div class="app-shell">
     <header class="app-header">
-        <div class="app-header-top">
-            <a class="brand" href="/">
-                <span class="brand-mark">BB</span>
-                <span>
-                    <span class="brand-name">BuildBook</span>
-                    <span class="brand-subtitle">Internal build records</span>
-                </span>
-            </a>
+        <div class="app-header-inner">
+            <div class="app-header-top">
+                <a class="brand" href="/">
+                    <span class="brand-mark">BB</span>
+                    <span>
+                        <span class="brand-name">BuildBook</span>
+                        <span class="brand-subtitle">Internal build records</span>
+                    </span>
+                </a>
 
-            <AuthorizeView>
-                <Authorized Context="authenticationState">
-                    <div class="current-user-panel">
-                        <span class="current-user-label">Signed in as</span>
-                        <strong>@authenticationState.User.Identity?.Name</strong>
-                        <span class="current-user-mode">@GetAuthenticationMode(authenticationState.User)</span>
-                    </div>
-                </Authorized>
-            </AuthorizeView>
+                <AuthorizeView>
+                    <Authorized Context="authenticationState">
+                        <div class="current-user-panel">
+                            <span class="current-user-label">Signed in as</span>
+                            <strong>@authenticationState.User.Identity?.Name</strong>
+                            <span class="current-user-mode">@GetAuthenticationMode(authenticationState.User)</span>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+
+            <nav class="primary-nav" aria-label="Primary navigation">
+                <AuthorizeView Policy="@BuildBookPolicies.ViewBuildRecords">
+                    <Authorized>
+                        <NavLink href="/" Match="NavLinkMatch.All">Home</NavLink>
+                        <NavLink href="/build-register">Build Register</NavLink>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Policy="@BuildBookPolicies.ExportNonSensitiveData">
+                    <Authorized>
+                        <NavLink href="/reports">Reports</NavLink>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Policy="@BuildBookPolicies.ManageUsers">
+                    <Authorized>
+                        <NavLink href="/admin">Admin</NavLink>
+                    </Authorized>
+                </AuthorizeView>
+            </nav>
         </div>
-
-        <nav class="primary-nav" aria-label="Primary navigation">
-            <AuthorizeView Policy="@BuildBookPolicies.ViewBuildRecords">
-                <Authorized>
-                    <NavLink href="/" Match="NavLinkMatch.All">Home</NavLink>
-                    <NavLink href="/build-register">Build Register</NavLink>
-                </Authorized>
-            </AuthorizeView>
-            <AuthorizeView Policy="@BuildBookPolicies.ExportNonSensitiveData">
-                <Authorized>
-                    <NavLink href="/reports">Reports</NavLink>
-                </Authorized>
-            </AuthorizeView>
-            <AuthorizeView Policy="@BuildBookPolicies.ManageUsers">
-                <Authorized>
-                    <NavLink href="/admin">Admin</NavLink>
-                </Authorized>
-            </AuthorizeView>
-        </nav>
     </header>
 
     <main class="main-content">
-        @Body
+        <div class="page-container">
+            @Body
+        </div>
     </main>
 </div>
 

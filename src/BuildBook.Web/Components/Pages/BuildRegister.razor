@@ -58,8 +58,8 @@
                 <Authorized Context="exportAuthorizationState">
                     @if (buildRecords is { Count: > 0 })
                     {
-                        <a class="secondary-link" href="@BuildRegisterCsvDownloadUrl">Export current results to CSV</a>
-                        <a class="secondary-link" href="@BuildRegisterExcelDownloadUrl">Export current results to Excel</a>
+                        <a class="action-link" href="@BuildRegisterCsvDownloadUrl">Export current results to CSV</a>
+                        <a class="action-link" href="@BuildRegisterExcelDownloadUrl">Export current results to Excel</a>
                     }
                 </Authorized>
             </AuthorizeView>

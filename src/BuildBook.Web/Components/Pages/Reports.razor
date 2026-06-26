@@ -3,6 +3,8 @@
 
 @attribute [Authorize(Policy = BuildBookPolicies.ExportNonSensitiveData)]
 
+@using Microsoft.AspNetCore.Components
+
 @inject IBuildRegisterReader BuildRegisterReader
 @inject ICustomerOptionsReader CustomerOptionsReader
 @inject IMissingDataReportReader MissingDataReportReader
@@ -163,9 +165,9 @@
                         <h3 id="missing-customer-heading">Missing customer</h3>
                         <p>@missingCustomerRecords.Count active Build Records</p>
                     </div>
-                    <button type="button" class="secondary-button" disabled="@(missingCustomerRecords.Count == 0)" @onclick="() => ShowMissingDataRecords(MissingDataReportType.Customer)">
+                    <a class="secondary-button" aria-disabled="@(missingCustomerRecords.Count == 0)" href="@MissingDataReportLink(MissingDataReportType.Customer)">
                         Show missing records
-                    </button>
+                    </a>
                 </div>
             </section>
 
@@ -185,9 +187,9 @@
                         <h3 id="missing-recovery-heading">Missing recovery key</h3>
                         <p>@missingRecoveryRecords.Count active Build Records</p>
                     </div>
-                    <button type="button" class="secondary-button" disabled="@(missingRecoveryRecords.Count == 0)" @onclick="() => ShowMissingDataRecords(MissingDataReportType.RecoveryData)">
+                    <a class="secondary-button" aria-disabled="@(missingRecoveryRecords.Count == 0)" href="@MissingDataReportLink(MissingDataReportType.RecoveryData)">
                         Show missing records
-                    </button>
+                    </a>
                 </div>
             </section>
 
@@ -197,22 +199,22 @@
                         <h3 id="missing-shipped-date-heading">Missing shipped date</h3>
                         <p>@missingShippedDateRecords.Count active Build Records</p>
                     </div>
-                    <button type="button" class="secondary-button" disabled="@(missingShippedDateRecords.Count == 0)" @onclick="() => ShowMissingDataRecords(MissingDataReportType.DateShipped)">
+                    <a class="secondary-button" aria-disabled="@(missingShippedDateRecords.Count == 0)" href="@MissingDataReportLink(MissingDataReportType.DateShipped)">
                         Show missing records
-                    </button>
+                    </a>
                 </div>
             </section>
         </div>
 
         @if (selectedMissingDataReport is not null)
         {
-            <section class="table-panel detail-section" aria-labelledby="missing-data-records-heading">
+            <section id="missing-data-records-section" class="table-panel detail-section report-scroll-target" aria-labelledby="missing-data-records-heading">
                 <div class="table-panel-heading">
                     <div>
-                        <h3 id="missing-data-records-heading">@selectedMissingDataReportTitle</h3>
+                        <h3 id="missing-data-records-heading" class="report-scroll-heading">@selectedMissingDataReportTitle</h3>
                         <p>@selectedMissingDataRecords.Count active Build Records</p>
                     </div>
-                    <button type="button" class="secondary-button" @onclick="ClearMissingDataRecords">Clear</button>
+                    <a class="secondary-button" href="/reports">Clear</a>
                 </div>
 
                 @if (selectedMissingDataRecords.Count == 0)
@@ -394,6 +396,9 @@
 </section>
 
 @code {
+    [SupplyParameterFromQuery(Name = "missingData")]
+    public string? MissingDataReportQuery { get; set; }
+
     private IReadOnlyList<CustomerOption> customerOptions = [];
     private IReadOnlyList<BuildRegisterRow> customerBuildRecords = [];
     private IReadOnlyList<MissingDataReportRow> missingDataRecords = [];
@@ -438,6 +443,11 @@
         await LoadCustomerOptionsAsync();
         await LoadMissingDataReportsAsync();
         await LoadVersionReportsAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        selectedMissingDataReport = ParseMissingDataReport(MissingDataReportQuery);
     }
 
     private async Task LoadCustomerReportAsync()
@@ -528,16 +538,6 @@
         }
     }
 
-    private void ShowMissingDataRecords(MissingDataReportType reportType)
-    {
-        selectedMissingDataReport = reportType;
-    }
-
-    private void ClearMissingDataRecords()
-    {
-        selectedMissingDataReport = null;
-    }
-
     private static string Display(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
@@ -571,6 +571,18 @@
     private static string BuildVersionReportLink(string filterKey, string filterValue)
     {
         return $"/build-register?{Uri.EscapeDataString(filterKey)}={Uri.EscapeDataString(filterValue)}";
+    }
+
+    private static string MissingDataReportLink(MissingDataReportType reportType)
+    {
+        return $"/reports?missingData={Uri.EscapeDataString(reportType.ToString())}#missing-data-records-heading";
+    }
+
+    private static MissingDataReportType? ParseMissingDataReport(string? value)
+    {
+        return Enum.TryParse<MissingDataReportType>(value, ignoreCase: true, out var reportType)
+            ? reportType
+            : null;
     }
 
     private sealed record VersionReportRow(string? FilterValue, string Label, int Count)

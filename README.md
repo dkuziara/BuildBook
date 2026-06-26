@@ -134,6 +134,25 @@ Run the Blazor web application locally:
 dotnet run --project src/BuildBook.Web/BuildBook.Web.csproj
 ```
 
+## UI Styling
+
+The main shared application styling lives in:
+
+* `src/BuildBook.Web/wwwroot/app.css`
+* `src/BuildBook.Web/Components/Layout/MainLayout.razor.css`
+
+Use the shared CSS variables in `:root` for colour, spacing, radius, shadow and typography choices instead of adding new one-off values where possible.
+
+Common styling conventions:
+
+* Panels and sections: `detail-panel`, `table-panel`, `filter-panel`, `form-panel`, `placeholder-panel`
+* Buttons and actions: `primary-button`, `secondary-button`, `action-link`, `button-small`
+* Tables: `table-scroll`, `data-table`, `table-link`
+* Forms: `form-grid`, `form-field`, `form-actions`, `text-input`
+* Status and badges: `status-message`, `validation-badge`
+
+When adding future pages, prefer composing these existing classes first so the app shell, forms, reports and detail pages stay visually consistent.
+
 ## Repository Guidance
 
 Before implementing work items, read:
