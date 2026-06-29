@@ -3,6 +3,7 @@
 
 @using BuildBook.Application.Rmas
 @using BuildBook.Domain.Rmas
+@using Microsoft.AspNetCore.Components.Forms
 
 @attribute [Authorize(Policy = BuildBookRmaPolicies.ViewRmas)]
 
@@ -1033,6 +1034,430 @@ else
         }
     </section>
 
+    <section class="detail-panel detail-section" aria-labelledby="rma-shipping-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-shipping-heading">Shipping and Return</h2>
+                <p>Track collection, dispatch and proof-of-delivery information.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                <Authorized>
+                    @if (!isEditingShipping)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingShipping">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingShipping)
+        {
+            @SectionErrors(shippingErrors, "Shipping and return details could not be saved.")
+
+            <EditForm Model="shippingModel" OnValidSubmit="SaveShippingAsync" FormName="edit-rma-shipping">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-rma-return-method">Return method</label>
+                        <InputText id="edit-rma-return-method" class="text-input" @bind-Value="shippingModel.ReturnMethod" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-courier">Courier</label>
+                        <InputText id="edit-rma-courier" class="text-input" @bind-Value="shippingModel.Courier" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-tracking-number">Tracking number</label>
+                        <InputText id="edit-rma-tracking-number" class="text-input" @bind-Value="shippingModel.TrackingNumber" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-collection-arranged">Collection arranged</label>
+                        <InputSelect id="edit-rma-collection-arranged" class="text-input" @bind-Value="shippingModel.CollectionArranged">
+                            <option value="">Not set</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-collection-date">Collection date</label>
+                        <InputDate id="edit-rma-collection-date" class="text-input" @bind-Value="shippingModel.CollectionDate" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-shipped-date">Shipped date</label>
+                        <InputDate id="edit-rma-shipped-date" class="text-input" @bind-Value="shippingModel.ShippedDate" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-shipped-by">Shipped by</label>
+                        <InputText id="edit-rma-shipped-by" class="text-input" @bind-Value="shippingModel.ShippedBy" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-proof-delivery">Proof of delivery received</label>
+                        <InputSelect id="edit-rma-proof-delivery" class="text-input" @bind-Value="shippingModel.ProofOfDeliveryReceived">
+                            <option value="">Not set</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-proof-delivery-date">Proof of delivery date</label>
+                        <InputDate id="edit-rma-proof-delivery-date" class="text-input" @bind-Value="shippingModel.ProofOfDeliveryDate" />
+                    </div>
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-return-address">Return address</label>
+                    <InputTextArea id="edit-rma-return-address" class="text-input" @bind-Value="shippingModel.ReturnAddress" />
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-shipping-notes">Shipping notes</label>
+                    <InputTextArea id="edit-rma-shipping-notes" class="text-input" @bind-Value="shippingModel.ShippingNotes" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingShipping">@(isSavingShipping ? "Saving..." : "Save shipping details")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingShipping" @onclick="CancelShippingEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div><dt>Return method</dt><dd>@Display(rmaRecord.ReturnMethod)</dd></div>
+                <div><dt>Courier</dt><dd>@Display(rmaRecord.Courier)</dd></div>
+                <div><dt>Tracking number</dt><dd>@Display(rmaRecord.TrackingNumber)</dd></div>
+                <div><dt>Collection arranged</dt><dd>@DisplayBool(rmaRecord.CollectionArranged)</dd></div>
+                <div><dt>Collection date</dt><dd>@Display(rmaRecord.CollectionDate)</dd></div>
+                <div><dt>Shipped date</dt><dd>@Display(rmaRecord.ShippedDate)</dd></div>
+                <div><dt>Shipped by</dt><dd>@Display(rmaRecord.ShippedBy)</dd></div>
+                <div><dt>Proof of delivery received</dt><dd>@DisplayBool(rmaRecord.ProofOfDeliveryReceived)</dd></div>
+                <div><dt>Proof of delivery date</dt><dd>@Display(rmaRecord.ProofOfDeliveryDate)</dd></div>
+            </dl>
+
+            <div class="detail-section">
+                <h3>Return address</h3>
+                <p class="empty-state">@Display(rmaRecord.ReturnAddress)</p>
+            </div>
+
+            <div class="detail-section">
+                <h3>Shipping notes</h3>
+                <p class="empty-state">@Display(rmaRecord.ShippingNotes)</p>
+            </div>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-customer-summary-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-customer-summary-heading">Customer-Facing Summary</h2>
+                <p>Keep the return summary separate from internal repair notes.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                <Authorized>
+                    @if (!isEditingCustomerSummary)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingCustomerSummary">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingCustomerSummary)
+        {
+            @SectionErrors(customerSummaryErrors, "Customer-facing summary could not be saved.")
+
+            <EditForm Model="customerSummaryModel" OnValidSubmit="SaveCustomerSummaryAsync" FormName="edit-rma-customer-summary">
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-customer-summary">Summary</label>
+                    <InputTextArea id="edit-rma-customer-summary" class="text-input" @bind-Value="customerSummaryModel.CustomerFacingSummary" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingCustomerSummary">@(isSavingCustomerSummary ? "Saving..." : "Save customer summary")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingCustomerSummary" @onclick="CancelCustomerSummaryEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <p class="empty-state">@Display(rmaRecord.CustomerFacingSummary)</p>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-communication-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-communication-heading">Customer Communication</h2>
+                <p>Record follow-ups separately from technical repair work.</p>
+            </div>
+        </div>
+
+        @SectionErrors(communicationErrors, "Communication entry could not be saved.")
+
+        <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+            <Authorized Context="communicationAuth">
+                <EditForm Model="communicationModel" OnValidSubmit="SaveCommunicationAsync" FormName="add-rma-communication">
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label for="edit-rma-communication-date">Communication date</label>
+                            <InputDate id="edit-rma-communication-date" class="text-input" @bind-Value="communicationModel.CommunicationDate" />
+                        </div>
+                        <div class="form-field">
+                            <label for="edit-rma-contact-method">Contact method</label>
+                            <InputSelect id="edit-rma-contact-method" class="text-input" @bind-Value="communicationModel.ContactMethod">
+                                <option value="">Select method</option>
+                                @foreach (var method in CommunicationMethods)
+                                {
+                                    <option value="@method">@method</option>
+                                }
+                            </InputSelect>
+                        </div>
+                        <div class="form-field">
+                            <label for="edit-rma-contact-person">Contact person</label>
+                            <InputText id="edit-rma-contact-person" class="text-input" @bind-Value="communicationModel.ContactPerson" />
+                        </div>
+                        <div class="form-field">
+                            <label for="edit-rma-follow-up-required">Follow-up required</label>
+                            <InputCheckbox id="edit-rma-follow-up-required" @bind-Value="communicationModel.FollowUpRequired" class="darker-border-checkbox form-check-input" />
+                        </div>
+                        <div class="form-field">
+                            <label for="edit-rma-follow-up-date">Follow-up date</label>
+                            <InputDate id="edit-rma-follow-up-date" class="text-input" @bind-Value="communicationModel.FollowUpDate" />
+                        </div>
+                    </div>
+
+                    <div class="form-field form-field-wide">
+                        <label for="edit-rma-communication-summary">Summary</label>
+                        <InputTextArea id="edit-rma-communication-summary" class="text-input" @bind-Value="communicationModel.Summary" />
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="primary-button" disabled="@isSavingCommunication">@(isSavingCommunication ? "Saving..." : "Add communication entry")</button>
+                    </div>
+                </EditForm>
+            </Authorized>
+        </AuthorizeView>
+
+        @if (communications.Count == 0)
+        {
+            <p class="empty-state">No customer communication has been recorded yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Date</th>
+                            <th scope="col">Method</th>
+                            <th scope="col">Contact</th>
+                            <th scope="col">Summary</th>
+                            <th scope="col">Follow-up</th>
+                            <th scope="col">Recorded by</th>
+                            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                                <Authorized>
+                                    <th scope="col">Actions</th>
+                                </Authorized>
+                            </AuthorizeView>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var communication in communications)
+                        {
+                            <tr>
+                                <td>@Display(communication.CommunicationDate)</td>
+                                <td>@communication.ContactMethod</td>
+                                <td>@Display(communication.ContactPerson)</td>
+                                <td>@communication.Summary</td>
+                                <td>@(communication.FollowUpRequired ? Display(communication.FollowUpDate) : "Not required")</td>
+                                <td>@communication.CreatedBy</td>
+                                <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                                    <Authorized>
+                                        <td>
+                                            <button type="button" class="button-small" disabled="@isSavingCommunication" @onclick="@(() => DeleteCommunicationAsync(communication.Id))">Delete</button>
+                                        </td>
+                                    </Authorized>
+                                </AuthorizeView>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-attachments-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-attachments-heading">Attachments</h2>
+                <p>Store photos, documents and test evidence with the RMA record.</p>
+            </div>
+        </div>
+
+        @SectionErrors(attachmentErrors, "Attachment could not be saved.")
+
+        <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+            <Authorized Context="attachmentAuth">
+                <EditForm Model="attachmentModel" OnValidSubmit="SaveAttachmentAsync" FormName="add-rma-attachment">
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label for="edit-rma-attachment-file">File</label>
+                            <InputFile id="edit-rma-attachment-file" OnChange="OnAttachmentSelected" />
+                        </div>
+                        <div class="form-field">
+                            <label for="edit-rma-attachment-type">Attachment type</label>
+                            <InputSelect id="edit-rma-attachment-type" class="text-input" @bind-Value="attachmentModel.AttachmentType">
+                                <option value="">Select type</option>
+                                @foreach (var attachmentType in AttachmentTypes)
+                                {
+                                    <option value="@attachmentType">@attachmentType</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+
+                    <div class="form-field form-field-wide">
+                        <label for="edit-rma-attachment-description">Description</label>
+                        <InputTextArea id="edit-rma-attachment-description" class="text-input" @bind-Value="attachmentModel.Description" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(selectedAttachmentName))
+                    {
+                        <p class="empty-state">Selected file: @selectedAttachmentName</p>
+                    }
+
+                    <div class="form-actions">
+                        <button type="submit" class="primary-button" disabled="@isSavingAttachment">@(isSavingAttachment ? "Uploading..." : "Upload attachment")</button>
+                    </div>
+                </EditForm>
+            </Authorized>
+        </AuthorizeView>
+
+        @if (attachments.Count == 0)
+        {
+            <p class="empty-state">No attachments have been uploaded yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">File</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Description</th>
+                            <th scope="col">Uploaded</th>
+                            <th scope="col">By</th>
+                            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                                <Authorized>
+                                    <th scope="col">Actions</th>
+                                </Authorized>
+                            </AuthorizeView>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var attachment in attachments)
+                        {
+                            <tr>
+                                <td><a class="table-link" href="@GetAttachmentUrl(attachment.Id)">@attachment.FileName</a></td>
+                                <td>@attachment.AttachmentType</td>
+                                <td>@Display(attachment.Description)</td>
+                                <td>@Display(attachment.UploadedAt)</td>
+                                <td>@attachment.UploadedBy</td>
+                                <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                                    <Authorized>
+                                        <td>
+                                            <button type="button" class="button-small" disabled="@isSavingAttachment" @onclick="@(() => DeleteAttachmentAsync(attachment.Id))">Delete</button>
+                                        </td>
+                                    </Authorized>
+                                </AuthorizeView>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-notes-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-notes-heading">Typed Notes</h2>
+                <p>Separate internal, diagnosis, repair, customer and commercial notes.</p>
+            </div>
+        </div>
+
+        @SectionErrors(noteErrors, "Note could not be saved.")
+
+        <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+            <Authorized Context="noteAuth">
+                <EditForm Model="noteModel" OnValidSubmit="SaveNoteAsync" FormName="add-rma-note">
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label for="edit-rma-note-type">Note type</label>
+                            <InputSelect id="edit-rma-note-type" class="text-input" @bind-Value="noteModel.NoteType">
+                                @foreach (var noteType in Enum.GetValues<RmaNoteType>())
+                                {
+                                    <option value="@noteType">@FormatNoteType(noteType)</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+
+                    <div class="form-field form-field-wide">
+                        <label for="edit-rma-note-text">Note</label>
+                        <InputTextArea id="edit-rma-note-text" class="text-input" @bind-Value="noteModel.NoteText" />
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="primary-button" disabled="@isSavingNote">@(isSavingNote ? "Saving..." : "Add note")</button>
+                    </div>
+                </EditForm>
+            </Authorized>
+        </AuthorizeView>
+
+        @if (notes.Count == 0)
+        {
+            <p class="empty-state">No typed notes have been recorded yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Type</th>
+                            <th scope="col">Note</th>
+                            <th scope="col">Recorded</th>
+                            <th scope="col">By</th>
+                            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                                <Authorized>
+                                    <th scope="col">Actions</th>
+                                </Authorized>
+                            </AuthorizeView>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var note in notes)
+                        {
+                            <tr>
+                                <td>@FormatNoteType(note.NoteType)</td>
+                                <td>@note.NoteText</td>
+                                <td>@Display(note.LastUpdatedAt ?? note.CreatedAt)</td>
+                                <td>@(note.LastUpdatedBy ?? note.CreatedBy)</td>
+                                <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                                    <Authorized>
+                                        <td>
+                                            <button type="button" class="button-small" disabled="@isSavingNote" @onclick="@(() => DeleteNoteAsync(note.Id))">Delete</button>
+                                        </td>
+                                    </Authorized>
+                                </AuthorizeView>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
     <section class="detail-panel detail-section" aria-labelledby="rma-build-record-link-heading">
         <div class="detail-panel-header">
             <div>
@@ -1096,28 +1521,46 @@ else
     private UpdateRmaFaultDetailsRequest faultDetailsModel = new();
     private UpdateRmaRepairDetailsRequest repairDetailsModel = new();
     private UpdateRmaWorkflowRequest workflowModel = new();
+    private UpdateRmaShippingRequest shippingModel = new();
+    private UpdateRmaCustomerSummaryRequest customerSummaryModel = new();
     private UpdateRmaTestingQaRequest testingQaModel = new();
     private ChangeRmaStatusRequest statusModel = new();
     private SaveRmaPartRequest partModel = new();
+    private SaveRmaNoteRequest noteModel = new();
+    private SaveRmaCommunicationRequest communicationModel = new()
+    {
+        CommunicationDate = DateOnly.FromDateTime(DateTime.Today)
+    };
+    private SaveRmaAttachmentRequest attachmentModel = new();
     private UpdateRmaChecklistItemRequest newChecklistItemModel = new();
     private IReadOnlyList<RmaBuildRecordMatchSuggestion> buildRecordSuggestions = [];
     private IReadOnlyList<RmaStatusHistoryEntry> statusHistoryEntries = [];
     private IReadOnlyList<RmaChecklistItemModel> checklistItems = [];
     private IReadOnlyList<RmaPartModel> parts = [];
+    private IReadOnlyList<RmaNoteModel> notes = [];
+    private IReadOnlyList<RmaCommunicationModel> communications = [];
+    private IReadOnlyList<RmaAttachmentModel> attachments = [];
     private readonly List<string> intakeErrors = [];
     private readonly List<string> faultDetailErrors = [];
     private readonly List<string> repairDetailErrors = [];
     private readonly List<string> workflowErrors = [];
+    private readonly List<string> shippingErrors = [];
+    private readonly List<string> customerSummaryErrors = [];
     private readonly List<string> testingQaErrors = [];
     private readonly List<string> statusErrors = [];
     private readonly List<string> statusWarnings = [];
     private readonly List<string> partErrors = [];
     private readonly List<string> checklistErrors = [];
+    private readonly List<string> noteErrors = [];
+    private readonly List<string> communicationErrors = [];
+    private readonly List<string> attachmentErrors = [];
     private bool isLoading = true;
     private bool isEditingIntake;
     private bool isEditingFaultDetails;
     private bool isEditingRepairDetails;
     private bool isEditingWorkflow;
+    private bool isEditingShipping;
+    private bool isEditingCustomerSummary;
     private bool isEditingTestingQa;
     private bool isEditingStatus;
     private bool isEditingPart;
@@ -1125,15 +1568,25 @@ else
     private bool isSavingFaultDetails;
     private bool isSavingRepairDetails;
     private bool isSavingWorkflow;
+    private bool isSavingShipping;
+    private bool isSavingCustomerSummary;
     private bool isSavingTestingQa;
     private bool isSavingStatus;
     private bool isSavingPart;
     private bool isSavingChecklist;
+    private bool isSavingNote;
+    private bool isSavingCommunication;
+    private bool isSavingAttachment;
     private bool isUpdatingLink;
     private bool confirmStatusWarnings;
+    private IBrowserFile? selectedAttachmentFile;
+    private string? selectedAttachmentName;
     private string? statusMessage;
     private bool statusIsError;
     private int completedChecklistCount;
+    private const long MaxAttachmentSizeBytes = 15 * 1024 * 1024;
+    private static readonly string[] CommunicationMethods = ["Email", "Phone", "Teams", "Freshdesk", "On site", "Other"];
+    private static readonly string[] AttachmentTypes = ["Photo", "Screenshot", "Test result", "Courier document", "Customer email", "Approval", "Other"];
     private string PageTitleText => rmaRecord is null ? "RMA Record" : rmaRecord.RmaNumber;
     private IReadOnlyList<RmaStatus> AllowedNextStatuses => rmaRecord is null ? [] : RmaStatusTransitionService.GetAllowedNextStatuses(rmaRecord.Status);
     private string? CurrentStatusReason => statusHistoryEntries.FirstOrDefault()?.Reason;
@@ -1159,6 +1612,9 @@ else
             statusHistoryEntries = await RmaRecordService.GetStatusHistoryAsync(RmaRecordId);
             checklistItems = await RmaRecordService.GetChecklistAsync(RmaRecordId);
             parts = await RmaRecordService.GetPartsAsync(RmaRecordId);
+            notes = await RmaRecordService.GetNotesAsync(RmaRecordId);
+            communications = await RmaRecordService.GetCommunicationsAsync(RmaRecordId);
+            attachments = await RmaRecordService.GetAttachmentsAsync(RmaRecordId);
             completedChecklistCount = checklistItems.Count(item => item.IsCompleted);
         }
         else
@@ -1167,6 +1623,9 @@ else
             statusHistoryEntries = [];
             checklistItems = [];
             parts = [];
+            notes = [];
+            communications = [];
+            attachments = [];
             completedChecklistCount = 0;
         }
 
@@ -1369,6 +1828,88 @@ else
     {
         workflowErrors.Clear();
         isEditingWorkflow = false;
+    }
+
+    private void StartEditingShipping()
+    {
+        if (rmaRecord is null)
+        {
+            return;
+        }
+
+        shippingModel = new UpdateRmaShippingRequest
+        {
+            ReturnMethod = rmaRecord.ReturnMethod,
+            Courier = rmaRecord.Courier,
+            TrackingNumber = rmaRecord.TrackingNumber,
+            CollectionArranged = rmaRecord.CollectionArranged,
+            CollectionDate = rmaRecord.CollectionDate,
+            ShippedDate = rmaRecord.ShippedDate,
+            ShippedBy = rmaRecord.ShippedBy,
+            ReturnAddress = rmaRecord.ReturnAddress,
+            ShippingNotes = rmaRecord.ShippingNotes,
+            ProofOfDeliveryReceived = rmaRecord.ProofOfDeliveryReceived,
+            ProofOfDeliveryDate = rmaRecord.ProofOfDeliveryDate
+        };
+
+        shippingErrors.Clear();
+        statusMessage = null;
+        isEditingShipping = true;
+    }
+
+    private async Task SaveShippingAsync()
+    {
+        isSavingShipping = true;
+        await ExecuteSaveAsync(
+            async () => await RmaRecordService.UpdateShippingAsync(RmaRecordId, shippingModel, await GetCurrentUserNameAsync()),
+            shippingErrors,
+            "Shipping and return details were saved.",
+            () => isEditingShipping = false,
+            value => value.Succeeded,
+            value => value.Errors);
+        isSavingShipping = false;
+    }
+
+    private void CancelShippingEdit()
+    {
+        shippingErrors.Clear();
+        isEditingShipping = false;
+    }
+
+    private void StartEditingCustomerSummary()
+    {
+        if (rmaRecord is null)
+        {
+            return;
+        }
+
+        customerSummaryModel = new UpdateRmaCustomerSummaryRequest
+        {
+            CustomerFacingSummary = rmaRecord.CustomerFacingSummary
+        };
+
+        customerSummaryErrors.Clear();
+        statusMessage = null;
+        isEditingCustomerSummary = true;
+    }
+
+    private async Task SaveCustomerSummaryAsync()
+    {
+        isSavingCustomerSummary = true;
+        await ExecuteSaveAsync(
+            async () => await RmaRecordService.UpdateCustomerSummaryAsync(RmaRecordId, customerSummaryModel, await GetCurrentUserNameAsync()),
+            customerSummaryErrors,
+            "Customer-facing summary was saved.",
+            () => isEditingCustomerSummary = false,
+            value => value.Succeeded,
+            value => value.Errors);
+        isSavingCustomerSummary = false;
+    }
+
+    private void CancelCustomerSummaryEdit()
+    {
+        customerSummaryErrors.Clear();
+        isEditingCustomerSummary = false;
     }
 
     private void StartEditingTestingQa()
@@ -1640,6 +2181,194 @@ else
         }
     }
 
+    private async Task SaveNoteAsync()
+    {
+        isSavingNote = true;
+        noteErrors.Clear();
+
+        try
+        {
+            var result = await RmaRecordService.SaveNoteAsync(RmaRecordId, noteModel, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                noteModel = new SaveRmaNoteRequest();
+                await LoadRmaAsync();
+                statusMessage = "Note was added.";
+                statusIsError = false;
+            }
+            else
+            {
+                noteErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            noteErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingNote = false;
+        }
+    }
+
+    private async Task DeleteNoteAsync(int noteId)
+    {
+        try
+        {
+            var result = await RmaRecordService.DeleteNoteAsync(RmaRecordId, noteId, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                await LoadRmaAsync();
+                statusMessage = "Note was removed.";
+                statusIsError = false;
+            }
+            else
+            {
+                statusMessage = string.Join(" ", result.Errors);
+                statusIsError = true;
+            }
+        }
+        catch
+        {
+            statusMessage = "Note could not be removed. Try again.";
+            statusIsError = true;
+        }
+    }
+
+    private async Task SaveCommunicationAsync()
+    {
+        isSavingCommunication = true;
+        communicationErrors.Clear();
+
+        try
+        {
+            var result = await RmaRecordService.SaveCommunicationAsync(RmaRecordId, communicationModel, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                communicationModel = new SaveRmaCommunicationRequest
+                {
+                    CommunicationDate = DateOnly.FromDateTime(DateTime.Today)
+                };
+                await LoadRmaAsync();
+                statusMessage = "Communication entry was added.";
+                statusIsError = false;
+            }
+            else
+            {
+                communicationErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            communicationErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingCommunication = false;
+        }
+    }
+
+    private async Task DeleteCommunicationAsync(int communicationId)
+    {
+        try
+        {
+            var result = await RmaRecordService.DeleteCommunicationAsync(RmaRecordId, communicationId, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                await LoadRmaAsync();
+                statusMessage = "Communication entry was removed.";
+                statusIsError = false;
+            }
+            else
+            {
+                statusMessage = string.Join(" ", result.Errors);
+                statusIsError = true;
+            }
+        }
+        catch
+        {
+            statusMessage = "Communication entry could not be removed. Try again.";
+            statusIsError = true;
+        }
+    }
+
+    private void OnAttachmentSelected(InputFileChangeEventArgs args)
+    {
+        attachmentErrors.Clear();
+        selectedAttachmentFile = args.File;
+        selectedAttachmentName = selectedAttachmentFile?.Name;
+        attachmentModel.FileName = selectedAttachmentFile?.Name ?? string.Empty;
+        attachmentModel.ContentType = selectedAttachmentFile?.ContentType;
+    }
+
+    private async Task SaveAttachmentAsync()
+    {
+        isSavingAttachment = true;
+        attachmentErrors.Clear();
+
+        try
+        {
+            if (selectedAttachmentFile is null)
+            {
+                attachmentErrors.Add("Select a file to upload.");
+                return;
+            }
+
+            await using var stream = selectedAttachmentFile.OpenReadStream(MaxAttachmentSizeBytes);
+            var result = await RmaRecordService.SaveAttachmentAsync(RmaRecordId, attachmentModel, stream, await GetCurrentUserNameAsync());
+
+            if (result.Succeeded)
+            {
+                attachmentModel = new SaveRmaAttachmentRequest();
+                selectedAttachmentFile = null;
+                selectedAttachmentName = null;
+                await LoadRmaAsync();
+                statusMessage = "Attachment was uploaded.";
+                statusIsError = false;
+            }
+            else
+            {
+                attachmentErrors.AddRange(result.Errors);
+            }
+        }
+        catch (IOException)
+        {
+            attachmentErrors.Add("The selected file could not be read.");
+        }
+        catch
+        {
+            attachmentErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingAttachment = false;
+        }
+    }
+
+    private async Task DeleteAttachmentAsync(int attachmentId)
+    {
+        try
+        {
+            var result = await RmaRecordService.DeleteAttachmentAsync(RmaRecordId, attachmentId, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                await LoadRmaAsync();
+                statusMessage = "Attachment was removed.";
+                statusIsError = false;
+            }
+            else
+            {
+                statusMessage = string.Join(" ", result.Errors);
+                statusIsError = true;
+            }
+        }
+        catch
+        {
+            statusMessage = "Attachment could not be removed. Try again.";
+            statusIsError = true;
+        }
+    }
+
     private async Task LinkBuildRecordAsync(int buildRecordId)
     {
         isUpdatingLink = true;
@@ -1774,6 +2503,8 @@ else
             : string.Join(", ", AllowedNextStatuses.Select(FormatStatus));
     }
 
+    private string GetAttachmentUrl(int attachmentId) => $"/rmas/{RmaRecordId}/attachments/{attachmentId}";
+
     private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
     private static string Display(DateOnly? value) => value?.ToString("d MMM yyyy") ?? "Not recorded";
     private static string Display(DateTimeOffset? value) => value?.ToLocalTime().ToString("d MMM yyyy HH:mm") ?? "Not recorded";
@@ -1834,6 +2565,16 @@ else
     {
         RmaQaResult.NotRequired => "Not required",
         _ => value.ToString()
+    };
+
+    private static string FormatNoteType(RmaNoteType noteType) => noteType switch
+    {
+        RmaNoteType.InternalNote => "Internal note",
+        RmaNoteType.DiagnosisNote => "Diagnosis note",
+        RmaNoteType.RepairNote => "Repair note",
+        RmaNoteType.CustomerNote => "Customer note",
+        RmaNoteType.CommercialNote => "Commercial note",
+        _ => noteType.ToString()
     };
 
     private static string StatusClass(RmaStatus status) => status switch

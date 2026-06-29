@@ -1,5 +1,6 @@
 using System.Text;
 using BuildBook.Application.BuildRecords;
+using BuildBook.Application.Rmas;
 using BuildBook.Application.Security;
 using BuildBook.Infrastructure;
 using BuildBook.Infrastructure.Persistence;
@@ -66,6 +67,19 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapGet(
+        "/rmas/{rmaRecordId:int}/attachments/{attachmentId:int}",
+        async (int rmaRecordId, int attachmentId, IRmaRecordService rmaRecordService, CancellationToken cancellationToken) =>
+        {
+            var attachment = await rmaRecordService.GetAttachmentContentAsync(rmaRecordId, attachmentId, cancellationToken);
+            return attachment is null
+                ? Results.NotFound()
+                : Results.File(
+                    attachment.Content,
+                    attachment.ContentType,
+                    attachment.FileName);
+        })
+    .RequireAuthorization(BuildBookRmaPolicies.ViewRmas);
 app.MapGet(
         "/reports/build-register.csv",
         async (HttpRequest request, IBuildRegisterCsvExporter buildRegisterCsvExporter, CancellationToken cancellationToken) =>

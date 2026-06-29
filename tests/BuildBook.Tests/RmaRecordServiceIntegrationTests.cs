@@ -5,6 +5,7 @@ using BuildBook.Domain.Rmas;
 using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.Rmas;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace BuildBook.Tests;
 
@@ -510,12 +511,183 @@ public class RmaRecordServiceIntegrationTests
         }
     }
 
-    private static RmaRecordService CreateService(DbContextOptions<BuildBookDbContext> options)
+    [Fact]
+    public async Task UpdateShippingAsync_AndUpdateCustomerSummaryAsync_PersistFeatureFields()
     {
+        var options = DatabaseTestHelper.CreateSqlServerOptions("BuildBookRmaShippingSummary");
+        await DatabaseTestHelper.InitializeDatabaseAsync(options);
+
+        try
+        {
+            int rmaRecordId;
+
+            await using (var setupContext = new BuildBookDbContext(options))
+            {
+                var rmaRecord = CreateRmaRecord("RMA-0001", "Device A", "SN-1000");
+                setupContext.RmaRecords.Add(rmaRecord);
+                await setupContext.SaveChangesAsync();
+                rmaRecordId = rmaRecord.Id;
+            }
+
+            var service = CreateService(options);
+
+            var shippingResult = await service.UpdateShippingAsync(
+                rmaRecordId,
+                new UpdateRmaShippingRequest
+                {
+                    ReturnMethod = "Courier",
+                    Courier = "DHL",
+                    TrackingNumber = "DHL-12345",
+                    CollectionArranged = true,
+                    CollectionDate = new DateOnly(2026, 6, 29),
+                    ShippedDate = new DateOnly(2026, 6, 30),
+                    ShippedBy = "DOMAIN\\dispatch",
+                    ReturnAddress = "1 Demo Street",
+                    ShippingNotes = "Packed with charger.",
+                    ProofOfDeliveryReceived = true,
+                    ProofOfDeliveryDate = new DateOnly(2026, 7, 1)
+                },
+                "DOMAIN\\dispatch");
+            var summaryResult = await service.UpdateCustomerSummaryAsync(
+                rmaRecordId,
+                new UpdateRmaCustomerSummaryRequest
+                {
+                    CustomerFacingSummary = "Drive replaced, system retested and returned."
+                },
+                "DOMAIN\\dispatch");
+
+            Assert.True(shippingResult.Succeeded);
+            Assert.True(summaryResult.Succeeded);
+
+            await using var verifyContext = new BuildBookDbContext(options);
+            var savedRecord = await verifyContext.RmaRecords.SingleAsync(record => record.Id == rmaRecordId);
+            var auditEntries = await verifyContext.RmaAudit
+                .Where(entry => entry.RmaRecordId == rmaRecordId)
+                .ToListAsync();
+
+            Assert.Equal("Courier", savedRecord.ReturnMethod);
+            Assert.Equal("DHL", savedRecord.Courier);
+            Assert.Equal("DHL-12345", savedRecord.TrackingNumber);
+            Assert.True(savedRecord.CollectionArranged);
+            Assert.Equal(new DateOnly(2026, 6, 30), savedRecord.ShippedDate);
+            Assert.Equal("DOMAIN\\dispatch", savedRecord.ShippedBy);
+            Assert.Equal("Drive replaced, system retested and returned.", savedRecord.CustomerFacingSummary);
+            Assert.Contains(auditEntries, entry => entry.FieldChanged == "ReturnMethod" && entry.NewValue == "Courier");
+            Assert.Contains(auditEntries, entry => entry.FieldChanged == "CustomerFacingSummary" && entry.NewValue == "Drive replaced, system retested and returned.");
+        }
+        finally
+        {
+            await DatabaseTestHelper.DeleteDatabaseAsync(options);
+        }
+    }
+
+    [Fact]
+    public async Task SaveNoteCommunicationAndAttachmentAsync_PersistAndRetrieveFeatureRecords()
+    {
+        var options = DatabaseTestHelper.CreateSqlServerOptions("BuildBookRmaFeatureRecords");
+        await DatabaseTestHelper.InitializeDatabaseAsync(options);
+        var attachmentRoot = Path.Combine(Path.GetTempPath(), "BuildBookTests", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            int rmaRecordId;
+
+            await using (var setupContext = new BuildBookDbContext(options))
+            {
+                var rmaRecord = CreateRmaRecord("RMA-0001", "Device A", "SN-1000");
+                setupContext.RmaRecords.Add(rmaRecord);
+                await setupContext.SaveChangesAsync();
+                rmaRecordId = rmaRecord.Id;
+            }
+
+            var service = CreateService(options, attachmentRoot);
+
+            var noteResult = await service.SaveNoteAsync(
+                rmaRecordId,
+                new SaveRmaNoteRequest
+                {
+                    NoteType = RmaNoteType.CommercialNote,
+                    NoteText = "Awaiting customer purchase order."
+                },
+                "DOMAIN\\support");
+
+            var communicationResult = await service.SaveCommunicationAsync(
+                rmaRecordId,
+                new SaveRmaCommunicationRequest
+                {
+                    CommunicationDate = new DateOnly(2026, 6, 29),
+                    ContactMethod = "Email",
+                    ContactPerson = "Alex Repair",
+                    Summary = "Customer approved the quoted repair.",
+                    FollowUpRequired = true,
+                    FollowUpDate = new DateOnly(2026, 7, 2)
+                },
+                "DOMAIN\\support");
+
+            await using var uploadStream = new MemoryStream("test-result"u8.ToArray());
+            var attachmentResult = await service.SaveAttachmentAsync(
+                rmaRecordId,
+                new SaveRmaAttachmentRequest
+                {
+                    FileName = "result.txt",
+                    ContentType = "text/plain",
+                    AttachmentType = "Test result",
+                    Description = "Bench test output."
+                },
+                uploadStream,
+                "DOMAIN\\support");
+
+            var notes = await service.GetNotesAsync(rmaRecordId);
+            var communications = await service.GetCommunicationsAsync(rmaRecordId);
+            var attachments = await service.GetAttachmentsAsync(rmaRecordId);
+
+            Assert.True(noteResult.Succeeded);
+            Assert.True(communicationResult.Succeeded);
+            Assert.True(attachmentResult.Succeeded);
+
+            var note = Assert.Single(notes);
+            var communication = Assert.Single(communications);
+            var attachment = Assert.Single(attachments);
+            var attachmentContent = await service.GetAttachmentContentAsync(rmaRecordId, attachment.Id);
+
+            Assert.Equal(RmaNoteType.CommercialNote, note.NoteType);
+            Assert.Equal("Awaiting customer purchase order.", note.NoteText);
+            Assert.Equal("Email", communication.ContactMethod);
+            Assert.True(communication.FollowUpRequired);
+            Assert.Equal("result.txt", attachment.FileName);
+            Assert.NotNull(attachmentContent);
+            Assert.Equal("text/plain", attachmentContent!.ContentType);
+            Assert.Equal("test-result", System.Text.Encoding.UTF8.GetString(attachmentContent.Content));
+
+            var deleteResult = await service.DeleteAttachmentAsync(rmaRecordId, attachment.Id, "DOMAIN\\support");
+            Assert.True(deleteResult.Succeeded);
+            Assert.Empty(await service.GetAttachmentsAsync(rmaRecordId));
+        }
+        finally
+        {
+            if (Directory.Exists(attachmentRoot))
+            {
+                Directory.Delete(attachmentRoot, recursive: true);
+            }
+
+            await DatabaseTestHelper.DeleteDatabaseAsync(options);
+        }
+    }
+
+    private static RmaRecordService CreateService(DbContextOptions<BuildBookDbContext> options, string? attachmentRoot = null)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["BuildBook:RmaAttachmentStorageDirectory"] = attachmentRoot ?? Path.Combine(Path.GetTempPath(), "BuildBookTests", Guid.NewGuid().ToString("N"))
+            })
+            .Build();
+
         return new RmaRecordService(
             new TestDbContextFactory(options),
             new RmaAuditService(),
-            new RmaStatusTransitionService());
+            new RmaStatusTransitionService(),
+            new LocalRmaAttachmentStorage(configuration));
     }
 
     private static async Task<int> SeedBuildRecordAsync(

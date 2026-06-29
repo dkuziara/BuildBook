@@ -9,7 +9,8 @@ namespace BuildBook.Infrastructure.Persistence.Rmas;
 public sealed class RmaRecordService(
     IDbContextFactory<BuildBookDbContext> dbContextFactory,
     IRmaAuditService rmaAuditService,
-    IRmaStatusTransitionService rmaStatusTransitionService) : IRmaRecordService
+    IRmaStatusTransitionService rmaStatusTransitionService,
+    IRmaAttachmentStorage rmaAttachmentStorage) : IRmaRecordService
 {
     private static readonly HashSet<string> ReadyToShipDeferredChecklistItems =
     [
@@ -160,6 +161,18 @@ public sealed class RmaRecordService(
                 rmaRecord.OriginalOrderNumber,
                 rmaRecord.OriginalOrderDate,
                 rmaRecord.OriginalInvoiceNumber,
+                rmaRecord.ReturnMethod,
+                rmaRecord.Courier,
+                rmaRecord.TrackingNumber,
+                rmaRecord.CollectionArranged,
+                rmaRecord.CollectionDate,
+                rmaRecord.ShippedDate,
+                rmaRecord.ShippedBy,
+                rmaRecord.ReturnAddress,
+                rmaRecord.ShippingNotes,
+                rmaRecord.ProofOfDeliveryReceived,
+                rmaRecord.ProofOfDeliveryDate,
+                rmaRecord.CustomerFacingSummary,
                 rmaRecord.BuildRecordId,
                 rmaRecord.BuildRecord == null ? null : rmaRecord.BuildRecord.SerialNumber,
                 rmaRecord.BuildRecord == null ? null : rmaRecord.BuildRecord.ProductName,
@@ -287,6 +300,100 @@ public sealed class RmaRecordService(
                 part.UnitCost,
                 part.Notes))
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RmaNoteModel>> GetNotesAsync(
+        int rmaRecordId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.RmaNotes
+            .AsNoTracking()
+            .Where(note => note.RmaRecordId == rmaRecordId)
+            .OrderByDescending(note => note.CreatedAt)
+            .ThenByDescending(note => note.Id)
+            .Select(note => new RmaNoteModel(
+                note.Id,
+                note.NoteType,
+                note.NoteText,
+                note.CreatedBy,
+                note.CreatedAt,
+                note.LastUpdatedBy,
+                note.LastUpdatedAt))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RmaCommunicationModel>> GetCommunicationsAsync(
+        int rmaRecordId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.RmaCommunications
+            .AsNoTracking()
+            .Where(communication => communication.RmaRecordId == rmaRecordId)
+            .OrderByDescending(communication => communication.CommunicationDate)
+            .ThenByDescending(communication => communication.Id)
+            .Select(communication => new RmaCommunicationModel(
+                communication.Id,
+                communication.CommunicationDate,
+                communication.ContactMethod,
+                communication.ContactPerson,
+                communication.Summary,
+                communication.FollowUpRequired,
+                communication.FollowUpDate,
+                communication.CreatedBy,
+                communication.CreatedAt))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RmaAttachmentModel>> GetAttachmentsAsync(
+        int rmaRecordId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.RmaAttachments
+            .AsNoTracking()
+            .Where(attachment => attachment.RmaRecordId == rmaRecordId)
+            .OrderByDescending(attachment => attachment.UploadedAt)
+            .ThenByDescending(attachment => attachment.Id)
+            .Select(attachment => new RmaAttachmentModel(
+                attachment.Id,
+                attachment.FileName,
+                attachment.ContentType,
+                attachment.AttachmentType,
+                attachment.Description,
+                attachment.UploadedBy,
+                attachment.UploadedAt))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<RmaAttachmentContentModel?> GetAttachmentContentAsync(
+        int rmaRecordId,
+        int attachmentId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var attachment = await dbContext.RmaAttachments
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                item => item.Id == attachmentId && item.RmaRecordId == rmaRecordId,
+                cancellationToken);
+
+        if (attachment is null)
+        {
+            return null;
+        }
+
+        var content = await rmaAttachmentStorage.ReadAsync(attachment.StoredFilePath, cancellationToken);
+        return content is null
+            ? null
+            : new RmaAttachmentContentModel(
+                attachment.FileName,
+                attachment.ContentType,
+                content);
     }
 
     public async Task<IReadOnlyList<RmaRegisterRow>> SearchAsync(
@@ -753,6 +860,108 @@ public sealed class RmaRecordService(
         return UpdateRmaWorkflowResult.Success();
     }
 
+    public async Task<RmaOperationResult> UpdateShippingAsync(
+        int rmaRecordId,
+        UpdateRmaShippingRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return RmaOperationResult.Failure("RMA Record was not found.");
+        }
+
+        var returnMethod = NormalizeOptionalValue(request.ReturnMethod);
+        var courier = NormalizeOptionalValue(request.Courier);
+        var trackingNumber = NormalizeOptionalValue(request.TrackingNumber);
+        var shippedBy = NormalizeOptionalValue(request.ShippedBy);
+        var returnAddress = NormalizeOptionalValue(request.ReturnAddress);
+        var shippingNotes = NormalizeOptionalValue(request.ShippingNotes);
+
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange("ReturnMethod", rmaRecord.ReturnMethod, returnMethod),
+                new RmaAuditChange("Courier", rmaRecord.Courier, courier),
+                new RmaAuditChange("TrackingNumber", rmaRecord.TrackingNumber, trackingNumber),
+                new RmaAuditChange("CollectionArranged", FormatBool(rmaRecord.CollectionArranged), FormatBool(request.CollectionArranged)),
+                new RmaAuditChange("CollectionDate", FormatDate(rmaRecord.CollectionDate), FormatDate(request.CollectionDate)),
+                new RmaAuditChange("ShippedDate", FormatDate(rmaRecord.ShippedDate), FormatDate(request.ShippedDate)),
+                new RmaAuditChange("ShippedBy", rmaRecord.ShippedBy, shippedBy),
+                new RmaAuditChange("ReturnAddress", rmaRecord.ReturnAddress, returnAddress),
+                new RmaAuditChange("ShippingNotes", rmaRecord.ShippingNotes, shippingNotes),
+                new RmaAuditChange("ProofOfDeliveryReceived", FormatBool(rmaRecord.ProofOfDeliveryReceived), FormatBool(request.ProofOfDeliveryReceived)),
+                new RmaAuditChange("ProofOfDeliveryDate", FormatDate(rmaRecord.ProofOfDeliveryDate), FormatDate(request.ProofOfDeliveryDate))
+            ],
+            userName);
+
+        if (auditEntries.Count == 0)
+        {
+            return RmaOperationResult.Success();
+        }
+
+        rmaRecord.ReturnMethod = returnMethod;
+        rmaRecord.Courier = courier;
+        rmaRecord.TrackingNumber = trackingNumber;
+        rmaRecord.CollectionArranged = request.CollectionArranged;
+        rmaRecord.CollectionDate = request.CollectionDate;
+        rmaRecord.ShippedDate = request.ShippedDate;
+        rmaRecord.ShippedBy = shippedBy;
+        rmaRecord.ReturnAddress = returnAddress;
+        rmaRecord.ShippingNotes = shippingNotes;
+        rmaRecord.ProofOfDeliveryReceived = request.ProofOfDeliveryReceived;
+        rmaRecord.ProofOfDeliveryDate = request.ProofOfDeliveryDate;
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return RmaOperationResult.Success();
+    }
+
+    public async Task<RmaOperationResult> UpdateCustomerSummaryAsync(
+        int rmaRecordId,
+        UpdateRmaCustomerSummaryRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return RmaOperationResult.Failure("RMA Record was not found.");
+        }
+
+        var customerFacingSummary = NormalizeOptionalValue(request.CustomerFacingSummary);
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [new RmaAuditChange("CustomerFacingSummary", rmaRecord.CustomerFacingSummary, customerFacingSummary)],
+            userName);
+
+        if (auditEntries.Count == 0)
+        {
+            return RmaOperationResult.Success();
+        }
+
+        rmaRecord.CustomerFacingSummary = customerFacingSummary;
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return RmaOperationResult.Success();
+    }
+
     public async Task<UpdateRmaTestingQaResult> UpdateTestingQaAsync(
         int rmaRecordId,
         UpdateRmaTestingQaRequest request,
@@ -1049,6 +1258,428 @@ public sealed class RmaRecordService(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return UpdateRmaChecklistResult.Success();
+    }
+
+    public async Task<RmaOperationResult> SaveNoteAsync(
+        int rmaRecordId,
+        SaveRmaNoteRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.NoteText))
+        {
+            return RmaOperationResult.Failure("Note text is required.");
+        }
+
+        var userName = NormalizeUserName(updatedBy);
+        var noteText = request.NoteText.Trim();
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return RmaOperationResult.Failure("RMA Record was not found.");
+        }
+
+        if (request.NoteId is null)
+        {
+            var note = new RmaNote
+            {
+                RmaRecordId = rmaRecordId,
+                NoteType = request.NoteType,
+                NoteText = noteText,
+                CreatedBy = userName,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            dbContext.RmaNotes.Add(note);
+            rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+            rmaRecord.LastUpdatedBy = userName;
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+                rmaRecord,
+                [
+                    new RmaAuditChange($"Note:{note.Id}:Type", null, note.NoteType.ToString()),
+                    new RmaAuditChange($"Note:{note.Id}:Text", null, note.NoteText)
+                ],
+                userName);
+
+            if (auditEntries.Count > 0)
+            {
+                await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            return RmaOperationResult.Success();
+        }
+
+        var existingNote = await dbContext.RmaNotes
+            .SingleOrDefaultAsync(note => note.Id == request.NoteId.Value && note.RmaRecordId == rmaRecordId, cancellationToken);
+
+        if (existingNote is null)
+        {
+            return RmaOperationResult.Failure("Note was not found.");
+        }
+
+        var auditEntriesForUpdate = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange($"Note:{existingNote.Id}:Type", existingNote.NoteType.ToString(), request.NoteType.ToString()),
+                new RmaAuditChange($"Note:{existingNote.Id}:Text", existingNote.NoteText, noteText)
+            ],
+            userName);
+
+        if (auditEntriesForUpdate.Count == 0)
+        {
+            return RmaOperationResult.Success();
+        }
+
+        existingNote.NoteType = request.NoteType;
+        existingNote.NoteText = noteText;
+        existingNote.LastUpdatedBy = userName;
+        existingNote.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        await dbContext.RmaAudit.AddRangeAsync(auditEntriesForUpdate, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return RmaOperationResult.Success();
+    }
+
+    public async Task<RmaOperationResult> DeleteNoteAsync(
+        int rmaRecordId,
+        int noteId,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+        var note = await dbContext.RmaNotes
+            .SingleOrDefaultAsync(item => item.Id == noteId && item.RmaRecordId == rmaRecordId, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return RmaOperationResult.Failure("RMA Record was not found.");
+        }
+
+        if (note is null)
+        {
+            return RmaOperationResult.Failure("Note was not found.");
+        }
+
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange($"Note:{note.Id}:Type", note.NoteType.ToString(), null),
+                new RmaAuditChange($"Note:{note.Id}:Text", note.NoteText, null)
+            ],
+            userName);
+
+        dbContext.RmaNotes.Remove(note);
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        if (auditEntries.Count > 0)
+        {
+            await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return RmaOperationResult.Success();
+    }
+
+    public async Task<RmaOperationResult> SaveCommunicationAsync(
+        int rmaRecordId,
+        SaveRmaCommunicationRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.CommunicationDate is null)
+        {
+            return RmaOperationResult.Failure("Communication date is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ContactMethod))
+        {
+            return RmaOperationResult.Failure("Contact method is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Summary))
+        {
+            return RmaOperationResult.Failure("Communication summary is required.");
+        }
+
+        if (request.FollowUpRequired && request.FollowUpDate is null)
+        {
+            return RmaOperationResult.Failure("Follow-up date is required when follow-up is marked as required.");
+        }
+
+        var userName = NormalizeUserName(updatedBy);
+        var contactMethod = request.ContactMethod.Trim();
+        var contactPerson = NormalizeOptionalValue(request.ContactPerson);
+        var summary = request.Summary.Trim();
+        var communicationDate = new DateTimeOffset(
+            request.CommunicationDate.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return RmaOperationResult.Failure("RMA Record was not found.");
+        }
+
+        if (request.CommunicationId is null)
+        {
+            var communication = new RmaCommunication
+            {
+                RmaRecordId = rmaRecordId,
+                CommunicationDate = communicationDate,
+                ContactMethod = contactMethod,
+                ContactPerson = contactPerson,
+                Summary = summary,
+                FollowUpRequired = request.FollowUpRequired,
+                FollowUpDate = request.FollowUpDate,
+                CreatedBy = userName,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            dbContext.RmaCommunications.Add(communication);
+            rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+            rmaRecord.LastUpdatedBy = userName;
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+                rmaRecord,
+                [
+                    new RmaAuditChange($"Communication:{communication.Id}:Date", null, FormatDateTimeOffset(communication.CommunicationDate)),
+                    new RmaAuditChange($"Communication:{communication.Id}:Method", null, communication.ContactMethod),
+                    new RmaAuditChange($"Communication:{communication.Id}:ContactPerson", null, communication.ContactPerson),
+                    new RmaAuditChange($"Communication:{communication.Id}:Summary", null, communication.Summary),
+                    new RmaAuditChange($"Communication:{communication.Id}:FollowUpRequired", null, FormatBool(communication.FollowUpRequired)),
+                    new RmaAuditChange($"Communication:{communication.Id}:FollowUpDate", null, FormatDate(communication.FollowUpDate))
+                ],
+                userName);
+
+            if (auditEntries.Count > 0)
+            {
+                await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            return RmaOperationResult.Success();
+        }
+
+        var existingCommunication = await dbContext.RmaCommunications
+            .SingleOrDefaultAsync(
+                communication => communication.Id == request.CommunicationId.Value && communication.RmaRecordId == rmaRecordId,
+                cancellationToken);
+
+        if (existingCommunication is null)
+        {
+            return RmaOperationResult.Failure("Communication entry was not found.");
+        }
+
+        var auditEntriesForUpdate = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange($"Communication:{existingCommunication.Id}:Date", FormatDateTimeOffset(existingCommunication.CommunicationDate), FormatDateTimeOffset(communicationDate)),
+                new RmaAuditChange($"Communication:{existingCommunication.Id}:Method", existingCommunication.ContactMethod, contactMethod),
+                new RmaAuditChange($"Communication:{existingCommunication.Id}:ContactPerson", existingCommunication.ContactPerson, contactPerson),
+                new RmaAuditChange($"Communication:{existingCommunication.Id}:Summary", existingCommunication.Summary, summary),
+                new RmaAuditChange($"Communication:{existingCommunication.Id}:FollowUpRequired", FormatBool(existingCommunication.FollowUpRequired), FormatBool(request.FollowUpRequired)),
+                new RmaAuditChange($"Communication:{existingCommunication.Id}:FollowUpDate", FormatDate(existingCommunication.FollowUpDate), FormatDate(request.FollowUpDate))
+            ],
+            userName);
+
+        if (auditEntriesForUpdate.Count == 0)
+        {
+            return RmaOperationResult.Success();
+        }
+
+        existingCommunication.CommunicationDate = communicationDate;
+        existingCommunication.ContactMethod = contactMethod;
+        existingCommunication.ContactPerson = contactPerson;
+        existingCommunication.Summary = summary;
+        existingCommunication.FollowUpRequired = request.FollowUpRequired;
+        existingCommunication.FollowUpDate = request.FollowUpDate;
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        await dbContext.RmaAudit.AddRangeAsync(auditEntriesForUpdate, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return RmaOperationResult.Success();
+    }
+
+    public async Task<RmaOperationResult> DeleteCommunicationAsync(
+        int rmaRecordId,
+        int communicationId,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+        var communication = await dbContext.RmaCommunications
+            .SingleOrDefaultAsync(item => item.Id == communicationId && item.RmaRecordId == rmaRecordId, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return RmaOperationResult.Failure("RMA Record was not found.");
+        }
+
+        if (communication is null)
+        {
+            return RmaOperationResult.Failure("Communication entry was not found.");
+        }
+
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange($"Communication:{communication.Id}:Date", FormatDateTimeOffset(communication.CommunicationDate), null),
+                new RmaAuditChange($"Communication:{communication.Id}:Method", communication.ContactMethod, null),
+                new RmaAuditChange($"Communication:{communication.Id}:ContactPerson", communication.ContactPerson, null),
+                new RmaAuditChange($"Communication:{communication.Id}:Summary", communication.Summary, null)
+            ],
+            userName);
+
+        dbContext.RmaCommunications.Remove(communication);
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        if (auditEntries.Count > 0)
+        {
+            await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return RmaOperationResult.Success();
+    }
+
+    public async Task<RmaOperationResult> SaveAttachmentAsync(
+        int rmaRecordId,
+        SaveRmaAttachmentRequest request,
+        Stream content,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.FileName))
+        {
+            return RmaOperationResult.Failure("A file is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.AttachmentType))
+        {
+            return RmaOperationResult.Failure("Attachment type is required.");
+        }
+
+        var userName = NormalizeUserName(updatedBy);
+        var fileName = Path.GetFileName(request.FileName);
+        var contentType = string.IsNullOrWhiteSpace(request.ContentType)
+            ? "application/octet-stream"
+            : request.ContentType.Trim();
+        var attachmentType = request.AttachmentType.Trim();
+        var description = NormalizeOptionalValue(request.Description);
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return RmaOperationResult.Failure("RMA Record was not found.");
+        }
+
+        var storedFilePath = await rmaAttachmentStorage.SaveAsync(rmaRecordId, fileName, content, cancellationToken);
+        var attachment = new RmaAttachment
+        {
+            RmaRecordId = rmaRecordId,
+            FileName = fileName,
+            StoredFilePath = storedFilePath,
+            ContentType = contentType,
+            AttachmentType = attachmentType,
+            Description = description,
+            UploadedBy = userName,
+            UploadedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.RmaAttachments.Add(attachment);
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange($"Attachment:{attachment.Id}:FileName", null, attachment.FileName),
+                new RmaAuditChange($"Attachment:{attachment.Id}:Type", null, attachment.AttachmentType),
+                new RmaAuditChange($"Attachment:{attachment.Id}:Description", null, attachment.Description)
+            ],
+            userName);
+
+        if (auditEntries.Count > 0)
+        {
+            await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return RmaOperationResult.Success();
+    }
+
+    public async Task<RmaOperationResult> DeleteAttachmentAsync(
+        int rmaRecordId,
+        int attachmentId,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+        var attachment = await dbContext.RmaAttachments
+            .SingleOrDefaultAsync(item => item.Id == attachmentId && item.RmaRecordId == rmaRecordId, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return RmaOperationResult.Failure("RMA Record was not found.");
+        }
+
+        if (attachment is null)
+        {
+            return RmaOperationResult.Failure("Attachment was not found.");
+        }
+
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange($"Attachment:{attachment.Id}:FileName", attachment.FileName, null),
+                new RmaAuditChange($"Attachment:{attachment.Id}:Type", attachment.AttachmentType, null),
+                new RmaAuditChange($"Attachment:{attachment.Id}:Description", attachment.Description, null)
+            ],
+            userName);
+
+        dbContext.RmaAttachments.Remove(attachment);
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        if (auditEntries.Count > 0)
+        {
+            await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await rmaAttachmentStorage.DeleteAsync(attachment.StoredFilePath, cancellationToken);
+
+        return RmaOperationResult.Success();
     }
 
     public async Task<ChangeRmaStatusResult> ChangeStatusAsync(

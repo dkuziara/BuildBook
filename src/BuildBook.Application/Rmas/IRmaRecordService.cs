@@ -26,6 +26,23 @@ public interface IRmaRecordService
         int rmaRecordId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<RmaNoteModel>> GetNotesAsync(
+        int rmaRecordId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RmaCommunicationModel>> GetCommunicationsAsync(
+        int rmaRecordId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RmaAttachmentModel>> GetAttachmentsAsync(
+        int rmaRecordId,
+        CancellationToken cancellationToken = default);
+
+    Task<RmaAttachmentContentModel?> GetAttachmentContentAsync(
+        int rmaRecordId,
+        int attachmentId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<RmaRegisterRow>> SearchAsync(
         RmaRegisterFilter? filter = null,
         CancellationToken cancellationToken = default);
@@ -58,6 +75,18 @@ public interface IRmaRecordService
         string updatedBy,
         CancellationToken cancellationToken = default);
 
+    Task<RmaOperationResult> UpdateShippingAsync(
+        int rmaRecordId,
+        UpdateRmaShippingRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<RmaOperationResult> UpdateCustomerSummaryAsync(
+        int rmaRecordId,
+        UpdateRmaCustomerSummaryRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
     Task<UpdateRmaTestingQaResult> UpdateTestingQaAsync(
         int rmaRecordId,
         UpdateRmaTestingQaRequest request,
@@ -79,6 +108,43 @@ public interface IRmaRecordService
     Task<UpdateRmaChecklistResult> UpdateChecklistItemAsync(
         int rmaRecordId,
         UpdateRmaChecklistItemRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<RmaOperationResult> SaveNoteAsync(
+        int rmaRecordId,
+        SaveRmaNoteRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<RmaOperationResult> DeleteNoteAsync(
+        int rmaRecordId,
+        int noteId,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<RmaOperationResult> SaveCommunicationAsync(
+        int rmaRecordId,
+        SaveRmaCommunicationRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<RmaOperationResult> DeleteCommunicationAsync(
+        int rmaRecordId,
+        int communicationId,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<RmaOperationResult> SaveAttachmentAsync(
+        int rmaRecordId,
+        SaveRmaAttachmentRequest request,
+        Stream content,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<RmaOperationResult> DeleteAttachmentAsync(
+        int rmaRecordId,
+        int attachmentId,
         string updatedBy,
         CancellationToken cancellationToken = default);
 
