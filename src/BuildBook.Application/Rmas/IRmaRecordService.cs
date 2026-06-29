@@ -18,6 +18,14 @@ public interface IRmaRecordService
         int rmaRecordId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<RmaChecklistItemModel>> GetChecklistAsync(
+        int rmaRecordId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RmaPartModel>> GetPartsAsync(
+        int rmaRecordId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<RmaRegisterRow>> SearchAsync(
         RmaRegisterFilter? filter = null,
         CancellationToken cancellationToken = default);
@@ -32,9 +40,45 @@ public interface IRmaRecordService
         string updatedBy,
         CancellationToken cancellationToken = default);
 
+    Task<UpdateRmaFaultDetailsResult> UpdateFaultDetailsAsync(
+        int rmaRecordId,
+        UpdateRmaFaultDetailsRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<UpdateRmaRepairDetailsResult> UpdateRepairDetailsAsync(
+        int rmaRecordId,
+        UpdateRmaRepairDetailsRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
     Task<UpdateRmaWorkflowResult> UpdateWorkflowAsync(
         int rmaRecordId,
         UpdateRmaWorkflowRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<UpdateRmaTestingQaResult> UpdateTestingQaAsync(
+        int rmaRecordId,
+        UpdateRmaTestingQaRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<SaveRmaPartResult> SavePartAsync(
+        int rmaRecordId,
+        SaveRmaPartRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<SaveRmaPartResult> DeletePartAsync(
+        int rmaRecordId,
+        int partId,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<UpdateRmaChecklistResult> UpdateChecklistItemAsync(
+        int rmaRecordId,
+        UpdateRmaChecklistItemRequest request,
         string updatedBy,
         CancellationToken cancellationToken = default);
 

@@ -45,6 +45,21 @@ public enum RmaFaultCategory
     Unknown = 12
 }
 
+public enum RmaYesNoUnknown
+{
+    Yes = 1,
+    No = 2,
+    Unknown = 3
+}
+
+public enum RmaCustomerImpact
+{
+    Low = 1,
+    Medium = 2,
+    High = 3,
+    Critical = 4
+}
+
 public enum RmaRootCauseCategory
 {
     ComponentFailure = 1,

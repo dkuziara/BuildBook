@@ -1,6 +1,9 @@
 @page "/rmas/{RmaRecordId:int}"
 @rendermode InteractiveServer
 
+@using BuildBook.Application.Rmas
+@using BuildBook.Domain.Rmas
+
 @attribute [Authorize(Policy = BuildBookRmaPolicies.ViewRmas)]
 
 @inject IRmaRecordService RmaRecordService
@@ -104,7 +107,7 @@ else
             </div>
             <div>
                 <dt>Last updated</dt>
-                <dd>@rmaRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</dd>
+                <dd>@Display(rmaRecord.LastUpdatedAt)</dd>
             </div>
         </dl>
     </section>
@@ -127,18 +130,7 @@ else
 
         @if (isEditingWorkflow)
         {
-            @if (workflowErrors.Count > 0)
-            {
-                <div class="status-message error" role="alert">
-                    <p>Workflow details could not be saved.</p>
-                    <ul>
-                        @foreach (var error in workflowErrors)
-                        {
-                            <li>@error</li>
-                        }
-                    </ul>
-                </div>
-            }
+            @SectionErrors(workflowErrors, "Workflow details could not be saved.")
 
             <EditForm Model="workflowModel" OnValidSubmit="SaveWorkflowAsync" FormName="edit-rma-workflow">
                 <div class="form-grid">
@@ -170,9 +162,7 @@ else
                 </div>
 
                 <div class="form-actions">
-                    <button type="submit" class="primary-button" disabled="@isSavingWorkflow">
-                        @(isSavingWorkflow ? "Saving..." : "Save workflow details")
-                    </button>
+                    <button type="submit" class="primary-button" disabled="@isSavingWorkflow">@(isSavingWorkflow ? "Saving..." : "Save workflow details")</button>
                     <button type="button" class="secondary-button" disabled="@isSavingWorkflow" @onclick="CancelWorkflowEdit">Cancel</button>
                 </div>
             </EditForm>
@@ -243,17 +233,24 @@ else
 
         @if (isEditingStatus)
         {
-            @if (statusErrors.Count > 0)
+            @SectionErrors(statusErrors, "Status change could not be saved.")
+
+            @if (statusWarnings.Count > 0 && statusModel.NewStatus == RmaStatus.ReadyToShip)
             {
-                <div class="status-message error" role="alert">
-                    <p>Status change could not be saved.</p>
+                <div class="status-message warning" role="alert">
+                    <p>Ready To Ship warnings were found.</p>
                     <ul>
-                        @foreach (var error in statusErrors)
+                        @foreach (var warning in statusWarnings)
                         {
-                            <li>@error</li>
+                            <li>@warning</li>
                         }
                     </ul>
                 </div>
+
+                <label class="role-checkbox">
+                    <InputCheckbox @bind-Value="confirmStatusWarnings" class="darker-border-checkbox form-check-input" />
+                    <span>Continue with the status change anyway</span>
+                </label>
             }
 
             <EditForm Model="statusModel" OnValidSubmit="SaveStatusAsync" FormName="change-rma-status">
@@ -314,9 +311,7 @@ else
                 }
 
                 <div class="form-actions">
-                    <button type="submit" class="primary-button" disabled="@isSavingStatus">
-                        @(isSavingStatus ? "Saving..." : "Save status change")
-                    </button>
+                    <button type="submit" class="primary-button" disabled="@isSavingStatus">@(isSavingStatus ? "Saving..." : "Save status change")</button>
                     <button type="button" class="secondary-button" disabled="@isSavingStatus" @onclick="CancelStatusEdit">Cancel</button>
                 </div>
             </EditForm>
@@ -369,7 +364,7 @@ else
                         @foreach (var historyEntry in statusHistoryEntries)
                         {
                             <tr>
-                                <td>@historyEntry.ChangedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                                <td>@Display(historyEntry.ChangedAt)</td>
                                 <td>@historyEntry.ChangedBy</td>
                                 <td>@(historyEntry.OldStatus is null ? "Not recorded" : FormatStatus(historyEntry.OldStatus.Value))</td>
                                 <td>@FormatStatus(historyEntry.NewStatus)</td>
@@ -400,18 +395,7 @@ else
 
         @if (isEditingIntake)
         {
-            @if (intakeErrors.Count > 0)
-            {
-                <div class="status-message error" role="alert">
-                    <p>RMA intake details could not be saved.</p>
-                    <ul>
-                        @foreach (var error in intakeErrors)
-                        {
-                            <li>@error</li>
-                        }
-                    </ul>
-                </div>
-            }
+            @SectionErrors(intakeErrors, "RMA intake details could not be saved.")
 
             <EditForm Model="intakeModel" OnValidSubmit="SaveIntakeAsync" FormName="edit-rma-intake">
                 <div class="form-grid">
@@ -419,67 +403,54 @@ else
                         <label for="edit-rma-customer">Customer</label>
                         <InputText id="edit-rma-customer" class="text-input" @bind-Value="intakeModel.CustomerName" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-product-name">Product name</label>
                         <InputText id="edit-rma-product-name" class="text-input" @bind-Value="intakeModel.ProductName" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-product-code">Product code</label>
                         <InputText id="edit-rma-product-code" class="text-input" @bind-Value="intakeModel.ProductCode" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-serial-number">Serial number</label>
                         <InputText id="edit-rma-serial-number" class="text-input" @bind-Value="intakeModel.SerialNumber" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-fault-summary">Fault summary</label>
                         <InputText id="edit-rma-fault-summary" class="text-input" @bind-Value="intakeModel.FaultSummary" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-contact-name">Contact name</label>
                         <InputText id="edit-rma-contact-name" class="text-input" @bind-Value="intakeModel.ContactName" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-contact-email">Contact email</label>
                         <InputText id="edit-rma-contact-email" class="text-input" @bind-Value="intakeModel.ContactEmail" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-contact-phone">Contact phone</label>
                         <InputText id="edit-rma-contact-phone" class="text-input" @bind-Value="intakeModel.ContactPhone" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-customer-reference">Customer reference</label>
                         <InputText id="edit-rma-customer-reference" class="text-input" @bind-Value="intakeModel.CustomerReference" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-support-ticket-number">Support ticket number</label>
                         <InputText id="edit-rma-support-ticket-number" class="text-input" @bind-Value="intakeModel.SupportTicketNumber" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-support-ticket-url">Support ticket URL</label>
                         <InputText id="edit-rma-support-ticket-url" class="text-input" @bind-Value="intakeModel.SupportTicketUrl" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-original-order-number">Original order number</label>
                         <InputText id="edit-rma-original-order-number" class="text-input" @bind-Value="intakeModel.OriginalOrderNumber" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-original-order-date">Original order date</label>
                         <InputDate id="edit-rma-original-order-date" class="text-input" @bind-Value="intakeModel.OriginalOrderDate" />
                     </div>
-
                     <div class="form-field">
                         <label for="edit-rma-original-invoice-number">Original invoice number</label>
                         <InputText id="edit-rma-original-invoice-number" class="text-input" @bind-Value="intakeModel.OriginalInvoiceNumber" />
@@ -496,15 +467,8 @@ else
                     <InputTextArea id="edit-rma-initial-fault-description" class="text-input" @bind-Value="intakeModel.InitialFaultDescription" />
                 </div>
 
-                <div class="form-field form-field-wide">
-                    <label for="edit-rma-fault-description">Fault description</label>
-                    <InputTextArea id="edit-rma-fault-description" class="text-input" @bind-Value="intakeModel.FaultDescription" />
-                </div>
-
                 <div class="form-actions">
-                    <button type="submit" class="primary-button" disabled="@isSavingIntake">
-                        @(isSavingIntake ? "Saving..." : "Save intake details")
-                    </button>
+                    <button type="submit" class="primary-button" disabled="@isSavingIntake">@(isSavingIntake ? "Saving..." : "Save intake details")</button>
                     <button type="button" class="secondary-button" disabled="@isSavingIntake" @onclick="CancelIntakeEdit">Cancel</button>
                 </div>
             </EditForm>
@@ -512,66 +476,21 @@ else
         else
         {
             <dl class="summary-list">
-                <div>
-                    <dt>Customer</dt>
-                    <dd>@Display(rmaRecord.CustomerName)</dd>
-                </div>
-                <div>
-                    <dt>Product name</dt>
-                    <dd>@rmaRecord.ProductName</dd>
-                </div>
-                <div>
-                    <dt>Product code</dt>
-                    <dd>@Display(rmaRecord.ProductCode)</dd>
-                </div>
-                <div>
-                    <dt>Serial number</dt>
-                    <dd>@Display(rmaRecord.SerialNumber)</dd>
-                </div>
-                <div>
-                    <dt>Contact name</dt>
-                    <dd>@Display(rmaRecord.ContactName)</dd>
-                </div>
-                <div>
-                    <dt>Contact email</dt>
-                    <dd>@Display(rmaRecord.ContactEmail)</dd>
-                </div>
-                <div>
-                    <dt>Contact phone</dt>
-                    <dd>@Display(rmaRecord.ContactPhone)</dd>
-                </div>
-                <div>
-                    <dt>Customer reference</dt>
-                    <dd>@Display(rmaRecord.CustomerReference)</dd>
-                </div>
-                <div>
-                    <dt>Support ticket number</dt>
-                    <dd>@Display(rmaRecord.SupportTicketNumber)</dd>
-                </div>
-                <div>
-                    <dt>Support ticket URL</dt>
-                    <dd>@Display(rmaRecord.SupportTicketUrl)</dd>
-                </div>
-                <div>
-                    <dt>Original order number</dt>
-                    <dd>@Display(rmaRecord.OriginalOrderNumber)</dd>
-                </div>
-                <div>
-                    <dt>Original order date</dt>
-                    <dd>@Display(rmaRecord.OriginalOrderDate)</dd>
-                </div>
-                <div>
-                    <dt>Original invoice number</dt>
-                    <dd>@Display(rmaRecord.OriginalInvoiceNumber)</dd>
-                </div>
-                <div>
-                    <dt>Date item received</dt>
-                    <dd>@Display(rmaRecord.DateItemReceived)</dd>
-                </div>
-                <div>
-                    <dt>Received by</dt>
-                    <dd>@Display(rmaRecord.ReceivedBy)</dd>
-                </div>
+                <div><dt>Customer</dt><dd>@Display(rmaRecord.CustomerName)</dd></div>
+                <div><dt>Product name</dt><dd>@rmaRecord.ProductName</dd></div>
+                <div><dt>Product code</dt><dd>@Display(rmaRecord.ProductCode)</dd></div>
+                <div><dt>Serial number</dt><dd>@Display(rmaRecord.SerialNumber)</dd></div>
+                <div><dt>Contact name</dt><dd>@Display(rmaRecord.ContactName)</dd></div>
+                <div><dt>Contact email</dt><dd>@Display(rmaRecord.ContactEmail)</dd></div>
+                <div><dt>Contact phone</dt><dd>@Display(rmaRecord.ContactPhone)</dd></div>
+                <div><dt>Customer reference</dt><dd>@Display(rmaRecord.CustomerReference)</dd></div>
+                <div><dt>Support ticket number</dt><dd>@Display(rmaRecord.SupportTicketNumber)</dd></div>
+                <div><dt>Support ticket URL</dt><dd>@Display(rmaRecord.SupportTicketUrl)</dd></div>
+                <div><dt>Original order number</dt><dd>@Display(rmaRecord.OriginalOrderNumber)</dd></div>
+                <div><dt>Original order date</dt><dd>@Display(rmaRecord.OriginalOrderDate)</dd></div>
+                <div><dt>Original invoice number</dt><dd>@Display(rmaRecord.OriginalInvoiceNumber)</dd></div>
+                <div><dt>Date item received</dt><dd>@Display(rmaRecord.DateItemReceived)</dd></div>
+                <div><dt>Received by</dt><dd>@Display(rmaRecord.ReceivedBy)</dd></div>
             </dl>
 
             <div class="detail-section">
@@ -583,10 +502,533 @@ else
                 <h3>Initial fault description</h3>
                 <p class="empty-state">@rmaRecord.InitialFaultDescription</p>
             </div>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-fault-details-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-fault-details-heading">Fault Details</h2>
+                <p>Structured fault information for diagnosis and later reporting.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                <Authorized>
+                    @if (!isEditingFaultDetails)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingFaultDetails">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingFaultDetails)
+        {
+            @SectionErrors(faultDetailErrors, "Fault details could not be saved.")
+
+            <EditForm Model="faultDetailsModel" OnValidSubmit="SaveFaultDetailsAsync" FormName="edit-rma-fault-details">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-rma-fault-summary-details">Fault summary</label>
+                        <InputText id="edit-rma-fault-summary-details" class="text-input" @bind-Value="faultDetailsModel.FaultSummary" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-fault-category">Fault category</label>
+                        <InputSelect id="edit-rma-fault-category" class="text-input" @bind-Value="faultDetailsModel.FaultCategory">
+                            <option value="">Not set</option>
+                            @foreach (var category in Enum.GetValues<RmaFaultCategory>())
+                            {
+                                <option value="@category">@FormatFaultCategory(category)</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-fault-subcategory">Fault subcategory</label>
+                        <InputText id="edit-rma-fault-subcategory" class="text-input" @bind-Value="faultDetailsModel.FaultSubcategory" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-customer-impact">Customer impact</label>
+                        <InputSelect id="edit-rma-customer-impact" class="text-input" @bind-Value="faultDetailsModel.CustomerImpact">
+                            <option value="">Not set</option>
+                            @foreach (var impact in Enum.GetValues<RmaCustomerImpact>())
+                            {
+                                <option value="@impact">@impact</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-reproducible">Reproducible</label>
+                        <InputSelect id="edit-rma-reproducible" class="text-input" @bind-Value="faultDetailsModel.Reproducible">
+                            <option value="">Not set</option>
+                            @foreach (var value in Enum.GetValues<RmaYesNoUnknown>())
+                            {
+                                <option value="@value">@value</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-rma-intermittent-fault">Intermittent fault</label>
+                        <InputSelect id="edit-rma-intermittent-fault" class="text-input" @bind-Value="faultDetailsModel.IntermittentFault">
+                            <option value="">Not set</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-safety-concern">Safety concern</label>
+                        <InputSelect id="edit-rma-safety-concern" class="text-input" @bind-Value="faultDetailsModel.SafetyConcern">
+                            <option value="">Not set</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-data-loss-concern">Data loss concern</label>
+                        <InputSelect id="edit-rma-data-loss-concern" class="text-input" @bind-Value="faultDetailsModel.DataLossConcern">
+                            <option value="">Not set</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-fault-description-details">Fault description</label>
+                    <InputTextArea id="edit-rma-fault-description-details" class="text-input" @bind-Value="faultDetailsModel.FaultDescription" />
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-reported-symptoms">Reported symptoms</label>
+                    <InputTextArea id="edit-rma-reported-symptoms" class="text-input" @bind-Value="faultDetailsModel.ReportedSymptoms" />
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-initial-diagnosis">Initial diagnosis</label>
+                    <InputTextArea id="edit-rma-initial-diagnosis" class="text-input" @bind-Value="faultDetailsModel.InitialDiagnosis" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingFaultDetails">@(isSavingFaultDetails ? "Saving..." : "Save fault details")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingFaultDetails" @onclick="CancelFaultDetailsEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div><dt>Fault summary</dt><dd>@rmaRecord.FaultSummary</dd></div>
+                <div><dt>Fault category</dt><dd>@DisplayFaultCategory(rmaRecord.FaultCategory)</dd></div>
+                <div><dt>Fault subcategory</dt><dd>@Display(rmaRecord.FaultSubcategory)</dd></div>
+                <div><dt>Customer impact</dt><dd>@DisplayCustomerImpact(rmaRecord.CustomerImpact)</dd></div>
+                <div><dt>Reproducible</dt><dd>@DisplayYesNoUnknown(rmaRecord.Reproducible)</dd></div>
+                <div><dt>Intermittent fault</dt><dd>@DisplayBool(rmaRecord.IntermittentFault)</dd></div>
+                <div><dt>Safety concern</dt><dd>@DisplayBool(rmaRecord.SafetyConcern)</dd></div>
+                <div><dt>Data loss concern</dt><dd>@DisplayBool(rmaRecord.DataLossConcern)</dd></div>
+            </dl>
 
             <div class="detail-section">
                 <h3>Fault description</h3>
                 <p class="empty-state">@Display(rmaRecord.FaultDescription)</p>
+            </div>
+            <div class="detail-section">
+                <h3>Reported symptoms</h3>
+                <p class="empty-state">@Display(rmaRecord.ReportedSymptoms)</p>
+            </div>
+            <div class="detail-section">
+                <h3>Initial diagnosis</h3>
+                <p class="empty-state">@Display(rmaRecord.InitialDiagnosis)</p>
+            </div>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-diagnosis-repair-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-diagnosis-repair-heading">Diagnosis &amp; Repair</h2>
+                <p>Separate technical diagnosis, root cause and repair completion details.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                <Authorized>
+                    @if (!isEditingRepairDetails)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingRepairDetails">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingRepairDetails)
+        {
+            @SectionErrors(repairDetailErrors, "Diagnosis and repair details could not be saved.")
+
+            <EditForm Model="repairDetailsModel" OnValidSubmit="SaveRepairDetailsAsync" FormName="edit-rma-repair-details">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-rma-root-cause-category">Root cause category</label>
+                        <InputSelect id="edit-rma-root-cause-category" class="text-input" @bind-Value="repairDetailsModel.RootCauseCategory">
+                            <option value="">Not set</option>
+                            @foreach (var category in Enum.GetValues<RmaRootCauseCategory>())
+                            {
+                                <option value="@category">@FormatRootCauseCategory(category)</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-repair-completed-date">Repair completed date</label>
+                        <InputDate id="edit-rma-repair-completed-date" class="text-input" @bind-Value="repairDetailsModel.RepairCompletedDate" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-repair-completed-by">Repair completed by</label>
+                        <InputText id="edit-rma-repair-completed-by" class="text-input" @bind-Value="repairDetailsModel.RepairCompletedBy" />
+                    </div>
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-diagnosis-notes">Diagnosis notes</label>
+                    <InputTextArea id="edit-rma-diagnosis-notes" class="text-input" @bind-Value="repairDetailsModel.DiagnosisNotes" />
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-root-cause">Root cause</label>
+                    <InputTextArea id="edit-rma-root-cause" class="text-input" @bind-Value="repairDetailsModel.RootCause" />
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-repair-action-taken">Repair action taken</label>
+                    <InputTextArea id="edit-rma-repair-action-taken" class="text-input" @bind-Value="repairDetailsModel.RepairActionTaken" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingRepairDetails">@(isSavingRepairDetails ? "Saving..." : "Save diagnosis and repair")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingRepairDetails" @onclick="CancelRepairDetailsEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div><dt>Root cause category</dt><dd>@DisplayRootCauseCategory(rmaRecord.RootCauseCategory)</dd></div>
+                <div><dt>Repair completed date</dt><dd>@Display(rmaRecord.RepairCompletedDate)</dd></div>
+                <div><dt>Repair completed by</dt><dd>@Display(rmaRecord.RepairCompletedBy)</dd></div>
+            </dl>
+
+            <div class="detail-section">
+                <h3>Diagnosis notes</h3>
+                <p class="empty-state">@Display(rmaRecord.DiagnosisNotes)</p>
+            </div>
+            <div class="detail-section">
+                <h3>Root cause</h3>
+                <p class="empty-state">@Display(rmaRecord.RootCause)</p>
+            </div>
+            <div class="detail-section">
+                <h3>Repair action taken</h3>
+                <p class="empty-state">@Display(rmaRecord.RepairActionTaken)</p>
+            </div>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-parts-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-parts-heading">Parts Replaced</h2>
+                <p>Track replacement parts, serialised items and costs used during repair.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                <Authorized>
+                    @if (!isEditingPart)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartAddingPart">Add part</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingPart)
+        {
+            @SectionErrors(partErrors, "Part details could not be saved.")
+
+            <EditForm Model="partModel" OnValidSubmit="SavePartAsync" FormName="edit-rma-part">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-rma-part-name">Part name</label>
+                        <InputText id="edit-rma-part-name" class="text-input" @bind-Value="partModel.PartName" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-part-number">Part number</label>
+                        <InputText id="edit-rma-part-number" class="text-input" @bind-Value="partModel.PartNumber" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-part-quantity">Quantity</label>
+                        <InputNumber id="edit-rma-part-quantity" class="text-input" @bind-Value="partModel.Quantity" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-part-serial-number">Serial number</label>
+                        <InputText id="edit-rma-part-serial-number" class="text-input" @bind-Value="partModel.SerialNumber" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-part-supplier">Supplier</label>
+                        <InputText id="edit-rma-part-supplier" class="text-input" @bind-Value="partModel.Supplier" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-part-unit-cost">Unit cost</label>
+                        <InputNumber id="edit-rma-part-unit-cost" class="text-input" @bind-Value="partModel.UnitCost" />
+                    </div>
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-part-notes">Notes</label>
+                    <InputTextArea id="edit-rma-part-notes" class="text-input" @bind-Value="partModel.Notes" />
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingPart">@(isSavingPart ? "Saving..." : "Save part")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingPart" @onclick="CancelPartEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+
+        @if (parts.Count == 0)
+        {
+            <p class="empty-state">No parts have been recorded for this RMA yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Part</th>
+                            <th scope="col">Part number</th>
+                            <th scope="col">Qty</th>
+                            <th scope="col">Serial number</th>
+                            <th scope="col">Supplier</th>
+                            <th scope="col">Unit cost</th>
+                            <th scope="col">Notes</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var part in parts)
+                        {
+                            <tr>
+                                <td>@part.PartName</td>
+                                <td>@Display(part.PartNumber)</td>
+                                <td>@part.Quantity</td>
+                                <td>@Display(part.SerialNumber)</td>
+                                <td>@Display(part.Supplier)</td>
+                                <td>@DisplayCurrency(part.UnitCost)</td>
+                                <td>@Display(part.Notes)</td>
+                                <td>
+                                    <div class="detail-actions">
+                                        <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                                            <Authorized>
+                                                <button type="button" class="secondary-button button-small" @onclick="@(() => StartEditingPart(part.Id))">Edit</button>
+                                                <button type="button" class="secondary-button button-small" @onclick="@(() => DeletePartAsync(part.Id))">Remove</button>
+                                            </Authorized>
+                                        </AuthorizeView>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-checklist-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-checklist-heading">Repair Checklist</h2>
+                <p>Checklist progress is visible and can be updated as work moves forward.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Checklist progress</dt>
+                <dd>@completedChecklistCount / @checklistItems.Count complete</dd>
+            </div>
+        </dl>
+
+        @SectionErrors(checklistErrors, "Checklist changes could not be saved.")
+
+        <div class="table-scroll detail-section">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Item</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Completed by</th>
+                        <th scope="col">Completed at</th>
+                        <th scope="col">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var checklistItem in checklistItems)
+                    {
+                        <tr>
+                            <td>@checklistItem.Text</td>
+                            <td>@(checklistItem.IsCompleted ? "Completed" : "Open")</td>
+                            <td>@Display(checklistItem.CompletedBy)</td>
+                            <td>@Display(checklistItem.CompletedAt)</td>
+                            <td>
+                                <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                                    <Authorized>
+                                        <button type="button" class="secondary-button button-small" disabled="@isSavingChecklist" @onclick="@(() => ToggleChecklistItemAsync(checklistItem))">
+                                            @(checklistItem.IsCompleted ? "Mark open" : "Mark complete")
+                                        </button>
+                                    </Authorized>
+                                </AuthorizeView>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+            <Authorized Context="checklistAuth">
+                <div class="detail-section">
+                    <h3>Add custom checklist item</h3>
+                    <EditForm Model="newChecklistItemModel" OnValidSubmit="AddChecklistItemAsync" FormName="add-rma-checklist-item">
+                        <div class="form-grid">
+                            <div class="form-field">
+                                <label for="edit-rma-custom-checklist-item">Checklist item</label>
+                                <InputText id="edit-rma-custom-checklist-item" class="text-input" @bind-Value="newChecklistItemModel.Text" />
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="primary-button" disabled="@isSavingChecklist">@(isSavingChecklist ? "Saving..." : "Add checklist item")</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-testing-qa-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-testing-qa-heading">Testing and QA</h2>
+                <p>Record testing, QA sign-off and release approval before return.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                <Authorized>
+                    @if (!isEditingTestingQa)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingTestingQa">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingTestingQa)
+        {
+            @SectionErrors(testingQaErrors, "Testing and QA details could not be saved.")
+
+            <EditForm Model="testingQaModel" OnValidSubmit="SaveTestingQaAsync" FormName="edit-rma-testing-qa">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-rma-test-required">Test required</label>
+                        <InputSelect id="edit-rma-test-required" class="text-input" @bind-Value="testingQaModel.TestRequired">
+                            <option value="">Not set</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-qa-required">QA required</label>
+                        <InputSelect id="edit-rma-qa-required" class="text-input" @bind-Value="testingQaModel.QaRequired">
+                            <option value="">Not set</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-release-approved">Release approved</label>
+                        <InputSelect id="edit-rma-release-approved" class="text-input" @bind-Value="testingQaModel.ReleaseApproved">
+                            <option value="">Not set</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-rma-test-plan-used">Test plan used</label>
+                        <InputText id="edit-rma-test-plan-used" class="text-input" @bind-Value="testingQaModel.TestPlanUsed" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-test-result">Test result</label>
+                        <InputSelect id="edit-rma-test-result" class="text-input" @bind-Value="testingQaModel.TestResult">
+                            <option value="">Not set</option>
+                            @foreach (var result in Enum.GetValues<RmaTestResult>())
+                            {
+                                <option value="@result">@FormatTestResult(result)</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-tested-by">Tested by</label>
+                        <InputText id="edit-rma-tested-by" class="text-input" @bind-Value="testingQaModel.TestedBy" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-test-date">Test date</label>
+                        <InputDate id="edit-rma-test-date" class="text-input" @bind-Value="testingQaModel.TestDate" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-qa-result">QA result</label>
+                        <InputSelect id="edit-rma-qa-result" class="text-input" @bind-Value="testingQaModel.QaResult">
+                            <option value="">Not set</option>
+                            @foreach (var result in Enum.GetValues<RmaQaResult>())
+                            {
+                                <option value="@result">@FormatQaResult(result)</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-qa-checked-by">QA checked by</label>
+                        <InputText id="edit-rma-qa-checked-by" class="text-input" @bind-Value="testingQaModel.QaCheckedBy" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-qa-date">QA date</label>
+                        <InputDate id="edit-rma-qa-date" class="text-input" @bind-Value="testingQaModel.QaDate" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-release-approved-by">Release approved by</label>
+                        <InputText id="edit-rma-release-approved-by" class="text-input" @bind-Value="testingQaModel.ReleaseApprovedBy" />
+                    </div>
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-test-notes">Test notes</label>
+                    <InputTextArea id="edit-rma-test-notes" class="text-input" @bind-Value="testingQaModel.TestNotes" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingTestingQa">@(isSavingTestingQa ? "Saving..." : "Save testing and QA")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingTestingQa" @onclick="CancelTestingQaEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div><dt>Test required</dt><dd>@DisplayBool(rmaRecord.TestRequired)</dd></div>
+                <div><dt>Test plan used</dt><dd>@Display(rmaRecord.TestPlanUsed)</dd></div>
+                <div><dt>Test result</dt><dd>@DisplayTestResult(rmaRecord.TestResult)</dd></div>
+                <div><dt>Tested by</dt><dd>@Display(rmaRecord.TestedBy)</dd></div>
+                <div><dt>Test date</dt><dd>@Display(rmaRecord.TestDate)</dd></div>
+                <div><dt>QA required</dt><dd>@DisplayBool(rmaRecord.QaRequired)</dd></div>
+                <div><dt>QA result</dt><dd>@DisplayQaResult(rmaRecord.QaResult)</dd></div>
+                <div><dt>QA checked by</dt><dd>@Display(rmaRecord.QaCheckedBy)</dd></div>
+                <div><dt>QA date</dt><dd>@Display(rmaRecord.QaDate)</dd></div>
+                <div><dt>Release approved</dt><dd>@DisplayBool(rmaRecord.ReleaseApproved)</dd></div>
+                <div><dt>Release approved by</dt><dd>@Display(rmaRecord.ReleaseApprovedBy)</dd></div>
+                <div><dt>Release approved at</dt><dd>@Display(rmaRecord.ReleaseApprovedAt)</dd></div>
+            </dl>
+
+            <div class="detail-section">
+                <h3>Test notes</h3>
+                <p class="empty-state">@Display(rmaRecord.TestNotes)</p>
             </div>
         }
     </section>
@@ -602,18 +1044,9 @@ else
         @if (rmaRecord.BuildRecordId is not null)
         {
             <dl class="summary-list">
-                <div>
-                    <dt>Linked Build Record</dt>
-                    <dd><a class="table-link" href="@($"/build-records/{rmaRecord.BuildRecordId}")">@Display(rmaRecord.LinkedBuildRecordSerialNumber)</a></dd>
-                </div>
-                <div>
-                    <dt>Build product</dt>
-                    <dd>@Display(rmaRecord.LinkedBuildRecordProductName)</dd>
-                </div>
-                <div>
-                    <dt>Build customer</dt>
-                    <dd>@Display(rmaRecord.LinkedBuildRecordCustomerName)</dd>
-                </div>
+                <div><dt>Linked Build Record</dt><dd><a class="table-link" href="@($"/build-records/{rmaRecord.BuildRecordId}")">@Display(rmaRecord.LinkedBuildRecordSerialNumber)</a></dd></div>
+                <div><dt>Build product</dt><dd>@Display(rmaRecord.LinkedBuildRecordProductName)</dd></div>
+                <div><dt>Build customer</dt><dd>@Display(rmaRecord.LinkedBuildRecordCustomerName)</dd></div>
             </dl>
 
             <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
@@ -624,35 +1057,32 @@ else
                 </Authorized>
             </AuthorizeView>
         }
+        else if (buildRecordSuggestions.Count == 0)
+        {
+            <p class="empty-state">No Build Record is linked, and no current match suggestions are available.</p>
+        }
         else
         {
-            @if (buildRecordSuggestions.Count == 0)
-            {
-                <p class="empty-state">No Build Record is linked, and no current match suggestions are available.</p>
-            }
-            else
-            {
-                <ul class="recent-record-list">
-                    @foreach (var suggestion in buildRecordSuggestions)
-                    {
-                        <li>
-                            <div class="recent-record-link">
-                                <span class="recent-record-title">@suggestion.ProductCode - Serial @suggestion.SerialNumber</span>
-                                <span class="recent-record-meta">@suggestion.ProductName</span>
-                                <span class="recent-record-meta">@Display(suggestion.CustomerName)</span>
-                                <span class="recent-record-meta">@string.Join(", ", suggestion.MatchReasons)</span>
-                                <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
-                                    <Authorized>
-                                        <span>
-                                            <button type="button" class="secondary-button button-small" disabled="@isUpdatingLink" @onclick="@(() => LinkBuildRecordAsync(suggestion.BuildRecordId))">Link Build Record</button>
-                                        </span>
-                                    </Authorized>
-                                </AuthorizeView>
-                            </div>
-                        </li>
-                    }
-                </ul>
-            }
+            <ul class="recent-record-list">
+                @foreach (var suggestion in buildRecordSuggestions)
+                {
+                    <li>
+                        <div class="recent-record-link">
+                            <span class="recent-record-title">@suggestion.ProductCode - Serial @suggestion.SerialNumber</span>
+                            <span class="recent-record-meta">@suggestion.ProductName</span>
+                            <span class="recent-record-meta">@Display(suggestion.CustomerName)</span>
+                            <span class="recent-record-meta">@string.Join(", ", suggestion.MatchReasons)</span>
+                            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                                <Authorized>
+                                    <span>
+                                        <button type="button" class="secondary-button button-small" disabled="@isUpdatingLink" @onclick="@(() => LinkBuildRecordAsync(suggestion.BuildRecordId))">Link Build Record</button>
+                                    </span>
+                                </Authorized>
+                            </AuthorizeView>
+                        </div>
+                    </li>
+                }
+            </ul>
         }
     </section>
 }
@@ -663,27 +1093,49 @@ else
 
     private RmaDetailModel? rmaRecord;
     private UpdateRmaIntakeRequest intakeModel = new();
+    private UpdateRmaFaultDetailsRequest faultDetailsModel = new();
+    private UpdateRmaRepairDetailsRequest repairDetailsModel = new();
     private UpdateRmaWorkflowRequest workflowModel = new();
+    private UpdateRmaTestingQaRequest testingQaModel = new();
     private ChangeRmaStatusRequest statusModel = new();
+    private SaveRmaPartRequest partModel = new();
+    private UpdateRmaChecklistItemRequest newChecklistItemModel = new();
     private IReadOnlyList<RmaBuildRecordMatchSuggestion> buildRecordSuggestions = [];
     private IReadOnlyList<RmaStatusHistoryEntry> statusHistoryEntries = [];
+    private IReadOnlyList<RmaChecklistItemModel> checklistItems = [];
+    private IReadOnlyList<RmaPartModel> parts = [];
     private readonly List<string> intakeErrors = [];
+    private readonly List<string> faultDetailErrors = [];
+    private readonly List<string> repairDetailErrors = [];
     private readonly List<string> workflowErrors = [];
+    private readonly List<string> testingQaErrors = [];
     private readonly List<string> statusErrors = [];
+    private readonly List<string> statusWarnings = [];
+    private readonly List<string> partErrors = [];
+    private readonly List<string> checklistErrors = [];
     private bool isLoading = true;
     private bool isEditingIntake;
+    private bool isEditingFaultDetails;
+    private bool isEditingRepairDetails;
     private bool isEditingWorkflow;
+    private bool isEditingTestingQa;
     private bool isEditingStatus;
+    private bool isEditingPart;
     private bool isSavingIntake;
+    private bool isSavingFaultDetails;
+    private bool isSavingRepairDetails;
     private bool isSavingWorkflow;
+    private bool isSavingTestingQa;
     private bool isSavingStatus;
+    private bool isSavingPart;
+    private bool isSavingChecklist;
     private bool isUpdatingLink;
+    private bool confirmStatusWarnings;
     private string? statusMessage;
     private bool statusIsError;
+    private int completedChecklistCount;
     private string PageTitleText => rmaRecord is null ? "RMA Record" : rmaRecord.RmaNumber;
-    private IReadOnlyList<RmaStatus> AllowedNextStatuses => rmaRecord is null
-        ? []
-        : RmaStatusTransitionService.GetAllowedNextStatuses(rmaRecord.Status);
+    private IReadOnlyList<RmaStatus> AllowedNextStatuses => rmaRecord is null ? [] : RmaStatusTransitionService.GetAllowedNextStatuses(rmaRecord.Status);
     private string? CurrentStatusReason => statusHistoryEntries.FirstOrDefault()?.Reason;
     private bool ShouldShowOnHoldReason => statusModel.NewStatus == RmaStatus.OnHold;
     private bool ShouldShowClosureFields => statusModel.NewStatus == RmaStatus.Closed;
@@ -705,11 +1157,17 @@ else
         {
             await LoadBuildRecordSuggestionsAsync();
             statusHistoryEntries = await RmaRecordService.GetStatusHistoryAsync(RmaRecordId);
+            checklistItems = await RmaRecordService.GetChecklistAsync(RmaRecordId);
+            parts = await RmaRecordService.GetPartsAsync(RmaRecordId);
+            completedChecklistCount = checklistItems.Count(item => item.IsCompleted);
         }
         else
         {
             buildRecordSuggestions = [];
             statusHistoryEntries = [];
+            checklistItems = [];
+            parts = [];
+            completedChecklistCount = 0;
         }
 
         isLoading = false;
@@ -732,10 +1190,146 @@ else
 
         if (rmaRecord.BuildRecordId is not null)
         {
-            buildRecordSuggestions = buildRecordSuggestions
-                .Where(suggestion => suggestion.BuildRecordId != rmaRecord.BuildRecordId)
-                .ToList();
+            buildRecordSuggestions = buildRecordSuggestions.Where(suggestion => suggestion.BuildRecordId != rmaRecord.BuildRecordId).ToList();
         }
+    }
+
+    private void StartEditingIntake()
+    {
+        if (rmaRecord is null)
+        {
+            return;
+        }
+
+        intakeModel = new UpdateRmaIntakeRequest
+        {
+            CustomerName = rmaRecord.CustomerName ?? string.Empty,
+            ProductName = rmaRecord.ProductName,
+            ProductCode = rmaRecord.ProductCode,
+            SerialNumber = rmaRecord.SerialNumber,
+            FaultSummary = rmaRecord.FaultSummary,
+            InitialFaultDescription = rmaRecord.InitialFaultDescription,
+            ContactName = rmaRecord.ContactName,
+            ContactEmail = rmaRecord.ContactEmail,
+            ContactPhone = rmaRecord.ContactPhone,
+            CustomerAddress = rmaRecord.CustomerAddress,
+            CustomerReference = rmaRecord.CustomerReference,
+            SupportTicketNumber = rmaRecord.SupportTicketNumber,
+            SupportTicketUrl = rmaRecord.SupportTicketUrl,
+            OriginalOrderNumber = rmaRecord.OriginalOrderNumber,
+            OriginalOrderDate = rmaRecord.OriginalOrderDate,
+            OriginalInvoiceNumber = rmaRecord.OriginalInvoiceNumber
+        };
+
+        intakeErrors.Clear();
+        statusMessage = null;
+        isEditingIntake = true;
+    }
+
+    private async Task SaveIntakeAsync()
+    {
+        isSavingIntake = true;
+        await ExecuteSaveAsync(
+            async () => await RmaRecordService.UpdateIntakeAsync(RmaRecordId, intakeModel, await GetCurrentUserNameAsync()),
+            intakeErrors,
+            "RMA intake details were saved.",
+            () => isEditingIntake = false,
+            value => value.Succeeded,
+            value => value.Errors);
+        isSavingIntake = false;
+    }
+
+    private void CancelIntakeEdit()
+    {
+        intakeErrors.Clear();
+        isEditingIntake = false;
+    }
+
+    private void StartEditingFaultDetails()
+    {
+        if (rmaRecord is null)
+        {
+            return;
+        }
+
+        faultDetailsModel = new UpdateRmaFaultDetailsRequest
+        {
+            FaultSummary = rmaRecord.FaultSummary,
+            FaultDescription = rmaRecord.FaultDescription,
+            ReportedSymptoms = rmaRecord.ReportedSymptoms,
+            FaultCategory = rmaRecord.FaultCategory,
+            FaultSubcategory = rmaRecord.FaultSubcategory,
+            IntermittentFault = rmaRecord.IntermittentFault,
+            SafetyConcern = rmaRecord.SafetyConcern,
+            DataLossConcern = rmaRecord.DataLossConcern,
+            CustomerImpact = rmaRecord.CustomerImpact,
+            Reproducible = rmaRecord.Reproducible,
+            InitialDiagnosis = rmaRecord.InitialDiagnosis
+        };
+
+        faultDetailErrors.Clear();
+        statusMessage = null;
+        isEditingFaultDetails = true;
+    }
+
+    private async Task SaveFaultDetailsAsync()
+    {
+        isSavingFaultDetails = true;
+        await ExecuteSaveAsync(
+            async () => await RmaRecordService.UpdateFaultDetailsAsync(RmaRecordId, faultDetailsModel, await GetCurrentUserNameAsync()),
+            faultDetailErrors,
+            "Fault details were saved.",
+            () => isEditingFaultDetails = false,
+            value => value.Succeeded,
+            value => value.Errors);
+        isSavingFaultDetails = false;
+    }
+
+    private void CancelFaultDetailsEdit()
+    {
+        faultDetailErrors.Clear();
+        isEditingFaultDetails = false;
+    }
+
+    private void StartEditingRepairDetails()
+    {
+        if (rmaRecord is null)
+        {
+            return;
+        }
+
+        repairDetailsModel = new UpdateRmaRepairDetailsRequest
+        {
+            DiagnosisNotes = rmaRecord.DiagnosisNotes,
+            RootCause = rmaRecord.RootCause,
+            RootCauseCategory = rmaRecord.RootCauseCategory,
+            RepairActionTaken = rmaRecord.RepairActionTaken,
+            RepairCompletedDate = rmaRecord.RepairCompletedDate,
+            RepairCompletedBy = rmaRecord.RepairCompletedBy
+        };
+
+        repairDetailErrors.Clear();
+        statusMessage = null;
+        isEditingRepairDetails = true;
+    }
+
+    private async Task SaveRepairDetailsAsync()
+    {
+        isSavingRepairDetails = true;
+        await ExecuteSaveAsync(
+            async () => await RmaRecordService.UpdateRepairDetailsAsync(RmaRecordId, repairDetailsModel, await GetCurrentUserNameAsync()),
+            repairDetailErrors,
+            "Diagnosis and repair details were saved.",
+            () => isEditingRepairDetails = false,
+            value => value.Succeeded,
+            value => value.Errors);
+        isSavingRepairDetails = false;
+    }
+
+    private void CancelRepairDetailsEdit()
+    {
+        repairDetailErrors.Clear();
+        isEditingRepairDetails = false;
     }
 
     private void StartEditingWorkflow()
@@ -761,40 +1355,67 @@ else
     private async Task SaveWorkflowAsync()
     {
         isSavingWorkflow = true;
-        workflowErrors.Clear();
-
-        try
-        {
-            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
-            var result = await RmaRecordService.UpdateWorkflowAsync(RmaRecordId, workflowModel, userName);
-
-            if (result.Succeeded)
-            {
-                await LoadRmaAsync();
-                isEditingWorkflow = false;
-                statusMessage = "Workflow details were saved.";
-                statusIsError = false;
-            }
-            else
-            {
-                workflowErrors.AddRange(result.Errors);
-            }
-        }
-        catch
-        {
-            workflowErrors.Add("Check the database connection and try again.");
-        }
-        finally
-        {
-            isSavingWorkflow = false;
-        }
+        await ExecuteSaveAsync(
+            async () => await RmaRecordService.UpdateWorkflowAsync(RmaRecordId, workflowModel, await GetCurrentUserNameAsync()),
+            workflowErrors,
+            "Workflow details were saved.",
+            () => isEditingWorkflow = false,
+            value => value.Succeeded,
+            value => value.Errors);
+        isSavingWorkflow = false;
     }
 
     private void CancelWorkflowEdit()
     {
         workflowErrors.Clear();
         isEditingWorkflow = false;
+    }
+
+    private void StartEditingTestingQa()
+    {
+        if (rmaRecord is null)
+        {
+            return;
+        }
+
+        testingQaModel = new UpdateRmaTestingQaRequest
+        {
+            TestRequired = rmaRecord.TestRequired,
+            TestPlanUsed = rmaRecord.TestPlanUsed,
+            TestResult = rmaRecord.TestResult,
+            TestedBy = rmaRecord.TestedBy,
+            TestDate = rmaRecord.TestDate,
+            TestNotes = rmaRecord.TestNotes,
+            QaRequired = rmaRecord.QaRequired,
+            QaResult = rmaRecord.QaResult,
+            QaCheckedBy = rmaRecord.QaCheckedBy,
+            QaDate = rmaRecord.QaDate,
+            ReleaseApproved = rmaRecord.ReleaseApproved,
+            ReleaseApprovedBy = rmaRecord.ReleaseApprovedBy
+        };
+
+        testingQaErrors.Clear();
+        statusMessage = null;
+        isEditingTestingQa = true;
+    }
+
+    private async Task SaveTestingQaAsync()
+    {
+        isSavingTestingQa = true;
+        await ExecuteSaveAsync(
+            async () => await RmaRecordService.UpdateTestingQaAsync(RmaRecordId, testingQaModel, await GetCurrentUserNameAsync()),
+            testingQaErrors,
+            "Testing and QA details were saved.",
+            () => isEditingTestingQa = false,
+            value => value.Succeeded,
+            value => value.Errors);
+        isSavingTestingQa = false;
+    }
+
+    private void CancelTestingQaEdit()
+    {
+        testingQaErrors.Clear();
+        isEditingTestingQa = false;
     }
 
     private void StartEditingStatus()
@@ -806,6 +1427,8 @@ else
         };
 
         statusErrors.Clear();
+        statusWarnings.Clear();
+        confirmStatusWarnings = false;
         statusMessage = null;
         isEditingStatus = AllowedNextStatuses.Count > 0;
     }
@@ -814,12 +1437,12 @@ else
     {
         isSavingStatus = true;
         statusErrors.Clear();
+        statusWarnings.Clear();
+        statusModel.IgnoreReadinessWarnings = confirmStatusWarnings;
 
         try
         {
-            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
-            var result = await RmaRecordService.ChangeStatusAsync(RmaRecordId, statusModel, userName);
+            var result = await RmaRecordService.ChangeStatusAsync(RmaRecordId, statusModel, await GetCurrentUserNameAsync());
 
             if (result.Succeeded)
             {
@@ -827,6 +1450,11 @@ else
                 isEditingStatus = false;
                 statusMessage = "RMA status was updated.";
                 statusIsError = false;
+                confirmStatusWarnings = false;
+            }
+            else if (result.RequiresConfirmation)
+            {
+                statusWarnings.AddRange(result.Warnings);
             }
             else
             {
@@ -846,84 +1474,170 @@ else
     private void CancelStatusEdit()
     {
         statusErrors.Clear();
+        statusWarnings.Clear();
+        confirmStatusWarnings = false;
         isEditingStatus = false;
     }
 
-    private void StartEditingIntake()
+    private void StartAddingPart()
     {
-        if (rmaRecord is null)
-        {
-            return;
-        }
-
-        intakeModel = new UpdateRmaIntakeRequest
-        {
-            CustomerName = rmaRecord.CustomerName ?? string.Empty,
-            ProductName = rmaRecord.ProductName,
-            ProductCode = rmaRecord.ProductCode,
-            SerialNumber = rmaRecord.SerialNumber,
-            FaultSummary = rmaRecord.FaultSummary,
-            InitialFaultDescription = rmaRecord.InitialFaultDescription,
-            FaultDescription = rmaRecord.FaultDescription,
-            ContactName = rmaRecord.ContactName,
-            ContactEmail = rmaRecord.ContactEmail,
-            ContactPhone = rmaRecord.ContactPhone,
-            CustomerAddress = rmaRecord.CustomerAddress,
-            CustomerReference = rmaRecord.CustomerReference,
-            SupportTicketNumber = rmaRecord.SupportTicketNumber,
-            SupportTicketUrl = rmaRecord.SupportTicketUrl,
-            OriginalOrderNumber = rmaRecord.OriginalOrderNumber,
-            OriginalOrderDate = rmaRecord.OriginalOrderDate,
-            OriginalInvoiceNumber = rmaRecord.OriginalInvoiceNumber
-        };
-
-        intakeErrors.Clear();
+        partModel = new SaveRmaPartRequest();
+        partErrors.Clear();
         statusMessage = null;
-        isEditingIntake = true;
+        isEditingPart = true;
     }
 
-    private async Task SaveIntakeAsync()
+    private void StartEditingPart(int partId)
     {
-        if (rmaRecord is null)
+        var existingPart = parts.FirstOrDefault(part => part.Id == partId);
+        if (existingPart is null)
         {
             return;
         }
 
-        isSavingIntake = true;
-        intakeErrors.Clear();
+        partModel = new SaveRmaPartRequest
+        {
+            PartId = existingPart.Id,
+            PartName = existingPart.PartName,
+            PartNumber = existingPart.PartNumber,
+            Quantity = existingPart.Quantity,
+            SerialNumber = existingPart.SerialNumber,
+            Supplier = existingPart.Supplier,
+            UnitCost = existingPart.UnitCost,
+            Notes = existingPart.Notes
+        };
+
+        partErrors.Clear();
+        statusMessage = null;
+        isEditingPart = true;
+    }
+
+    private async Task SavePartAsync()
+    {
+        isSavingPart = true;
 
         try
         {
-            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
-            var result = await RmaRecordService.UpdateIntakeAsync(RmaRecordId, intakeModel, userName);
+            var result = await RmaRecordService.SavePartAsync(RmaRecordId, partModel, await GetCurrentUserNameAsync());
+            partErrors.Clear();
 
             if (result.Succeeded)
             {
                 await LoadRmaAsync();
-                isEditingIntake = false;
-                statusMessage = "RMA intake details were saved.";
+                isEditingPart = false;
+                statusMessage = partModel.PartId is null ? "Part was added." : "Part details were updated.";
                 statusIsError = false;
             }
             else
             {
-                intakeErrors.AddRange(result.Errors);
+                partErrors.AddRange(result.Errors);
             }
         }
         catch
         {
-            intakeErrors.Add("Check the database connection and try again.");
+            partErrors.Add("Check the database connection and try again.");
         }
         finally
         {
-            isSavingIntake = false;
+            isSavingPart = false;
         }
     }
 
-    private void CancelIntakeEdit()
+    private void CancelPartEdit()
     {
-        intakeErrors.Clear();
-        isEditingIntake = false;
+        partErrors.Clear();
+        isEditingPart = false;
+    }
+
+    private async Task DeletePartAsync(int partId)
+    {
+        try
+        {
+            var result = await RmaRecordService.DeletePartAsync(RmaRecordId, partId, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                await LoadRmaAsync();
+                statusMessage = "Part was removed.";
+                statusIsError = false;
+            }
+            else
+            {
+                statusMessage = string.Join(" ", result.Errors);
+                statusIsError = true;
+            }
+        }
+        catch
+        {
+            statusMessage = "Part could not be removed. Try again.";
+            statusIsError = true;
+        }
+    }
+
+    private async Task ToggleChecklistItemAsync(RmaChecklistItemModel checklistItem)
+    {
+        isSavingChecklist = true;
+        checklistErrors.Clear();
+
+        try
+        {
+            var result = await RmaRecordService.UpdateChecklistItemAsync(
+                RmaRecordId,
+                new UpdateRmaChecklistItemRequest
+                {
+                    ChecklistItemId = checklistItem.Id,
+                    IsCompleted = !checklistItem.IsCompleted
+                },
+                await GetCurrentUserNameAsync());
+
+            if (result.Succeeded)
+            {
+                await LoadRmaAsync();
+                statusMessage = "Checklist item was updated.";
+                statusIsError = false;
+            }
+            else
+            {
+                checklistErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            checklistErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingChecklist = false;
+        }
+    }
+
+    private async Task AddChecklistItemAsync()
+    {
+        isSavingChecklist = true;
+        checklistErrors.Clear();
+
+        try
+        {
+            var result = await RmaRecordService.UpdateChecklistItemAsync(RmaRecordId, newChecklistItemModel, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                newChecklistItemModel = new UpdateRmaChecklistItemRequest();
+                await LoadRmaAsync();
+                statusMessage = "Checklist item was added.";
+                statusIsError = false;
+            }
+            else
+            {
+                checklistErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            checklistErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingChecklist = false;
+        }
     }
 
     private async Task LinkBuildRecordAsync(int buildRecordId)
@@ -933,9 +1647,7 @@ else
 
         try
         {
-            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
-            var result = await RmaRecordService.LinkBuildRecordAsync(RmaRecordId, buildRecordId, userName);
+            var result = await RmaRecordService.LinkBuildRecordAsync(RmaRecordId, buildRecordId, await GetCurrentUserNameAsync());
 
             if (result.Succeeded)
             {
@@ -967,9 +1679,7 @@ else
 
         try
         {
-            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
-            var result = await RmaRecordService.UnlinkBuildRecordAsync(RmaRecordId, userName);
+            var result = await RmaRecordService.UnlinkBuildRecordAsync(RmaRecordId, await GetCurrentUserNameAsync());
 
             if (result.Succeeded)
             {
@@ -994,6 +1704,69 @@ else
         }
     }
 
+    private async Task<string> GetCurrentUserNameAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return authenticationState.User.Identity?.Name ?? "Unknown";
+    }
+
+    private async Task ExecuteSaveAsync<TResult>(
+        Func<Task<TResult>> saveOperation,
+        List<string> errors,
+        string successMessage,
+        Action onSuccess,
+        Func<TResult, bool> isSuccess,
+        Func<TResult, IReadOnlyList<string>> getErrors)
+    {
+        errors.Clear();
+
+        try
+        {
+            var result = await saveOperation();
+            if (isSuccess(result))
+            {
+                await LoadRmaAsync();
+                onSuccess();
+                statusMessage = successMessage;
+                statusIsError = false;
+            }
+            else
+            {
+                errors.AddRange(getErrors(result));
+            }
+        }
+        catch
+        {
+            errors.Add("Check the database connection and try again.");
+        }
+    }
+
+    private RenderFragment SectionErrors(IReadOnlyList<string> errors, string title) => builder =>
+    {
+        if (errors.Count == 0)
+        {
+            return;
+        }
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "status-message error");
+        builder.AddAttribute(2, "role", "alert");
+        builder.OpenElement(3, "p");
+        builder.AddContent(4, title);
+        builder.CloseElement();
+        builder.OpenElement(5, "ul");
+        var sequence = 6;
+        foreach (var error in errors)
+        {
+            builder.OpenElement(sequence++, "li");
+            builder.AddContent(sequence++, error);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
     private string DisplayAllowedStatuses()
     {
         return AllowedNextStatuses.Count == 0
@@ -1001,71 +1774,78 @@ else
             : string.Join(", ", AllowedNextStatuses.Select(FormatStatus));
     }
 
-    private static string Display(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
-    }
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    private static string Display(DateOnly? value) => value?.ToString("d MMM yyyy") ?? "Not recorded";
+    private static string Display(DateTimeOffset? value) => value?.ToLocalTime().ToString("d MMM yyyy HH:mm") ?? "Not recorded";
+    private static string DisplayPriority(RmaPriority? value) => value?.ToString() ?? "Not set";
+    private static string DisplayOutcome(RmaOutcome? value) => value is null ? "Not recorded" : FormatOutcome(value.Value);
+    private static string DisplayBool(bool? value) => value is null ? "Not recorded" : (value.Value ? "Yes" : "No");
+    private static string DisplayYesNoUnknown(RmaYesNoUnknown? value) => value?.ToString() ?? "Not recorded";
+    private static string DisplayCustomerImpact(RmaCustomerImpact? value) => value?.ToString() ?? "Not recorded";
+    private static string DisplayFaultCategory(RmaFaultCategory? value) => value is null ? "Not recorded" : FormatFaultCategory(value.Value);
+    private static string DisplayRootCauseCategory(RmaRootCauseCategory? value) => value is null ? "Not recorded" : FormatRootCauseCategory(value.Value);
+    private static string DisplayTestResult(RmaTestResult? value) => value is null ? "Not recorded" : FormatTestResult(value.Value);
+    private static string DisplayQaResult(RmaQaResult? value) => value is null ? "Not recorded" : FormatQaResult(value.Value);
+    private static string DisplayCurrency(decimal? value) => value is null ? "Not recorded" : value.Value.ToString("0.00");
 
-    private static string Display(DateOnly? value)
+    private static string FormatStatus(RmaStatus status) => status switch
     {
-        return value?.ToString("d MMM yyyy") ?? "Not recorded";
-    }
+        RmaStatus.BookedIn => "Booked In",
+        RmaStatus.WorkInProgress => "Work In Progress",
+        RmaStatus.ReadyToShip => "Ready To Ship",
+        RmaStatus.CancelledNoReply => "Cancelled / No Reply",
+        RmaStatus.CustomerFixed => "Customer Fixed",
+        _ => status.ToString()
+    };
 
-    private static string Display(DateTimeOffset? value)
+    private static string FormatOutcome(RmaOutcome outcome) => outcome switch
     {
-        return value?.ToLocalTime().ToString("d MMM yyyy HH:mm") ?? "Not recorded";
-    }
+        RmaOutcome.RepairedAndReturned => "Repaired and returned",
+        RmaOutcome.ReplacedAndReturned => "Replaced and returned",
+        RmaOutcome.NoFaultFound => "No fault found",
+        RmaOutcome.CustomerFixed => "Customer fixed",
+        RmaOutcome.ReturnedUnrepaired => "Returned unrepaired",
+        RmaOutcome.AwaitingCustomerResponseThenClosed => "Awaiting customer response then closed",
+        _ => outcome.ToString()
+    };
 
-    private static string DisplayPriority(RmaPriority? value)
+    private static string FormatFaultCategory(RmaFaultCategory category) => category switch
     {
-        return value?.ToString() ?? "Not set";
-    }
+        RmaFaultCategory.DiskStorageIssue => "Disk / storage issue",
+        RmaFaultCategory.UserCustomerSetupIssue => "User / customer setup issue",
+        _ => category.ToString()
+    };
 
-    private static string DisplayOutcome(RmaOutcome? value)
+    private static string FormatRootCauseCategory(RmaRootCauseCategory category) => category switch
     {
-        return value is null ? "Not recorded" : FormatOutcome(value.Value);
-    }
+        RmaRootCauseCategory.DiskStorageFailure => "Disk / storage failure",
+        RmaRootCauseCategory.CorruptSoftwareConfiguration => "Corrupt software / configuration",
+        RmaRootCauseCategory.LicensingConfigurationMissing => "Licensing / configuration missing",
+        _ => category.ToString()
+    };
 
-    private static string FormatStatus(RmaStatus status)
+    private static string FormatTestResult(RmaTestResult value) => value switch
     {
-        return status switch
-        {
-            RmaStatus.BookedIn => "Booked In",
-            RmaStatus.WorkInProgress => "Work In Progress",
-            RmaStatus.ReadyToShip => "Ready To Ship",
-            RmaStatus.CancelledNoReply => "Cancelled / No Reply",
-            RmaStatus.CustomerFixed => "Customer Fixed",
-            _ => status.ToString()
-        };
-    }
+        RmaTestResult.NotTested => "Not tested",
+        _ => value.ToString()
+    };
 
-    private static string FormatOutcome(RmaOutcome outcome)
+    private static string FormatQaResult(RmaQaResult value) => value switch
     {
-        return outcome switch
-        {
-            RmaOutcome.RepairedAndReturned => "Repaired and returned",
-            RmaOutcome.ReplacedAndReturned => "Replaced and returned",
-            RmaOutcome.NoFaultFound => "No fault found",
-            RmaOutcome.CustomerFixed => "Customer fixed",
-            RmaOutcome.ReturnedUnrepaired => "Returned unrepaired",
-            RmaOutcome.AwaitingCustomerResponseThenClosed => "Awaiting customer response then closed",
-            _ => outcome.ToString()
-        };
-    }
+        RmaQaResult.NotRequired => "Not required",
+        _ => value.ToString()
+    };
 
-    private static string StatusClass(RmaStatus status)
+    private static string StatusClass(RmaStatus status) => status switch
     {
-        return status switch
-        {
-            RmaStatus.BookedIn => "status-booked-in",
-            RmaStatus.WorkInProgress => "status-in-progress",
-            RmaStatus.ReadyToShip => "status-ready",
-            RmaStatus.Shipped => "status-shipped",
-            RmaStatus.OnHold => "status-hold",
-            RmaStatus.CancelledNoReply => "status-cancelled",
-            RmaStatus.CustomerFixed => "status-customer-fixed",
-            RmaStatus.Closed => "status-closed",
-            _ => string.Empty
-        };
-    }
+        RmaStatus.BookedIn => "status-booked-in",
+        RmaStatus.WorkInProgress => "status-in-progress",
+        RmaStatus.ReadyToShip => "status-ready",
+        RmaStatus.Shipped => "status-shipped",
+        RmaStatus.OnHold => "status-hold",
+        RmaStatus.CancelledNoReply => "status-cancelled",
+        RmaStatus.CustomerFixed => "status-customer-fixed",
+        RmaStatus.Closed => "status-closed",
+        _ => string.Empty
+    };
 }

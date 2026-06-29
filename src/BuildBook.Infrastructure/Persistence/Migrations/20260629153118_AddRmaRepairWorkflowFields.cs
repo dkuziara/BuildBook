@@ -1,0 +1,90 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace BuildBook.Infrastructure.Persistence.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddRmaRepairWorkflowFields : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<int>(
+                name: "CustomerImpact",
+                table: "RmaRecords",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "DataLossConcern",
+                table: "RmaRecords",
+                type: "bit",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "DiagnosisNotes",
+                table: "RmaRecords",
+                type: "nvarchar(4000)",
+                maxLength: 4000,
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "IntermittentFault",
+                table: "RmaRecords",
+                type: "bit",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "Reproducible",
+                table: "RmaRecords",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "SafetyConcern",
+                table: "RmaRecords",
+                type: "bit",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "TestNotes",
+                table: "RmaRecords",
+                type: "nvarchar(4000)",
+                maxLength: 4000,
+                nullable: true);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "CustomerImpact",
+                table: "RmaRecords");
+
+            migrationBuilder.DropColumn(
+                name: "DataLossConcern",
+                table: "RmaRecords");
+
+            migrationBuilder.DropColumn(
+                name: "DiagnosisNotes",
+                table: "RmaRecords");
+
+            migrationBuilder.DropColumn(
+                name: "IntermittentFault",
+                table: "RmaRecords");
+
+            migrationBuilder.DropColumn(
+                name: "Reproducible",
+                table: "RmaRecords");
+
+            migrationBuilder.DropColumn(
+                name: "SafetyConcern",
+                table: "RmaRecords");
+
+            migrationBuilder.DropColumn(
+                name: "TestNotes",
+                table: "RmaRecords");
+        }
+    }
+}

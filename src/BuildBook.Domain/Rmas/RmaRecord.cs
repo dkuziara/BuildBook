@@ -71,7 +71,19 @@ public sealed class RmaRecord
 
     public string? ReportedSymptoms { get; set; }
 
+    public bool? IntermittentFault { get; set; }
+
+    public bool? SafetyConcern { get; set; }
+
+    public bool? DataLossConcern { get; set; }
+
+    public RmaCustomerImpact? CustomerImpact { get; set; }
+
+    public RmaYesNoUnknown? Reproducible { get; set; }
+
     public string? InitialDiagnosis { get; set; }
+
+    public string? DiagnosisNotes { get; set; }
 
     public string? RootCause { get; set; }
 
@@ -132,6 +144,8 @@ public sealed class RmaRecord
     public string? TestedBy { get; set; }
 
     public DateOnly? TestDate { get; set; }
+
+    public string? TestNotes { get; set; }
 
     public bool? QaRequired { get; set; }
 

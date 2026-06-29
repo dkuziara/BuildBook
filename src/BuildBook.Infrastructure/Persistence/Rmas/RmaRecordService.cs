@@ -11,6 +11,13 @@ public sealed class RmaRecordService(
     IRmaAuditService rmaAuditService,
     IRmaStatusTransitionService rmaStatusTransitionService) : IRmaRecordService
 {
+    private static readonly HashSet<string> ReadyToShipDeferredChecklistItems =
+    [
+        "Arrange courier/collection",
+        "Mark shipped",
+        "Close RMA"
+    ];
+
     public async Task<CreateRmaResult> CreateAsync(
         CreateRmaRequest request,
         string createdBy,
@@ -115,6 +122,34 @@ public sealed class RmaRecordService(
                 rmaRecord.FaultSummary,
                 rmaRecord.InitialFaultDescription,
                 rmaRecord.FaultDescription,
+                rmaRecord.FaultCategory,
+                rmaRecord.FaultSubcategory,
+                rmaRecord.ReportedSymptoms,
+                rmaRecord.IntermittentFault,
+                rmaRecord.SafetyConcern,
+                rmaRecord.DataLossConcern,
+                rmaRecord.CustomerImpact,
+                rmaRecord.Reproducible,
+                rmaRecord.InitialDiagnosis,
+                rmaRecord.DiagnosisNotes,
+                rmaRecord.RootCause,
+                rmaRecord.RootCauseCategory,
+                rmaRecord.RepairActionTaken,
+                rmaRecord.RepairCompletedDate,
+                rmaRecord.RepairCompletedBy,
+                rmaRecord.TestRequired,
+                rmaRecord.TestPlanUsed,
+                rmaRecord.TestResult,
+                rmaRecord.TestedBy,
+                rmaRecord.TestDate,
+                rmaRecord.TestNotes,
+                rmaRecord.QaRequired,
+                rmaRecord.QaResult,
+                rmaRecord.QaCheckedBy,
+                rmaRecord.QaDate,
+                rmaRecord.ReleaseApproved,
+                rmaRecord.ReleaseApprovedBy,
+                rmaRecord.ReleaseApprovedAt,
                 rmaRecord.ContactName,
                 rmaRecord.ContactEmail,
                 rmaRecord.ContactPhone,
@@ -205,6 +240,52 @@ public sealed class RmaRecordService(
                 entry.ChangedBy,
                 entry.ChangedAt,
                 entry.Reason))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RmaChecklistItemModel>> GetChecklistAsync(
+        int rmaRecordId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.RmaChecklistItems
+            .AsNoTracking()
+            .Where(item => item.RmaRecordId == rmaRecordId)
+            .OrderBy(item => item.DisplayOrder)
+            .ThenBy(item => item.Id)
+            .Select(item => new RmaChecklistItemModel(
+                item.Id,
+                item.DisplayOrder,
+                item.Text,
+                item.IsCompleted,
+                item.CompletedBy,
+                item.CompletedAt,
+                item.ShowInBoardView,
+                item.DisplayOrder > RmaChecklistTemplate.DefaultItems.Length))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RmaPartModel>> GetPartsAsync(
+        int rmaRecordId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.RmaParts
+            .AsNoTracking()
+            .Where(part => part.RmaRecordId == rmaRecordId)
+            .OrderBy(part => part.PartName)
+            .ThenBy(part => part.Id)
+            .Select(part => new RmaPartModel(
+                part.Id,
+                part.PartName,
+                part.PartNumber,
+                part.Quantity,
+                part.SerialNumber,
+                part.Supplier,
+                part.UnitCost,
+                part.Notes))
             .ToListAsync(cancellationToken);
     }
 
@@ -505,6 +586,128 @@ public sealed class RmaRecordService(
         return UpdateRmaIntakeResult.Success();
     }
 
+    public async Task<UpdateRmaFaultDetailsResult> UpdateFaultDetailsAsync(
+        int rmaRecordId,
+        UpdateRmaFaultDetailsRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.FaultSummary))
+        {
+            return UpdateRmaFaultDetailsResult.Failure("Fault summary is required.");
+        }
+
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return UpdateRmaFaultDetailsResult.Failure("RMA Record was not found.");
+        }
+
+        var faultSummary = request.FaultSummary.Trim();
+        var faultDescription = NormalizeOptionalValue(request.FaultDescription);
+        var reportedSymptoms = NormalizeOptionalValue(request.ReportedSymptoms);
+        var faultSubcategory = NormalizeOptionalValue(request.FaultSubcategory);
+        var initialDiagnosis = NormalizeOptionalValue(request.InitialDiagnosis);
+
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange("FaultSummary", rmaRecord.FaultSummary, faultSummary),
+                new RmaAuditChange("FaultDescription", rmaRecord.FaultDescription, faultDescription),
+                new RmaAuditChange("ReportedSymptoms", rmaRecord.ReportedSymptoms, reportedSymptoms),
+                new RmaAuditChange("FaultCategory", FormatFaultCategory(rmaRecord.FaultCategory), FormatFaultCategory(request.FaultCategory)),
+                new RmaAuditChange("FaultSubcategory", rmaRecord.FaultSubcategory, faultSubcategory),
+                new RmaAuditChange("IntermittentFault", FormatBool(rmaRecord.IntermittentFault), FormatBool(request.IntermittentFault)),
+                new RmaAuditChange("SafetyConcern", FormatBool(rmaRecord.SafetyConcern), FormatBool(request.SafetyConcern)),
+                new RmaAuditChange("DataLossConcern", FormatBool(rmaRecord.DataLossConcern), FormatBool(request.DataLossConcern)),
+                new RmaAuditChange("CustomerImpact", FormatCustomerImpact(rmaRecord.CustomerImpact), FormatCustomerImpact(request.CustomerImpact)),
+                new RmaAuditChange("Reproducible", FormatYesNoUnknown(rmaRecord.Reproducible), FormatYesNoUnknown(request.Reproducible)),
+                new RmaAuditChange("InitialDiagnosis", rmaRecord.InitialDiagnosis, initialDiagnosis)
+            ],
+            userName);
+
+        if (auditEntries.Count == 0)
+        {
+            return UpdateRmaFaultDetailsResult.Success();
+        }
+
+        rmaRecord.FaultSummary = faultSummary;
+        rmaRecord.FaultDescription = faultDescription;
+        rmaRecord.ReportedSymptoms = reportedSymptoms;
+        rmaRecord.FaultCategory = request.FaultCategory;
+        rmaRecord.FaultSubcategory = faultSubcategory;
+        rmaRecord.IntermittentFault = request.IntermittentFault;
+        rmaRecord.SafetyConcern = request.SafetyConcern;
+        rmaRecord.DataLossConcern = request.DataLossConcern;
+        rmaRecord.CustomerImpact = request.CustomerImpact;
+        rmaRecord.Reproducible = request.Reproducible;
+        rmaRecord.InitialDiagnosis = initialDiagnosis;
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return UpdateRmaFaultDetailsResult.Success();
+    }
+
+    public async Task<UpdateRmaRepairDetailsResult> UpdateRepairDetailsAsync(
+        int rmaRecordId,
+        UpdateRmaRepairDetailsRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return UpdateRmaRepairDetailsResult.Failure("RMA Record was not found.");
+        }
+
+        var diagnosisNotes = NormalizeOptionalValue(request.DiagnosisNotes);
+        var rootCause = NormalizeOptionalValue(request.RootCause);
+        var repairActionTaken = NormalizeOptionalValue(request.RepairActionTaken);
+        var repairCompletedBy = NormalizeOptionalValue(request.RepairCompletedBy);
+
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange("DiagnosisNotes", rmaRecord.DiagnosisNotes, diagnosisNotes),
+                new RmaAuditChange("RootCause", rmaRecord.RootCause, rootCause),
+                new RmaAuditChange("RootCauseCategory", FormatRootCauseCategory(rmaRecord.RootCauseCategory), FormatRootCauseCategory(request.RootCauseCategory)),
+                new RmaAuditChange("RepairActionTaken", rmaRecord.RepairActionTaken, repairActionTaken),
+                new RmaAuditChange("RepairCompletedDate", FormatDate(rmaRecord.RepairCompletedDate), FormatDate(request.RepairCompletedDate)),
+                new RmaAuditChange("RepairCompletedBy", rmaRecord.RepairCompletedBy, repairCompletedBy)
+            ],
+            userName);
+
+        if (auditEntries.Count == 0)
+        {
+            return UpdateRmaRepairDetailsResult.Success();
+        }
+
+        rmaRecord.DiagnosisNotes = diagnosisNotes;
+        rmaRecord.RootCause = rootCause;
+        rmaRecord.RootCauseCategory = request.RootCauseCategory;
+        rmaRecord.RepairActionTaken = repairActionTaken;
+        rmaRecord.RepairCompletedDate = request.RepairCompletedDate;
+        rmaRecord.RepairCompletedBy = repairCompletedBy;
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return UpdateRmaRepairDetailsResult.Success();
+    }
+
     public async Task<UpdateRmaWorkflowResult> UpdateWorkflowAsync(
         int rmaRecordId,
         UpdateRmaWorkflowRequest request,
@@ -550,6 +753,304 @@ public sealed class RmaRecordService(
         return UpdateRmaWorkflowResult.Success();
     }
 
+    public async Task<UpdateRmaTestingQaResult> UpdateTestingQaAsync(
+        int rmaRecordId,
+        UpdateRmaTestingQaRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return UpdateRmaTestingQaResult.Failure("RMA Record was not found.");
+        }
+
+        var testPlanUsed = NormalizeOptionalValue(request.TestPlanUsed);
+        var testedBy = NormalizeOptionalValue(request.TestedBy);
+        var testNotes = NormalizeOptionalValue(request.TestNotes);
+        var qaCheckedBy = NormalizeOptionalValue(request.QaCheckedBy);
+        var releaseApprovedBy = NormalizeOptionalValue(request.ReleaseApprovedBy);
+        var releaseApprovedAt = request.ReleaseApproved == true
+            ? (rmaRecord.ReleaseApprovedAt ?? DateTimeOffset.UtcNow)
+            : (DateTimeOffset?)null;
+
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange("TestRequired", FormatBool(rmaRecord.TestRequired), FormatBool(request.TestRequired)),
+                new RmaAuditChange("TestPlanUsed", rmaRecord.TestPlanUsed, testPlanUsed),
+                new RmaAuditChange("TestResult", FormatTestResult(rmaRecord.TestResult), FormatTestResult(request.TestResult)),
+                new RmaAuditChange("TestedBy", rmaRecord.TestedBy, testedBy),
+                new RmaAuditChange("TestDate", FormatDate(rmaRecord.TestDate), FormatDate(request.TestDate)),
+                new RmaAuditChange("TestNotes", rmaRecord.TestNotes, testNotes),
+                new RmaAuditChange("QaRequired", FormatBool(rmaRecord.QaRequired), FormatBool(request.QaRequired)),
+                new RmaAuditChange("QaResult", FormatQaResult(rmaRecord.QaResult), FormatQaResult(request.QaResult)),
+                new RmaAuditChange("QaCheckedBy", rmaRecord.QaCheckedBy, qaCheckedBy),
+                new RmaAuditChange("QaDate", FormatDate(rmaRecord.QaDate), FormatDate(request.QaDate)),
+                new RmaAuditChange("ReleaseApproved", FormatBool(rmaRecord.ReleaseApproved), FormatBool(request.ReleaseApproved)),
+                new RmaAuditChange("ReleaseApprovedBy", rmaRecord.ReleaseApprovedBy, releaseApprovedBy),
+                new RmaAuditChange("ReleaseApprovedAt", FormatDateTimeOffset(rmaRecord.ReleaseApprovedAt), FormatDateTimeOffset(releaseApprovedAt))
+            ],
+            userName);
+
+        if (auditEntries.Count == 0)
+        {
+            return UpdateRmaTestingQaResult.Success();
+        }
+
+        rmaRecord.TestRequired = request.TestRequired;
+        rmaRecord.TestPlanUsed = testPlanUsed;
+        rmaRecord.TestResult = request.TestResult;
+        rmaRecord.TestedBy = testedBy;
+        rmaRecord.TestDate = request.TestDate;
+        rmaRecord.TestNotes = testNotes;
+        rmaRecord.QaRequired = request.QaRequired;
+        rmaRecord.QaResult = request.QaResult;
+        rmaRecord.QaCheckedBy = qaCheckedBy;
+        rmaRecord.QaDate = request.QaDate;
+        rmaRecord.ReleaseApproved = request.ReleaseApproved;
+        rmaRecord.ReleaseApprovedBy = releaseApprovedBy;
+        rmaRecord.ReleaseApprovedAt = releaseApprovedAt;
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return UpdateRmaTestingQaResult.Success();
+    }
+
+    public async Task<SaveRmaPartResult> SavePartAsync(
+        int rmaRecordId,
+        SaveRmaPartRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.PartName))
+        {
+            return SaveRmaPartResult.Failure("Part name is required.");
+        }
+
+        if (request.Quantity < 1)
+        {
+            return SaveRmaPartResult.Failure("Quantity must be at least 1.");
+        }
+
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return SaveRmaPartResult.Failure("RMA Record was not found.");
+        }
+
+        var partName = request.PartName.Trim();
+        var partNumber = NormalizeOptionalValue(request.PartNumber);
+        var serialNumber = NormalizeOptionalValue(request.SerialNumber);
+        var supplier = NormalizeOptionalValue(request.Supplier);
+        var notes = NormalizeOptionalValue(request.Notes);
+        var quantityText = request.Quantity.ToString();
+        var unitCostText = FormatCurrency(request.UnitCost);
+        RmaPart? part;
+        List<RmaAuditChange> changes;
+
+        if (request.PartId is null)
+        {
+            part = new RmaPart
+            {
+                RmaRecordId = rmaRecordId,
+                PartName = partName,
+                PartNumber = partNumber,
+                Quantity = request.Quantity,
+                SerialNumber = serialNumber,
+                Supplier = supplier,
+                UnitCost = request.UnitCost,
+                Notes = notes
+            };
+
+            dbContext.RmaParts.Add(part);
+            changes =
+            [
+                new RmaAuditChange("PartAdded", null, $"{partName} x{quantityText}")
+            ];
+        }
+        else
+        {
+            part = await dbContext.RmaParts
+                .SingleOrDefaultAsync(
+                    existingPart => existingPart.Id == request.PartId.Value && existingPart.RmaRecordId == rmaRecordId,
+                    cancellationToken);
+
+            if (part is null)
+            {
+                return SaveRmaPartResult.Failure("Part was not found.");
+            }
+
+            changes =
+            [
+                new RmaAuditChange($"Part:{part.Id}:PartName", part.PartName, partName),
+                new RmaAuditChange($"Part:{part.Id}:PartNumber", part.PartNumber, partNumber),
+                new RmaAuditChange($"Part:{part.Id}:Quantity", part.Quantity.ToString(), quantityText),
+                new RmaAuditChange($"Part:{part.Id}:SerialNumber", part.SerialNumber, serialNumber),
+                new RmaAuditChange($"Part:{part.Id}:Supplier", part.Supplier, supplier),
+                new RmaAuditChange($"Part:{part.Id}:UnitCost", FormatCurrency(part.UnitCost), unitCostText),
+                new RmaAuditChange($"Part:{part.Id}:Notes", part.Notes, notes)
+            ];
+
+            part.PartName = partName;
+            part.PartNumber = partNumber;
+            part.Quantity = request.Quantity;
+            part.SerialNumber = serialNumber;
+            part.Supplier = supplier;
+            part.UnitCost = request.UnitCost;
+            part.Notes = notes;
+        }
+
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(rmaRecord, changes, userName);
+
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return SaveRmaPartResult.Success(part.Id);
+    }
+
+    public async Task<SaveRmaPartResult> DeletePartAsync(
+        int rmaRecordId,
+        int partId,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return SaveRmaPartResult.Failure("RMA Record was not found.");
+        }
+
+        var part = await dbContext.RmaParts
+            .SingleOrDefaultAsync(existingPart => existingPart.Id == partId && existingPart.RmaRecordId == rmaRecordId, cancellationToken);
+
+        if (part is null)
+        {
+            return SaveRmaPartResult.Failure("Part was not found.");
+        }
+
+        dbContext.RmaParts.Remove(part);
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        await dbContext.RmaAudit.AddRangeAsync(
+            rmaAuditService.CreateRecordUpdatedEntries(
+                rmaRecord,
+                [new RmaAuditChange("PartRemoved", $"{part.PartName} x{part.Quantity}", null)],
+                userName),
+            cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return SaveRmaPartResult.Success();
+    }
+
+    public async Task<UpdateRmaChecklistResult> UpdateChecklistItemAsync(
+        int rmaRecordId,
+        UpdateRmaChecklistItemRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return UpdateRmaChecklistResult.Failure("RMA Record was not found.");
+        }
+
+        if (request.ChecklistItemId is null)
+        {
+            var text = NormalizeOptionalValue(request.Text);
+            if (text is null)
+            {
+                return UpdateRmaChecklistResult.Failure("Checklist item text is required.");
+            }
+
+            var maxDisplayOrder = await dbContext.RmaChecklistItems
+                .Where(item => item.RmaRecordId == rmaRecordId)
+                .Select(item => (int?)item.DisplayOrder)
+                .MaxAsync(cancellationToken)
+                ?? 0;
+
+            dbContext.RmaChecklistItems.Add(new RmaChecklistItem
+            {
+                RmaRecordId = rmaRecordId,
+                DisplayOrder = maxDisplayOrder + 1,
+                Text = text,
+                ShowInBoardView = false
+            });
+
+            rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+            rmaRecord.LastUpdatedBy = userName;
+
+            await dbContext.RmaAudit.AddRangeAsync(
+                rmaAuditService.CreateRecordUpdatedEntries(
+                    rmaRecord,
+                    [new RmaAuditChange("ChecklistItemAdded", null, text)],
+                    userName),
+                cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return UpdateRmaChecklistResult.Success();
+        }
+
+        var checklistItem = await dbContext.RmaChecklistItems
+            .SingleOrDefaultAsync(item => item.Id == request.ChecklistItemId.Value && item.RmaRecordId == rmaRecordId, cancellationToken);
+
+        if (checklistItem is null)
+        {
+            return UpdateRmaChecklistResult.Failure("Checklist item was not found.");
+        }
+
+        if (request.IsCompleted is null)
+        {
+            return UpdateRmaChecklistResult.Failure("Checklist completion state was not provided.");
+        }
+
+        var completedBy = request.IsCompleted.Value ? userName : null;
+        var completedAt = request.IsCompleted.Value ? DateTimeOffset.UtcNow : (DateTimeOffset?)null;
+
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange($"Checklist:{checklistItem.Id}:Completed", FormatBool(checklistItem.IsCompleted), FormatBool(request.IsCompleted.Value)),
+                new RmaAuditChange($"Checklist:{checklistItem.Id}:CompletedBy", checklistItem.CompletedBy, completedBy),
+                new RmaAuditChange($"Checklist:{checklistItem.Id}:CompletedAt", FormatDateTimeOffset(checklistItem.CompletedAt), FormatDateTimeOffset(completedAt))
+            ],
+            userName);
+
+        checklistItem.IsCompleted = request.IsCompleted.Value;
+        checklistItem.CompletedBy = completedBy;
+        checklistItem.CompletedAt = completedAt;
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return UpdateRmaChecklistResult.Success();
+    }
+
     public async Task<ChangeRmaStatusResult> ChangeStatusAsync(
         int rmaRecordId,
         ChangeRmaStatusRequest request,
@@ -570,6 +1071,15 @@ public sealed class RmaRecordService(
         if (!validationResult.Succeeded)
         {
             return validationResult;
+        }
+
+        if (request.NewStatus == RmaStatus.ReadyToShip && !request.IgnoreReadinessWarnings)
+        {
+            var readinessWarnings = await BuildReadyToShipWarningsAsync(dbContext, rmaRecordId, rmaRecord, cancellationToken);
+            if (readinessWarnings.Count > 0)
+            {
+                return ChangeRmaStatusResult.WarningConfirmationRequired(readinessWarnings);
+            }
         }
 
         var oldStatus = rmaRecord.Status;
@@ -883,6 +1393,11 @@ public sealed class RmaRecordService(
         return value?.ToString("yyyy-MM-dd");
     }
 
+    private static string? FormatBool(bool? value)
+    {
+        return value?.ToString();
+    }
+
     private static string? FormatDateTimeOffset(DateTimeOffset? value)
     {
         return value?.ToString("O");
@@ -896,5 +1411,104 @@ public sealed class RmaRecordService(
     private static string? FormatOutcome(RmaOutcome? value)
     {
         return value?.ToString();
+    }
+
+    private static string? FormatFaultCategory(RmaFaultCategory? value)
+    {
+        return value?.ToString();
+    }
+
+    private static string? FormatCustomerImpact(RmaCustomerImpact? value)
+    {
+        return value?.ToString();
+    }
+
+    private static string? FormatYesNoUnknown(RmaYesNoUnknown? value)
+    {
+        return value?.ToString();
+    }
+
+    private static string? FormatRootCauseCategory(RmaRootCauseCategory? value)
+    {
+        return value?.ToString();
+    }
+
+    private static string? FormatTestResult(RmaTestResult? value)
+    {
+        return value?.ToString();
+    }
+
+    private static string? FormatQaResult(RmaQaResult? value)
+    {
+        return value?.ToString();
+    }
+
+    private static string? FormatCurrency(decimal? value)
+    {
+        return value?.ToString("0.00");
+    }
+
+    private static async Task<IReadOnlyList<string>> BuildReadyToShipWarningsAsync(
+        BuildBookDbContext dbContext,
+        int rmaRecordId,
+        RmaRecord rmaRecord,
+        CancellationToken cancellationToken)
+    {
+        var warnings = new List<string>();
+        var checklistItems = await dbContext.RmaChecklistItems
+            .AsNoTracking()
+            .Where(item => item.RmaRecordId == rmaRecordId)
+            .OrderBy(item => item.DisplayOrder)
+            .ToListAsync(cancellationToken);
+
+        var incompleteChecklist = checklistItems
+            .Where(item => !item.IsCompleted && !ReadyToShipDeferredChecklistItems.Contains(item.Text))
+            .Select(item => item.Text)
+            .ToList();
+
+        if (incompleteChecklist.Count > 0)
+        {
+            warnings.Add($"Checklist items still open: {string.Join(", ", incompleteChecklist)}.");
+        }
+
+        if (string.IsNullOrWhiteSpace(rmaRecord.RepairActionTaken))
+        {
+            warnings.Add("Repair action taken has not been recorded.");
+        }
+
+        if (rmaRecord.RepairCompletedDate is null || string.IsNullOrWhiteSpace(rmaRecord.RepairCompletedBy))
+        {
+            warnings.Add("Repair completion details are incomplete.");
+        }
+
+        if (rmaRecord.TestRequired is null)
+        {
+            warnings.Add("Test required has not been confirmed.");
+        }
+        else if (rmaRecord.TestRequired.Value && rmaRecord.TestResult != RmaTestResult.Pass)
+        {
+            warnings.Add("A required test has not passed.");
+        }
+
+        if (rmaRecord.QaRequired is null)
+        {
+            warnings.Add("QA required has not been confirmed.");
+        }
+        else if (rmaRecord.QaRequired.Value && rmaRecord.QaResult != RmaQaResult.Pass)
+        {
+            warnings.Add("Required QA sign-off is missing or not passed.");
+        }
+
+        if (rmaRecord.ReleaseApproved != true)
+        {
+            warnings.Add("Release approval has not been recorded.");
+        }
+
+        if (rmaRecord.CustomerApprovalRequired == true && rmaRecord.CustomerApprovalReceived != true)
+        {
+            warnings.Add("Customer approval is required but has not been marked as received.");
+        }
+
+        return warnings;
     }
 }

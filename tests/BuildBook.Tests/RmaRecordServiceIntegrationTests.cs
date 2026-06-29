@@ -327,6 +327,189 @@ public class RmaRecordServiceIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task UpdateFaultDetailsAsync_PersistsStructuredFaultFields()
+    {
+        var options = DatabaseTestHelper.CreateSqlServerOptions("BuildBookRmaFaultDetails");
+        await DatabaseTestHelper.InitializeDatabaseAsync(options);
+
+        try
+        {
+            int rmaRecordId;
+
+            await using (var setupContext = new BuildBookDbContext(options))
+            {
+                var rmaRecord = CreateRmaRecord("RMA-0001", "Device A", "SN-1000");
+                setupContext.RmaRecords.Add(rmaRecord);
+                await setupContext.SaveChangesAsync();
+                rmaRecordId = rmaRecord.Id;
+            }
+
+            var service = CreateService(options);
+
+            var result = await service.UpdateFaultDetailsAsync(
+                rmaRecordId,
+                new UpdateRmaFaultDetailsRequest
+                {
+                    FaultSummary = "Fails during startup",
+                    FaultDescription = "The device freezes during boot.",
+                    ReportedSymptoms = "Beeps twice, then hangs.",
+                    FaultCategory = RmaFaultCategory.HardwareFailure,
+                    FaultSubcategory = "Mainboard",
+                    IntermittentFault = true,
+                    SafetyConcern = false,
+                    DataLossConcern = true,
+                    CustomerImpact = RmaCustomerImpact.High,
+                    Reproducible = RmaYesNoUnknown.Yes,
+                    InitialDiagnosis = "Likely board-level fault."
+                },
+                "DOMAIN\\engineer");
+
+            Assert.True(result.Succeeded);
+
+            await using var verifyContext = new BuildBookDbContext(options);
+            var savedRecord = await verifyContext.RmaRecords.SingleAsync(record => record.Id == rmaRecordId);
+
+            Assert.Equal("Fails during startup", savedRecord.FaultSummary);
+            Assert.Equal("The device freezes during boot.", savedRecord.FaultDescription);
+            Assert.Equal("Beeps twice, then hangs.", savedRecord.ReportedSymptoms);
+            Assert.Equal(RmaFaultCategory.HardwareFailure, savedRecord.FaultCategory);
+            Assert.Equal("Mainboard", savedRecord.FaultSubcategory);
+            Assert.True(savedRecord.IntermittentFault);
+            Assert.False(savedRecord.SafetyConcern);
+            Assert.True(savedRecord.DataLossConcern);
+            Assert.Equal(RmaCustomerImpact.High, savedRecord.CustomerImpact);
+            Assert.Equal(RmaYesNoUnknown.Yes, savedRecord.Reproducible);
+            Assert.Equal("Likely board-level fault.", savedRecord.InitialDiagnosis);
+        }
+        finally
+        {
+            await DatabaseTestHelper.DeleteDatabaseAsync(options);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateTestingQaAsync_AndChangeStatusAsync_WarnsBeforeReadyToShip()
+    {
+        var options = DatabaseTestHelper.CreateSqlServerOptions("BuildBookRmaReadyToShipWarnings");
+        await DatabaseTestHelper.InitializeDatabaseAsync(options);
+
+        try
+        {
+            int rmaRecordId;
+
+            await using (var setupContext = new BuildBookDbContext(options))
+            {
+                var rmaRecord = CreateRmaRecord("RMA-0001", "Device A", "SN-1000");
+                rmaRecord.Status = RmaStatus.WorkInProgress;
+                setupContext.RmaRecords.Add(rmaRecord);
+                await setupContext.SaveChangesAsync();
+                rmaRecordId = rmaRecord.Id;
+            }
+
+            var service = CreateService(options);
+
+            var testingResult = await service.UpdateTestingQaAsync(
+                rmaRecordId,
+                new UpdateRmaTestingQaRequest
+                {
+                    TestRequired = true,
+                    TestResult = RmaTestResult.Fail,
+                    QaRequired = true,
+                    QaResult = RmaQaResult.Fail,
+                    ReleaseApproved = false
+                },
+                "DOMAIN\\qa");
+
+            var statusResult = await service.ChangeStatusAsync(
+                rmaRecordId,
+                new ChangeRmaStatusRequest
+                {
+                    NewStatus = RmaStatus.ReadyToShip
+                },
+                "DOMAIN\\qa");
+
+            Assert.True(testingResult.Succeeded);
+            Assert.False(statusResult.Succeeded);
+            Assert.True(statusResult.RequiresConfirmation);
+            Assert.NotEmpty(statusResult.Warnings);
+        }
+        finally
+        {
+            await DatabaseTestHelper.DeleteDatabaseAsync(options);
+        }
+    }
+
+    [Fact]
+    public async Task SavePartAsync_AndUpdateChecklistItemAsync_PersistRepairSupportRecords()
+    {
+        var options = DatabaseTestHelper.CreateSqlServerOptions("BuildBookRmaPartsAndChecklist");
+        await DatabaseTestHelper.InitializeDatabaseAsync(options);
+
+        try
+        {
+            int rmaRecordId;
+            int checklistItemId;
+
+            await using (var setupContext = new BuildBookDbContext(options))
+            {
+                var rmaRecord = CreateRmaRecord("RMA-0001", "Device A", "SN-1000");
+                setupContext.RmaRecords.Add(rmaRecord);
+                await setupContext.SaveChangesAsync();
+                rmaRecordId = rmaRecord.Id;
+                var checklistItem = new RmaChecklistItem
+                {
+                    RmaRecordId = rmaRecordId,
+                    DisplayOrder = 1,
+                    Text = "Diagnose fault"
+                };
+                setupContext.RmaChecklistItems.Add(checklistItem);
+                await setupContext.SaveChangesAsync();
+                checklistItemId = checklistItem.Id;
+            }
+
+            var service = CreateService(options);
+
+            var partResult = await service.SavePartAsync(
+                rmaRecordId,
+                new SaveRmaPartRequest
+                {
+                    PartName = "SSD",
+                    PartNumber = "SSD-100",
+                    Quantity = 1,
+                    Supplier = "Parts Co",
+                    UnitCost = 89.50m
+                },
+                "DOMAIN\\repair");
+            var checklistResult = await service.UpdateChecklistItemAsync(
+                rmaRecordId,
+                new UpdateRmaChecklistItemRequest
+                {
+                    ChecklistItemId = checklistItemId,
+                    IsCompleted = true
+                },
+                "DOMAIN\\repair");
+
+            Assert.True(partResult.Succeeded);
+            Assert.True(checklistResult.Succeeded);
+
+            await using var verifyContext = new BuildBookDbContext(options);
+            var savedPart = await verifyContext.RmaParts.SingleAsync(part => part.RmaRecordId == rmaRecordId);
+            var savedChecklistItem = await verifyContext.RmaChecklistItems.SingleAsync(item => item.Id == checklistItemId);
+
+            Assert.Equal("SSD", savedPart.PartName);
+            Assert.Equal("SSD-100", savedPart.PartNumber);
+            Assert.Equal(1, savedPart.Quantity);
+            Assert.True(savedChecklistItem.IsCompleted);
+            Assert.Equal("DOMAIN\\repair", savedChecklistItem.CompletedBy);
+            Assert.NotNull(savedChecklistItem.CompletedAt);
+        }
+        finally
+        {
+            await DatabaseTestHelper.DeleteDatabaseAsync(options);
+        }
+    }
+
     private static RmaRecordService CreateService(DbContextOptions<BuildBookDbContext> options)
     {
         return new RmaRecordService(

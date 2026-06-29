@@ -13,4 +13,6 @@ public sealed class ChangeRmaStatusRequest
     public RmaOutcome? Outcome { get; set; }
 
     public string? ClosureNotes { get; set; }
+
+    public bool IgnoreReadinessWarnings { get; set; }
 }

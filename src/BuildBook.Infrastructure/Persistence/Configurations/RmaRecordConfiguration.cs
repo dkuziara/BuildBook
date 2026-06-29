@@ -68,6 +68,9 @@ public sealed class RmaRecordConfiguration : IEntityTypeConfiguration<RmaRecord>
         builder.Property(rmaRecord => rmaRecord.FaultSubcategory)
             .HasMaxLength(128);
 
+        builder.Property(rmaRecord => rmaRecord.DiagnosisNotes)
+            .HasMaxLength(4000);
+
         builder.Property(rmaRecord => rmaRecord.QuoteNumber)
             .HasMaxLength(128);
 
@@ -103,6 +106,9 @@ public sealed class RmaRecordConfiguration : IEntityTypeConfiguration<RmaRecord>
 
         builder.Property(rmaRecord => rmaRecord.TestedBy)
             .HasMaxLength(256);
+
+        builder.Property(rmaRecord => rmaRecord.TestNotes)
+            .HasMaxLength(4000);
 
         builder.Property(rmaRecord => rmaRecord.QaCheckedBy)
             .HasMaxLength(256);
