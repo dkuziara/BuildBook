@@ -1,5 +1,6 @@
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
+using BuildBook.Domain.Rmas;
 using BuildBook.Domain.Security;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +23,22 @@ public sealed class BuildBookDbContext(DbContextOptions<BuildBookDbContext> opti
     public DbSet<ApplicationRole> ApplicationRoles => Set<ApplicationRole>();
 
     public DbSet<ApplicationUserRole> ApplicationUserRoles => Set<ApplicationUserRole>();
+
+    public DbSet<RmaRecord> RmaRecords => Set<RmaRecord>();
+
+    public DbSet<RmaChecklistItem> RmaChecklistItems => Set<RmaChecklistItem>();
+
+    public DbSet<RmaNote> RmaNotes => Set<RmaNote>();
+
+    public DbSet<RmaCommunication> RmaCommunications => Set<RmaCommunication>();
+
+    public DbSet<RmaAttachment> RmaAttachments => Set<RmaAttachment>();
+
+    public DbSet<RmaPart> RmaParts => Set<RmaPart>();
+
+    public DbSet<RmaStatusHistory> RmaStatusHistory => Set<RmaStatusHistory>();
+
+    public DbSet<RmaAudit> RmaAudit => Set<RmaAudit>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

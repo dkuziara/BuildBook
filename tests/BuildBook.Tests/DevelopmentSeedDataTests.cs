@@ -1,4 +1,5 @@
 using BuildBook.Domain.BuildRecords;
+using BuildBook.Domain.Rmas;
 using BuildBook.Infrastructure.Persistence.SeedData;
 
 namespace BuildBook.Tests;
@@ -44,5 +45,36 @@ public class DevelopmentSeedDataTests
             Assert.NotNull(auditEntry.BuildRecord);
             Assert.Same(seedData.ImportBatch, auditEntry.ImportBatch);
         });
+    }
+
+    [Fact]
+    public void DevelopmentSeedDataIncludesLinkedAndUnlinkedRmaRecords()
+    {
+        var seedData = DevelopmentSeedData.Create();
+
+        Assert.Equal(2, seedData.RmaRecords.Count);
+        Assert.Contains(seedData.RmaRecords, rmaRecord => rmaRecord.BuildRecord is not null);
+        Assert.Contains(seedData.RmaRecords, rmaRecord => rmaRecord.BuildRecord is null);
+        Assert.Contains(seedData.RmaRecords, rmaRecord => rmaRecord.Status == RmaStatus.WorkInProgress);
+        Assert.All(seedData.RmaRecords, rmaRecord =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(rmaRecord.RmaNumber));
+            Assert.False(string.IsNullOrWhiteSpace(rmaRecord.ProductName));
+            Assert.False(string.IsNullOrWhiteSpace(rmaRecord.FaultSummary));
+        });
+    }
+
+    [Fact]
+    public void DevelopmentSeedDataIncludesSupportingRmaOperationalData()
+    {
+        var seedData = DevelopmentSeedData.Create();
+
+        Assert.NotEmpty(seedData.RmaChecklistItems);
+        Assert.NotEmpty(seedData.RmaNotes);
+        Assert.NotEmpty(seedData.RmaCommunications);
+        Assert.NotEmpty(seedData.RmaAttachments);
+        Assert.NotEmpty(seedData.RmaParts);
+        Assert.NotEmpty(seedData.RmaStatusHistoryEntries);
+        Assert.NotEmpty(seedData.RmaAuditEntries);
     }
 }

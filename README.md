@@ -37,6 +37,7 @@ Small amounts of JavaScript interop may be used only where there is a clear tech
 Project documentation is stored in the `docs` folder.
 
 * [BuildBook Version 1 Specification](docs/specs/BuildBook-Version-1-Specification.md)
+* [BuildBook RMA Module Specification](docs/specs/BuildBook-RMA-Module-Specification.md)
 * [BuildBook Version 1 Backlog](docs/backlog/BuildBook-Backlog.md)
 * [Codex Instructions](AGENTS.md)
 
@@ -159,6 +160,7 @@ Before implementing work items, read:
 
 * `AGENTS.md`
 * `docs/specs/BuildBook-Version-1-Specification.md`
+* `docs/specs/BuildBook-RMA-Module-Specification.md` for RMA module work
 * `docs/backlog/BuildBook-Backlog.md`
 
 Implementation should follow the GitHub Issues in order and should not jump ahead to later backlog items unless a small supporting change is necessary.

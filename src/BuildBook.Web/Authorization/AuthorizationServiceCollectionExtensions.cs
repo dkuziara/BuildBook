@@ -58,6 +58,52 @@ public static class AuthorizationServiceCollectionExtensions
             options.AddPolicy(
                 BuildBookPolicies.DeleteRecords,
                 policy => policy.RequireRole(BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookRmaPolicies.ViewRmas,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Viewer,
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookRmaPolicies.CreateRmas,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookRmaPolicies.EditRmas,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookRmaPolicies.ChangeRmaStatus,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookRmaPolicies.CloseRmas,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookRmaPolicies.ExportRmaReports,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Viewer,
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookRmaPolicies.ManageRmaSettings,
+                policy => policy.RequireRole(BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookRmaPolicies.DeleteRmas,
+                policy => policy.RequireRole(BuildBookRoles.Administrator));
         });
         services.AddScoped<IBuildBookPermissionService, BuildBookPermissionService>();
         services.AddTransient<IClaimsTransformation, BuildBookRoleClaimsTransformation>();

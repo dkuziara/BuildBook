@@ -1,5 +1,6 @@
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
+using BuildBook.Domain.Rmas;
 
 namespace BuildBook.Infrastructure.Persistence.SeedData;
 
@@ -84,7 +85,28 @@ public static class DevelopmentSeedData
             })
             .ToList();
 
-        return new DevelopmentSeedDataSet(customers, records, importBatch, auditEntries);
+        var rmaRecords = CreateRmaRecords(customers, records);
+        var rmaChecklistItems = CreateChecklistItems(rmaRecords);
+        var rmaNotes = CreateRmaNotes(rmaRecords);
+        var rmaCommunications = CreateRmaCommunications(rmaRecords);
+        var rmaAttachments = CreateRmaAttachments(rmaRecords);
+        var rmaParts = CreateRmaParts(rmaRecords);
+        var rmaStatusHistoryEntries = CreateRmaStatusHistory(rmaRecords);
+        var rmaAuditEntries = CreateRmaAuditEntries(rmaRecords);
+
+        return new DevelopmentSeedDataSet(
+            customers,
+            records,
+            importBatch,
+            auditEntries,
+            rmaRecords,
+            rmaChecklistItems,
+            rmaNotes,
+            rmaCommunications,
+            rmaAttachments,
+            rmaParts,
+            rmaStatusHistoryEntries,
+            rmaAuditEntries);
     }
 
     private static Customer CreateCustomer(string name)
@@ -160,5 +182,293 @@ public static class DevelopmentSeedData
             LastUpdatedBy = "BuildBook development seed",
             IsActive = true
         };
+    }
+
+    private static List<RmaRecord> CreateRmaRecords(
+        IReadOnlyList<Customer> customers,
+        IReadOnlyList<BuildRecord> buildRecords)
+    {
+        return
+        [
+            new RmaRecord
+            {
+                RmaNumber = "RMA-0001",
+                BuildRecord = buildRecords[0],
+                Status = RmaStatus.WorkInProgress,
+                Priority = RmaPriority.High,
+                CreatedAt = SeededAt.AddDays(-8),
+                CreatedBy = "Support Team",
+                LastUpdatedAt = SeededAt.AddDays(-1),
+                LastUpdatedBy = "Repair Team",
+                ProductCode = buildRecords[0].ProductCode,
+                ProductName = buildRecords[0].ProductName,
+                SerialNumber = buildRecords[0].SerialNumber,
+                Customer = customers[0],
+                ContactName = "Alex Carter",
+                ContactEmail = "alex.carter@example.test",
+                ContactPhone = "01234 567890",
+                CustomerAddress = "Demo Site Alpha, Support Office",
+                CustomerReference = "RMA-ALPHA-17",
+                SupportTicketNumber = "FD-10017",
+                SupportTicketUrl = "https://support.example.test/tickets/FD-10017",
+                OriginalOrderNumber = buildRecords[0].CustomerOrder,
+                OriginalOrderDate = new DateOnly(2019, 10, 10),
+                OriginalInvoiceNumber = buildRecords[0].InvoiceNumber,
+                FaultSummary = "Intermittent boot failure",
+                InitialFaultDescription = "Device fails to boot after power cycle and sometimes drops into BIOS storage warnings.",
+                FaultDescription = "Customer reported multiple restart attempts before booting successfully.",
+                FaultCategory = RmaFaultCategory.DiskStorageIssue,
+                FaultSubcategory = "SATA SSD not detected",
+                ReportedSymptoms = "Boot loops, BIOS warnings, slow restart recovery.",
+                InitialDiagnosis = "Likely storage failure after repeated SMART alerts.",
+                RootCause = "Primary SSD intermittently failing SMART health checks.",
+                RootCauseCategory = RmaRootCauseCategory.DiskStorageFailure,
+                RepairActionTaken = "Replaced SSD, reimaged unit, restored configuration and retested.",
+                WarrantyStatus = RmaWarrantyStatus.OutOfWarranty,
+                ChargeableRepair = true,
+                CustomerApprovalRequired = true,
+                CustomerApprovalReceived = true,
+                CustomerApprovalDate = ToDateOnly(SeededAt.AddDays(-7)),
+                QuoteNumber = "QT-2026-017",
+                PurchaseOrderNumber = "PO-RMA-017",
+                RepairInvoiceNumber = "RMA-INV-017",
+                EstimatedRepairCost = 245.00m,
+                ActualRepairCost = 238.50m,
+                DateItemReceived = ToDateOnly(SeededAt.AddDays(-8)),
+                ReceivedBy = "Support Team",
+                AssignedTo = "Giles",
+                DueDate = ToDateOnly(SeededAt.AddDays(2)),
+                TargetCompletionDate = ToDateOnly(SeededAt.AddDays(1)),
+                RepairCompletedDate = ToDateOnly(SeededAt.AddDays(-2)),
+                RepairCompletedBy = "Giles",
+                TestRequired = true,
+                TestPlanUsed = "Radsight boot and connectivity validation",
+                TestResult = RmaTestResult.Pass,
+                TestedBy = "QA Team",
+                TestDate = ToDateOnly(SeededAt.AddDays(-1)),
+                QaRequired = true,
+                QaResult = RmaQaResult.Pass,
+                QaCheckedBy = "QA Team",
+                QaDate = ToDateOnly(SeededAt.AddDays(-1)),
+                ReleaseApproved = true,
+                ReleaseApprovedBy = "Support Lead",
+                ReleaseApprovedAt = SeededAt.AddDays(-1),
+                ReturnMethod = "Courier",
+                Courier = "DHL",
+                TrackingNumber = "DHL-ALPHA-00017",
+                CollectionArranged = true,
+                CollectionDate = ToDateOnly(SeededAt),
+                ReturnAddress = "Demo Site Alpha, Support Office",
+                ShippingNotes = "Awaiting final dispatch slot.",
+                IsActive = true
+            },
+            new RmaRecord
+            {
+                RmaNumber = "RMA-0002",
+                Status = RmaStatus.BookedIn,
+                Priority = RmaPriority.Medium,
+                CreatedAt = SeededAt.AddDays(-3),
+                CreatedBy = "Support Team",
+                LastUpdatedAt = SeededAt.AddDays(-3),
+                LastUpdatedBy = "Support Team",
+                ProductCode = "LEGACY-200",
+                ProductName = "Legacy Radiography Terminal",
+                SerialNumber = "LEGACY-7781",
+                Customer = customers[1],
+                ContactName = "Morgan Reed",
+                ContactEmail = "morgan.reed@example.test",
+                ContactPhone = "01999 555123",
+                CustomerAddress = "Demo Site Bravo, Gatehouse",
+                CustomerReference = "BRAVO-RMA-04",
+                SupportTicketNumber = "FD-10044",
+                OriginalOrderNumber = "LEGACY-PO-7781",
+                OriginalInvoiceNumber = "LEGACY-INV-7781",
+                FaultSummary = "No power on arrival",
+                InitialFaultDescription = "Older unit returned with no power and no matching Build Record available yet.",
+                FaultDescription = "Legacy device returned from stores with no clear repair history.",
+                FaultCategory = RmaFaultCategory.PowerIssue,
+                WarrantyStatus = RmaWarrantyStatus.WarrantyUnknown,
+                ChargeableRepair = null,
+                CustomerApprovalRequired = false,
+                CustomerApprovalReceived = false,
+                DateItemReceived = ToDateOnly(SeededAt.AddDays(-2)),
+                ReceivedBy = "Support Team",
+                AssignedTo = "Unassigned",
+                DueDate = ToDateOnly(SeededAt.AddDays(5)),
+                IsActive = true
+            }
+        ];
+    }
+
+    private static List<RmaChecklistItem> CreateChecklistItems(IReadOnlyList<RmaRecord> rmaRecords)
+    {
+        var checklistItems = new List<RmaChecklistItem>();
+
+        foreach (var rmaRecord in rmaRecords)
+        {
+            for (var index = 0; index < 4; index++)
+            {
+                checklistItems.Add(new RmaChecklistItem
+                {
+                    RmaRecord = rmaRecord,
+                    DisplayOrder = index + 1,
+                    Text = RmaChecklistTemplate.DefaultItems[index],
+                    IsCompleted = rmaRecord.RmaNumber == "RMA-0001" && index < 3,
+                    CompletedBy = rmaRecord.RmaNumber == "RMA-0001" && index < 3 ? "Giles" : null,
+                    CompletedAt = rmaRecord.RmaNumber == "RMA-0001" && index < 3 ? SeededAt.AddDays(-2 + index) : null,
+                    ShowInBoardView = index < 2
+                });
+            }
+        }
+
+        return checklistItems;
+    }
+
+    private static List<RmaNote> CreateRmaNotes(IReadOnlyList<RmaRecord> rmaRecords)
+    {
+        return
+        [
+            new RmaNote
+            {
+                RmaRecord = rmaRecords[0],
+                NoteType = RmaNoteType.DiagnosisNote,
+                NoteText = "SMART warnings reproduced after extended power-cycle testing.",
+                CreatedBy = "Giles",
+                CreatedAt = SeededAt.AddDays(-4)
+            },
+            new RmaNote
+            {
+                RmaRecord = rmaRecords[1],
+                NoteType = RmaNoteType.InternalNote,
+                NoteText = "Legacy device booked in without a matching Build Record. Continue manual intake.",
+                CreatedBy = "Support Team",
+                CreatedAt = SeededAt.AddDays(-3)
+            }
+        ];
+    }
+
+    private static List<RmaCommunication> CreateRmaCommunications(IReadOnlyList<RmaRecord> rmaRecords)
+    {
+        return
+        [
+            new RmaCommunication
+            {
+                RmaRecord = rmaRecords[0],
+                CommunicationDate = SeededAt.AddDays(-7),
+                ContactMethod = "Email",
+                ContactPerson = "Alex Carter",
+                Summary = "Customer approved the quoted SSD replacement and requested courier return.",
+                FollowUpRequired = false,
+                CreatedBy = "Support Team",
+                CreatedAt = SeededAt.AddDays(-7)
+            }
+        ];
+    }
+
+    private static List<RmaAttachment> CreateRmaAttachments(IReadOnlyList<RmaRecord> rmaRecords)
+    {
+        return
+        [
+            new RmaAttachment
+            {
+                RmaRecord = rmaRecords[0],
+                FileName = "boot-diagnostics.png",
+                StoredFilePath = "development-seed/rma-0001/boot-diagnostics.png",
+                ContentType = "image/png",
+                AttachmentType = "Screenshot",
+                Description = "Boot diagnostics screenshot captured during intake.",
+                UploadedBy = "Giles",
+                UploadedAt = SeededAt.AddDays(-5)
+            }
+        ];
+    }
+
+    private static List<RmaPart> CreateRmaParts(IReadOnlyList<RmaRecord> rmaRecords)
+    {
+        return
+        [
+            new RmaPart
+            {
+                RmaRecord = rmaRecords[0],
+                PartName = "Industrial SSD",
+                PartNumber = "SSD-512-IND",
+                Quantity = 1,
+                Supplier = "Demo Components",
+                UnitCost = 118.50m,
+                Notes = "Replacement drive fitted during repair."
+            }
+        ];
+    }
+
+    private static List<RmaStatusHistory> CreateRmaStatusHistory(IReadOnlyList<RmaRecord> rmaRecords)
+    {
+        return
+        [
+            new RmaStatusHistory
+            {
+                RmaRecord = rmaRecords[0],
+                OldStatus = null,
+                NewStatus = RmaStatus.BookedIn,
+                ChangedBy = "Support Team",
+                ChangedAt = SeededAt.AddDays(-8),
+                Reason = "RMA created."
+            },
+            new RmaStatusHistory
+            {
+                RmaRecord = rmaRecords[0],
+                OldStatus = RmaStatus.BookedIn,
+                NewStatus = RmaStatus.WorkInProgress,
+                ChangedBy = "Giles",
+                ChangedAt = SeededAt.AddDays(-6),
+                Reason = "Repair work started."
+            },
+            new RmaStatusHistory
+            {
+                RmaRecord = rmaRecords[1],
+                OldStatus = null,
+                NewStatus = RmaStatus.BookedIn,
+                ChangedBy = "Support Team",
+                ChangedAt = SeededAt.AddDays(-3),
+                Reason = "Legacy RMA created."
+            }
+        ];
+    }
+
+    private static List<RmaAudit> CreateRmaAuditEntries(IReadOnlyList<RmaRecord> rmaRecords)
+    {
+        return
+        [
+            new RmaAudit
+            {
+                RmaRecord = rmaRecords[0],
+                OccurredAt = SeededAt.AddDays(-8),
+                User = "Support Team",
+                Action = "Created",
+                NewValue = "Development seed RMA created."
+            },
+            new RmaAudit
+            {
+                RmaRecord = rmaRecords[0],
+                OccurredAt = SeededAt.AddDays(-6),
+                User = "Giles",
+                Action = "Status changed",
+                FieldChanged = "Status",
+                OldValue = RmaStatus.BookedIn.ToString(),
+                NewValue = RmaStatus.WorkInProgress.ToString()
+            },
+            new RmaAudit
+            {
+                RmaRecord = rmaRecords[1],
+                OccurredAt = SeededAt.AddDays(-3),
+                User = "Support Team",
+                Action = "Created",
+                NewValue = "Development seed RMA created."
+            }
+        ];
+    }
+
+    private static DateOnly ToDateOnly(DateTimeOffset value)
+    {
+        return DateOnly.FromDateTime(value.Date);
     }
 }

@@ -33,6 +33,11 @@
                         <NavLink href="/build-register">Build Register</NavLink>
                     </Authorized>
                 </AuthorizeView>
+                <AuthorizeView Policy="@BuildBookRmaPolicies.ViewRmas">
+                    <Authorized>
+                        <NavLink href="/rmas">RMAs</NavLink>
+                    </Authorized>
+                </AuthorizeView>
                 <AuthorizeView Policy="@BuildBookPolicies.ExportNonSensitiveData">
                     <Authorized>
                         <NavLink href="/reports">Reports</NavLink>

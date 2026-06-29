@@ -1,0 +1,42 @@
+@page "/rmas"
+@rendermode InteractiveServer
+
+@attribute [Authorize(Policy = BuildBookRmaPolicies.ViewRmas)]
+
+<PageTitle>RMAs</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">RMAs</p>
+        <h1>RMA workspace</h1>
+        <p>The RMA module foundation is in place. Core register, workflow and reporting screens will be added in the next RMA items.</p>
+    </div>
+</section>
+
+<section class="detail-panel" aria-labelledby="rma-placeholder-heading">
+    <div class="detail-panel-header">
+        <div>
+            <h2 id="rma-placeholder-heading">Coming next</h2>
+            <p>This area will become the structured replacement for the current Planner-based returns and repairs process.</p>
+        </div>
+    </div>
+
+    <dl class="summary-list">
+        <div>
+            <dt>Planned area</dt>
+            <dd>Compact RMA register and detail views</dd>
+        </div>
+        <div>
+            <dt>BuildBook link</dt>
+            <dd>Linked back to Build Records where possible</dd>
+        </div>
+        <div>
+            <dt>Security</dt>
+            <dd>No Build Record secrets will be shown through RMAs</dd>
+        </div>
+        <div>
+            <dt>Next slice</dt>
+            <dd>Creation, list, workflow and reporting features</dd>
+        </div>
+    </dl>
+</section>

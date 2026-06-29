@@ -8,6 +8,7 @@ public class BuildBookPageAuthorizationTests
     [InlineData("Home.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRegister.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRecordDetail.razor", BuildBookPolicies.ViewBuildRecords)]
+    [InlineData("Rmas.razor", BuildBookRmaPolicies.ViewRmas)]
     [InlineData("CreateBuildRecord.razor", BuildBookPolicies.EditBuildRecords)]
     [InlineData("ImportSpreadsheet.razor", BuildBookPolicies.ImportSpreadsheet)]
     [InlineData("ImportHistory.razor", BuildBookPolicies.ImportSpreadsheet)]
@@ -17,7 +18,7 @@ public class BuildBookPageAuthorizationTests
     {
         var pageContent = File.ReadAllText(GetPagePath(pageFileName));
 
-        Assert.Contains($"@attribute [Authorize(Policy = BuildBookPolicies.{GetPolicyConstantName(expectedPolicy)})]", pageContent);
+        Assert.Contains($"@attribute [Authorize(Policy = {GetPolicyReference(expectedPolicy)})]", pageContent);
     }
 
     [Fact]
@@ -33,8 +34,10 @@ public class BuildBookPageAuthorizationTests
         var layoutContent = File.ReadAllText(layoutPath);
 
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ViewBuildRecords)}\"", layoutContent);
+        Assert.Contains($"Policy=\"@BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ViewRmas)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ExportNonSensitiveData)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ManageUsers)}\"", layoutContent);
+        Assert.Contains("RMAs", layoutContent);
         Assert.Contains("Signed in as", layoutContent);
         Assert.Contains("Windows Authentication", layoutContent);
         Assert.Contains("Local development authentication bypass", layoutContent);
@@ -140,6 +143,19 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("/build-records/@record.Id", pageContent);
         Assert.DoesNotContain("BuildRecordSecrets", pageContent);
         Assert.DoesNotContain("Password", pageContent);
+    }
+
+    [Fact]
+    public void RmaPlaceholderPageDefinesExpectedRouteAndGuidance()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("Rmas.razor"));
+
+        Assert.Contains("@page \"/rmas\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookRmaPolicies.ViewRmas", pageContent);
+        Assert.Contains("RMA workspace", pageContent);
+        Assert.Contains("Core register, workflow and reporting screens will be added", pageContent);
+        Assert.Contains("No Build Record secrets will be shown through RMAs", pageContent);
     }
 
     [Fact]
@@ -435,7 +451,17 @@ public class BuildBookPageAuthorizationTests
             BuildBookPolicies.ImportSpreadsheet => nameof(BuildBookPolicies.ImportSpreadsheet),
             BuildBookPolicies.ExportNonSensitiveData => nameof(BuildBookPolicies.ExportNonSensitiveData),
             BuildBookPolicies.ManageUsers => nameof(BuildBookPolicies.ManageUsers),
+            BuildBookRmaPolicies.ViewRmas => nameof(BuildBookRmaPolicies.ViewRmas),
             _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, "No constant-name assertion is configured for this policy.")
+        };
+    }
+
+    private static string GetPolicyReference(string policy)
+    {
+        return policy switch
+        {
+            BuildBookRmaPolicies.ViewRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ViewRmas)}",
+            _ => $"BuildBookPolicies.{GetPolicyConstantName(policy)}"
         };
     }
 }

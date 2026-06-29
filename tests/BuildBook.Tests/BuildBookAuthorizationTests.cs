@@ -32,6 +32,14 @@ public class BuildBookAuthorizationTests
     [InlineData(BuildBookPolicies.ExportNonSensitiveData, BuildBookRoles.Viewer, BuildBookRoles.Editor, BuildBookRoles.Administrator)]
     [InlineData(BuildBookPolicies.ManageUsers, BuildBookRoles.Administrator)]
     [InlineData(BuildBookPolicies.DeleteRecords, BuildBookRoles.Administrator)]
+    [InlineData(BuildBookRmaPolicies.ViewRmas, BuildBookRoles.Viewer, BuildBookRoles.Editor, BuildBookRoles.Administrator)]
+    [InlineData(BuildBookRmaPolicies.CreateRmas, BuildBookRoles.Editor, BuildBookRoles.Administrator)]
+    [InlineData(BuildBookRmaPolicies.EditRmas, BuildBookRoles.Editor, BuildBookRoles.Administrator)]
+    [InlineData(BuildBookRmaPolicies.ChangeRmaStatus, BuildBookRoles.Editor, BuildBookRoles.Administrator)]
+    [InlineData(BuildBookRmaPolicies.CloseRmas, BuildBookRoles.Editor, BuildBookRoles.Administrator)]
+    [InlineData(BuildBookRmaPolicies.ExportRmaReports, BuildBookRoles.Viewer, BuildBookRoles.Editor, BuildBookRoles.Administrator)]
+    [InlineData(BuildBookRmaPolicies.ManageRmaSettings, BuildBookRoles.Administrator)]
+    [InlineData(BuildBookRmaPolicies.DeleteRmas, BuildBookRoles.Administrator)]
     public async Task PoliciesRequireExpectedRoles(string policyName, params string[] expectedRoles)
     {
         using var provider = CreateServiceProvider();
