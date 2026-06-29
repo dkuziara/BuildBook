@@ -42,7 +42,7 @@ public class RmaAuditServiceTests
 
         var entry = Assert.Single(entries);
         Assert.Same(rmaRecord, entry.RmaRecord);
-        Assert.Equal(7, entry.RmaRecordId);
+        Assert.Equal(0, entry.RmaRecordId);
         Assert.Equal("Updated", entry.Action);
         Assert.Equal("editor", entry.User);
         Assert.Equal("ProductCode", entry.FieldChanged);

@@ -8,7 +8,8 @@ namespace BuildBook.Infrastructure.Persistence.Rmas;
 
 public sealed class RmaRecordService(
     IDbContextFactory<BuildBookDbContext> dbContextFactory,
-    IRmaAuditService rmaAuditService) : IRmaRecordService
+    IRmaAuditService rmaAuditService,
+    IRmaStatusTransitionService rmaStatusTransitionService) : IRmaRecordService
 {
     public async Task<CreateRmaResult> CreateAsync(
         CreateRmaRequest request,
@@ -131,12 +132,80 @@ public sealed class RmaRecordService(
                 rmaRecord.DateItemReceived,
                 rmaRecord.ReceivedBy,
                 rmaRecord.DueDate,
+                rmaRecord.TargetCompletionDate,
                 rmaRecord.AssignedTo,
+                rmaRecord.OnHoldReason,
+                rmaRecord.Outcome,
+                rmaRecord.ClosureNotes,
+                rmaRecord.ClosedAt,
+                rmaRecord.ClosedBy,
                 rmaRecord.CreatedAt,
                 rmaRecord.CreatedBy,
                 rmaRecord.LastUpdatedAt,
                 rmaRecord.LastUpdatedBy))
             .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<RmaDashboardSummary> GetDashboardSummaryAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var activeRmas = dbContext.RmaRecords
+            .AsNoTracking()
+            .Where(rmaRecord => rmaRecord.IsActive);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var openCount = await activeRmas.CountAsync(rmaRecord => rmaRecord.Status != RmaStatus.Closed, cancellationToken);
+        var overdueCount = await activeRmas.CountAsync(
+            rmaRecord => rmaRecord.Status != RmaStatus.Closed
+                && rmaRecord.Status != RmaStatus.CancelledNoReply
+                && rmaRecord.Status != RmaStatus.CustomerFixed
+                && rmaRecord.DueDate != null
+                && rmaRecord.DueDate < today,
+            cancellationToken);
+        var waitingForCustomerCount = await activeRmas.CountAsync(
+            rmaRecord => rmaRecord.Status == RmaStatus.OnHold
+                && rmaRecord.OnHoldReason == RmaOnHoldReasons.WaitingForCustomer,
+            cancellationToken);
+        var waitingForPartsCount = await activeRmas.CountAsync(
+            rmaRecord => rmaRecord.Status == RmaStatus.OnHold
+                && rmaRecord.OnHoldReason == RmaOnHoldReasons.WaitingForParts,
+            cancellationToken);
+        var readyToShipCount = await activeRmas.CountAsync(
+            rmaRecord => rmaRecord.Status == RmaStatus.ReadyToShip,
+            cancellationToken);
+        var shippedNotClosedCount = await activeRmas.CountAsync(
+            rmaRecord => rmaRecord.Status == RmaStatus.Shipped,
+            cancellationToken);
+
+        return new RmaDashboardSummary(
+            openCount,
+            overdueCount,
+            waitingForCustomerCount,
+            waitingForPartsCount,
+            readyToShipCount,
+            shippedNotClosedCount);
+    }
+
+    public async Task<IReadOnlyList<RmaStatusHistoryEntry>> GetStatusHistoryAsync(
+        int rmaRecordId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.RmaStatusHistory
+            .AsNoTracking()
+            .Where(entry => entry.RmaRecordId == rmaRecordId)
+            .OrderByDescending(entry => entry.ChangedAt)
+            .ThenByDescending(entry => entry.Id)
+            .Select(entry => new RmaStatusHistoryEntry(
+                entry.Id,
+                entry.OldStatus,
+                entry.NewStatus,
+                entry.ChangedBy,
+                entry.ChangedAt,
+                entry.Reason))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<RmaRegisterRow>> SearchAsync(
@@ -436,6 +505,130 @@ public sealed class RmaRecordService(
         return UpdateRmaIntakeResult.Success();
     }
 
+    public async Task<UpdateRmaWorkflowResult> UpdateWorkflowAsync(
+        int rmaRecordId,
+        UpdateRmaWorkflowRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return UpdateRmaWorkflowResult.Failure("RMA Record was not found.");
+        }
+
+        var assignedTo = NormalizeOptionalValue(request.AssignedTo);
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange("AssignedTo", rmaRecord.AssignedTo, assignedTo),
+                new RmaAuditChange("Priority", FormatPriority(rmaRecord.Priority), FormatPriority(request.Priority)),
+                new RmaAuditChange("DueDate", FormatDate(rmaRecord.DueDate), FormatDate(request.DueDate)),
+                new RmaAuditChange("TargetCompletionDate", FormatDate(rmaRecord.TargetCompletionDate), FormatDate(request.TargetCompletionDate))
+            ],
+            userName);
+
+        if (auditEntries.Count == 0)
+        {
+            return UpdateRmaWorkflowResult.Success();
+        }
+
+        rmaRecord.AssignedTo = assignedTo;
+        rmaRecord.Priority = request.Priority;
+        rmaRecord.DueDate = request.DueDate;
+        rmaRecord.TargetCompletionDate = request.TargetCompletionDate;
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return UpdateRmaWorkflowResult.Success();
+    }
+
+    public async Task<ChangeRmaStatusResult> ChangeStatusAsync(
+        int rmaRecordId,
+        ChangeRmaStatusRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return ChangeRmaStatusResult.Failure("RMA Record was not found.");
+        }
+
+        var validationResult = rmaStatusTransitionService.Validate(rmaRecord.Status, request);
+        if (!validationResult.Succeeded)
+        {
+            return validationResult;
+        }
+
+        var oldStatus = rmaRecord.Status;
+        var now = DateTimeOffset.UtcNow;
+        var reason = NormalizeOptionalValue(request.Reason);
+        var onHoldReason = request.NewStatus == RmaStatus.OnHold
+            ? NormalizeOptionalValue(request.OnHoldReason)
+            : null;
+        var closureNotes = request.NewStatus == RmaStatus.Closed
+            ? NormalizeOptionalValue(request.ClosureNotes)
+            : rmaRecord.ClosureNotes;
+        var outcome = request.NewStatus == RmaStatus.Closed
+            ? request.Outcome
+            : rmaRecord.Outcome;
+        var closedAt = request.NewStatus == RmaStatus.Closed ? now : rmaRecord.ClosedAt;
+        var closedBy = request.NewStatus == RmaStatus.Closed ? userName : rmaRecord.ClosedBy;
+        var shippedDate = request.NewStatus == RmaStatus.Shipped && rmaRecord.ShippedDate is null
+            ? DateOnly.FromDateTime(now.UtcDateTime)
+            : rmaRecord.ShippedDate;
+
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange("Status", rmaRecord.Status.ToString(), request.NewStatus.ToString()),
+                new RmaAuditChange("OnHoldReason", rmaRecord.OnHoldReason, onHoldReason),
+                new RmaAuditChange("Outcome", FormatOutcome(rmaRecord.Outcome), FormatOutcome(outcome)),
+                new RmaAuditChange("ClosureNotes", rmaRecord.ClosureNotes, closureNotes),
+                new RmaAuditChange("ClosedAt", FormatDateTimeOffset(rmaRecord.ClosedAt), FormatDateTimeOffset(closedAt)),
+                new RmaAuditChange("ClosedBy", rmaRecord.ClosedBy, closedBy),
+                new RmaAuditChange("ShippedDate", FormatDate(rmaRecord.ShippedDate), FormatDate(shippedDate))
+            ],
+            userName);
+
+        rmaRecord.Status = request.NewStatus;
+        rmaRecord.OnHoldReason = onHoldReason;
+        rmaRecord.Outcome = outcome;
+        rmaRecord.ClosureNotes = closureNotes;
+        rmaRecord.ClosedAt = closedAt;
+        rmaRecord.ClosedBy = closedBy;
+        rmaRecord.ShippedDate = shippedDate;
+        rmaRecord.LastUpdatedAt = now;
+        rmaRecord.LastUpdatedBy = userName;
+
+        dbContext.RmaStatusHistory.Add(new RmaStatusHistory
+        {
+            RmaRecord = rmaRecord,
+            OldStatus = oldStatus,
+            NewStatus = request.NewStatus,
+            ChangedBy = userName,
+            ChangedAt = now,
+            Reason = reason
+        });
+
+        await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ChangeRmaStatusResult.Success();
+    }
+
     public async Task<RmaLinkResult> LinkBuildRecordAsync(
         int rmaRecordId,
         int buildRecordId,
@@ -688,5 +881,20 @@ public sealed class RmaRecordService(
     private static string? FormatDate(DateOnly? value)
     {
         return value?.ToString("yyyy-MM-dd");
+    }
+
+    private static string? FormatDateTimeOffset(DateTimeOffset? value)
+    {
+        return value?.ToString("O");
+    }
+
+    private static string? FormatPriority(RmaPriority? value)
+    {
+        return value?.ToString();
+    }
+
+    private static string? FormatOutcome(RmaOutcome? value)
+    {
+        return value?.ToString();
     }
 }

@@ -442,6 +442,38 @@ a.secondary-button[aria-disabled="true"] {
     grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
 }
 
+.dashboard-card-grid {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    margin-bottom: var(--space-4);
+}
+
+.dashboard-card {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-soft);
+    padding: var(--space-3);
+}
+
+.dashboard-card-label {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin: 0 0 var(--space-2);
+    text-transform: uppercase;
+}
+
+.dashboard-card-value {
+    color: var(--color-text-strong);
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1;
+    margin: 0;
+}
+
 .recent-record-list {
     display: grid;
     gap: var(--space-3);
@@ -539,6 +571,54 @@ a.secondary-button[aria-disabled="true"] {
 
 .table-link:hover {
     color: var(--color-brand-600);
+}
+
+.status-pill {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    padding: 0.22rem 0.65rem;
+}
+
+.status-booked-in {
+    background: #e8f1fb;
+    color: #295c8f;
+}
+
+.status-in-progress {
+    background: #eef5ea;
+    color: #376c25;
+}
+
+.status-ready {
+    background: #e7f8f4;
+    color: #156257;
+}
+
+.status-shipped {
+    background: #eceef9;
+    color: #4a4e9d;
+}
+
+.status-hold {
+    background: var(--color-accent-amber-bg);
+    color: var(--color-accent-amber);
+}
+
+.status-cancelled {
+    background: #f8eceb;
+    color: #8b3a35;
+}
+
+.status-customer-fixed {
+    background: #eaf6ee;
+    color: #1f6a3b;
+}
+
+.status-closed {
+    background: #edf0f3;
+    color: #4d5b6c;
 }
 
 .secret-summary-item {

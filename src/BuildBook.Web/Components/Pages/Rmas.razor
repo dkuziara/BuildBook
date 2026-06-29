@@ -22,6 +22,36 @@
     </AuthorizeView>
 </section>
 
+@if (dashboardSummary is not null)
+{
+    <section class="dashboard-card-grid" aria-label="RMA dashboard summary">
+        <article class="dashboard-card">
+            <p class="dashboard-card-label">Open RMAs</p>
+            <p class="dashboard-card-value">@dashboardSummary.OpenCount</p>
+        </article>
+        <article class="dashboard-card">
+            <p class="dashboard-card-label">Overdue</p>
+            <p class="dashboard-card-value">@dashboardSummary.OverdueCount</p>
+        </article>
+        <article class="dashboard-card">
+            <p class="dashboard-card-label">Waiting for customer</p>
+            <p class="dashboard-card-value">@dashboardSummary.WaitingForCustomerCount</p>
+        </article>
+        <article class="dashboard-card">
+            <p class="dashboard-card-label">Waiting for parts</p>
+            <p class="dashboard-card-value">@dashboardSummary.WaitingForPartsCount</p>
+        </article>
+        <article class="dashboard-card">
+            <p class="dashboard-card-label">Ready to ship</p>
+            <p class="dashboard-card-value">@dashboardSummary.ReadyToShipCount</p>
+        </article>
+        <article class="dashboard-card">
+            <p class="dashboard-card-label">Shipped not closed</p>
+            <p class="dashboard-card-value">@dashboardSummary.ShippedNotClosedCount</p>
+        </article>
+    </section>
+}
+
 <section class="filter-panel compact-filter-panel" aria-labelledby="rma-register-filters-heading">
     <div class="table-panel-heading compact-panel-title">
         <div>
@@ -164,6 +194,7 @@ else
 
 @code {
     private IReadOnlyList<RmaRegisterRow>? rmaRecords;
+    private RmaDashboardSummary? dashboardSummary;
     private RmaRegisterFilter filterModel = new();
     private bool hasActiveFilters;
     private bool isLoading;
@@ -208,6 +239,7 @@ else
     {
         isLoading = true;
         hasActiveFilters = filter?.HasAnyFilter() == true;
+        dashboardSummary = await RmaRecordService.GetDashboardSummaryAsync();
         rmaRecords = await RmaRecordService.SearchAsync(filter);
         isLoading = false;
     }

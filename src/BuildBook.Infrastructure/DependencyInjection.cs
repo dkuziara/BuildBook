@@ -74,6 +74,7 @@ public static class DependencyInjection
         services.AddScoped<IBuildBookRoleResolver, ApplicationUserManagementService>();
         services.AddScoped<IRmaAuditService, RmaAuditService>();
         services.AddScoped<IRmaNumberGenerator, RmaNumberGenerator>();
+        services.AddScoped<IRmaStatusTransitionService, RmaStatusTransitionService>();
         services.AddScoped<IRmaRecordService, RmaRecordService>();
         services.AddSingleton<IRecentlyViewedBuildRecordTracker, RecentlyViewedBuildRecordTracker>();
 

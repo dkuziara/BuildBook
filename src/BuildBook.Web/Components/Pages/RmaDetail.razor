@@ -4,6 +4,7 @@
 @attribute [Authorize(Policy = BuildBookRmaPolicies.ViewRmas)]
 
 @inject IRmaRecordService RmaRecordService
+@inject IRmaStatusTransitionService RmaStatusTransitionService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -63,7 +64,7 @@ else
             </div>
             <div>
                 <dt>Status</dt>
-                <dd>@FormatStatus(rmaRecord.Status)</dd>
+                <dd><span class="status-pill @StatusClass(rmaRecord.Status)">@FormatStatus(rmaRecord.Status)</span></dd>
             </div>
             <div>
                 <dt>Priority</dt>
@@ -90,14 +91,295 @@ else
                 <dd>@Display(rmaRecord.DueDate)</dd>
             </div>
             <div>
+                <dt>Target completion</dt>
+                <dd>@Display(rmaRecord.TargetCompletionDate)</dd>
+            </div>
+            <div>
                 <dt>Linked Build Record</dt>
                 <dd>@(rmaRecord.BuildRecordId is null ? "Not linked" : "Linked")</dd>
+            </div>
+            <div>
+                <dt>Current blocker</dt>
+                <dd>@Display(rmaRecord.OnHoldReason)</dd>
             </div>
             <div>
                 <dt>Last updated</dt>
                 <dd>@rmaRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</dd>
             </div>
         </dl>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-workflow-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-workflow-heading">Workflow &amp; Assignment</h2>
+                <p>Ownership, priority, target dates and closure information.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                <Authorized>
+                    @if (!isEditingWorkflow)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingWorkflow">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingWorkflow)
+        {
+            @if (workflowErrors.Count > 0)
+            {
+                <div class="status-message error" role="alert">
+                    <p>Workflow details could not be saved.</p>
+                    <ul>
+                        @foreach (var error in workflowErrors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <EditForm Model="workflowModel" OnValidSubmit="SaveWorkflowAsync" FormName="edit-rma-workflow">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-rma-assigned-to">Assigned to</label>
+                        <InputText id="edit-rma-assigned-to" class="text-input" @bind-Value="workflowModel.AssignedTo" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-priority">Priority</label>
+                        <InputSelect id="edit-rma-priority" class="text-input" @bind-Value="workflowModel.Priority">
+                            <option value="">Not set</option>
+                            @foreach (var priority in Enum.GetValues<RmaPriority>())
+                            {
+                                <option value="@priority">@priority</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-due-date-workflow">Due date</label>
+                        <InputDate id="edit-rma-due-date-workflow" class="text-input" @bind-Value="workflowModel.DueDate" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-target-completion-date">Target completion date</label>
+                        <InputDate id="edit-rma-target-completion-date" class="text-input" @bind-Value="workflowModel.TargetCompletionDate" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingWorkflow">
+                        @(isSavingWorkflow ? "Saving..." : "Save workflow details")
+                    </button>
+                    <button type="button" class="secondary-button" disabled="@isSavingWorkflow" @onclick="CancelWorkflowEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Assigned to</dt>
+                    <dd>@Display(rmaRecord.AssignedTo)</dd>
+                </div>
+                <div>
+                    <dt>Priority</dt>
+                    <dd>@DisplayPriority(rmaRecord.Priority)</dd>
+                </div>
+                <div>
+                    <dt>Due date</dt>
+                    <dd>@Display(rmaRecord.DueDate)</dd>
+                </div>
+                <div>
+                    <dt>Target completion date</dt>
+                    <dd>@Display(rmaRecord.TargetCompletionDate)</dd>
+                </div>
+                <div>
+                    <dt>On hold reason</dt>
+                    <dd>@Display(rmaRecord.OnHoldReason)</dd>
+                </div>
+                <div>
+                    <dt>Current status note</dt>
+                    <dd>@Display(CurrentStatusReason)</dd>
+                </div>
+                <div>
+                    <dt>Outcome</dt>
+                    <dd>@DisplayOutcome(rmaRecord.Outcome)</dd>
+                </div>
+                <div>
+                    <dt>Closed at</dt>
+                    <dd>@Display(rmaRecord.ClosedAt)</dd>
+                </div>
+                <div>
+                    <dt>Closed by</dt>
+                    <dd>@Display(rmaRecord.ClosedBy)</dd>
+                </div>
+            </dl>
+
+            <div class="detail-section">
+                <h3>Closure notes</h3>
+                <p class="empty-state">@Display(rmaRecord.ClosureNotes)</p>
+            </div>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-status-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-status-heading">Status Workflow</h2>
+                <p>Controlled status changes with structured on-hold and closure rules.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookRmaPolicies.ChangeRmaStatus">
+                <Authorized>
+                    @if (!isEditingStatus)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingStatus">Change status</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingStatus)
+        {
+            @if (statusErrors.Count > 0)
+            {
+                <div class="status-message error" role="alert">
+                    <p>Status change could not be saved.</p>
+                    <ul>
+                        @foreach (var error in statusErrors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <EditForm Model="statusModel" OnValidSubmit="SaveStatusAsync" FormName="change-rma-status">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-rma-status">New status</label>
+                        <InputSelect id="edit-rma-status" class="text-input" @bind-Value="statusModel.NewStatus">
+                            @foreach (var status in AllowedNextStatuses)
+                            {
+                                <option value="@status">@FormatStatus(status)</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    @if (ShouldShowOnHoldReason)
+                    {
+                        <div class="form-field">
+                            <label for="edit-rma-on-hold-reason">On hold reason</label>
+                            <InputSelect id="edit-rma-on-hold-reason" class="text-input" @bind-Value="statusModel.OnHoldReason">
+                                <option value="">Select reason</option>
+                                @foreach (var reason in RmaOnHoldReasons.All)
+                                {
+                                    <option value="@reason">@reason</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    }
+
+                    @if (ShouldShowClosureFields)
+                    {
+                        <div class="form-field">
+                            <label for="edit-rma-outcome">Outcome</label>
+                            <InputSelect id="edit-rma-outcome" class="text-input" @bind-Value="statusModel.Outcome">
+                                <option value="">Select outcome</option>
+                                @foreach (var outcome in Enum.GetValues<RmaOutcome>())
+                                {
+                                    <option value="@outcome">@FormatOutcome(outcome)</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    }
+                </div>
+
+                @if (ShouldShowReasonField)
+                {
+                    <div class="form-field form-field-wide">
+                        <label for="edit-rma-status-reason">Status note</label>
+                        <InputTextArea id="edit-rma-status-reason" class="text-input" @bind-Value="statusModel.Reason" />
+                    </div>
+                }
+
+                @if (ShouldShowClosureFields)
+                {
+                    <div class="form-field form-field-wide">
+                        <label for="edit-rma-closure-notes">Closure notes</label>
+                        <InputTextArea id="edit-rma-closure-notes" class="text-input" @bind-Value="statusModel.ClosureNotes" />
+                    </div>
+                }
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingStatus">
+                        @(isSavingStatus ? "Saving..." : "Save status change")
+                    </button>
+                    <button type="button" class="secondary-button" disabled="@isSavingStatus" @onclick="CancelStatusEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Current status</dt>
+                    <dd><span class="status-pill @StatusClass(rmaRecord.Status)">@FormatStatus(rmaRecord.Status)</span></dd>
+                </div>
+                <div>
+                    <dt>Allowed next steps</dt>
+                    <dd>@DisplayAllowedStatuses()</dd>
+                </div>
+                <div>
+                    <dt>Status note</dt>
+                    <dd>@Display(CurrentStatusReason)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-status-history-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-status-history-heading">Status History</h2>
+                <p>Every status change is recorded with the previous status, new status and reason.</p>
+            </div>
+        </div>
+
+        @if (statusHistoryEntries.Count == 0)
+        {
+            <p class="empty-state">No status history has been recorded yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Changed at</th>
+                            <th scope="col">Changed by</th>
+                            <th scope="col">From</th>
+                            <th scope="col">To</th>
+                            <th scope="col">Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var historyEntry in statusHistoryEntries)
+                        {
+                            <tr>
+                                <td>@historyEntry.ChangedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                                <td>@historyEntry.ChangedBy</td>
+                                <td>@(historyEntry.OldStatus is null ? "Not recorded" : FormatStatus(historyEntry.OldStatus.Value))</td>
+                                <td>@FormatStatus(historyEntry.NewStatus)</td>
+                                <td>@Display(historyEntry.Reason)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </section>
 
     <section class="detail-panel detail-section" aria-labelledby="rma-intake-heading">
@@ -381,15 +663,33 @@ else
 
     private RmaDetailModel? rmaRecord;
     private UpdateRmaIntakeRequest intakeModel = new();
+    private UpdateRmaWorkflowRequest workflowModel = new();
+    private ChangeRmaStatusRequest statusModel = new();
     private IReadOnlyList<RmaBuildRecordMatchSuggestion> buildRecordSuggestions = [];
+    private IReadOnlyList<RmaStatusHistoryEntry> statusHistoryEntries = [];
     private readonly List<string> intakeErrors = [];
+    private readonly List<string> workflowErrors = [];
+    private readonly List<string> statusErrors = [];
     private bool isLoading = true;
     private bool isEditingIntake;
+    private bool isEditingWorkflow;
+    private bool isEditingStatus;
     private bool isSavingIntake;
+    private bool isSavingWorkflow;
+    private bool isSavingStatus;
     private bool isUpdatingLink;
     private string? statusMessage;
     private bool statusIsError;
     private string PageTitleText => rmaRecord is null ? "RMA Record" : rmaRecord.RmaNumber;
+    private IReadOnlyList<RmaStatus> AllowedNextStatuses => rmaRecord is null
+        ? []
+        : RmaStatusTransitionService.GetAllowedNextStatuses(rmaRecord.Status);
+    private string? CurrentStatusReason => statusHistoryEntries.FirstOrDefault()?.Reason;
+    private bool ShouldShowOnHoldReason => statusModel.NewStatus == RmaStatus.OnHold;
+    private bool ShouldShowClosureFields => statusModel.NewStatus == RmaStatus.Closed;
+    private bool ShouldShowReasonField => statusModel.NewStatus == RmaStatus.OnHold
+        || statusModel.NewStatus == RmaStatus.CancelledNoReply
+        || statusModel.NewStatus == RmaStatus.CustomerFixed;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -404,6 +704,12 @@ else
         if (rmaRecord is not null)
         {
             await LoadBuildRecordSuggestionsAsync();
+            statusHistoryEntries = await RmaRecordService.GetStatusHistoryAsync(RmaRecordId);
+        }
+        else
+        {
+            buildRecordSuggestions = [];
+            statusHistoryEntries = [];
         }
 
         isLoading = false;
@@ -430,6 +736,117 @@ else
                 .Where(suggestion => suggestion.BuildRecordId != rmaRecord.BuildRecordId)
                 .ToList();
         }
+    }
+
+    private void StartEditingWorkflow()
+    {
+        if (rmaRecord is null)
+        {
+            return;
+        }
+
+        workflowModel = new UpdateRmaWorkflowRequest
+        {
+            AssignedTo = rmaRecord.AssignedTo,
+            Priority = rmaRecord.Priority,
+            DueDate = rmaRecord.DueDate,
+            TargetCompletionDate = rmaRecord.TargetCompletionDate
+        };
+
+        workflowErrors.Clear();
+        statusMessage = null;
+        isEditingWorkflow = true;
+    }
+
+    private async Task SaveWorkflowAsync()
+    {
+        isSavingWorkflow = true;
+        workflowErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await RmaRecordService.UpdateWorkflowAsync(RmaRecordId, workflowModel, userName);
+
+            if (result.Succeeded)
+            {
+                await LoadRmaAsync();
+                isEditingWorkflow = false;
+                statusMessage = "Workflow details were saved.";
+                statusIsError = false;
+            }
+            else
+            {
+                workflowErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            workflowErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingWorkflow = false;
+        }
+    }
+
+    private void CancelWorkflowEdit()
+    {
+        workflowErrors.Clear();
+        isEditingWorkflow = false;
+    }
+
+    private void StartEditingStatus()
+    {
+        var nextStatus = AllowedNextStatuses.FirstOrDefault();
+        statusModel = new ChangeRmaStatusRequest
+        {
+            NewStatus = nextStatus
+        };
+
+        statusErrors.Clear();
+        statusMessage = null;
+        isEditingStatus = AllowedNextStatuses.Count > 0;
+    }
+
+    private async Task SaveStatusAsync()
+    {
+        isSavingStatus = true;
+        statusErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await RmaRecordService.ChangeStatusAsync(RmaRecordId, statusModel, userName);
+
+            if (result.Succeeded)
+            {
+                await LoadRmaAsync();
+                isEditingStatus = false;
+                statusMessage = "RMA status was updated.";
+                statusIsError = false;
+            }
+            else
+            {
+                statusErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            statusErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingStatus = false;
+        }
+    }
+
+    private void CancelStatusEdit()
+    {
+        statusErrors.Clear();
+        isEditingStatus = false;
     }
 
     private void StartEditingIntake()
@@ -577,6 +994,13 @@ else
         }
     }
 
+    private string DisplayAllowedStatuses()
+    {
+        return AllowedNextStatuses.Count == 0
+            ? "No further status changes available"
+            : string.Join(", ", AllowedNextStatuses.Select(FormatStatus));
+    }
+
     private static string Display(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
@@ -587,9 +1011,19 @@ else
         return value?.ToString("d MMM yyyy") ?? "Not recorded";
     }
 
+    private static string Display(DateTimeOffset? value)
+    {
+        return value?.ToLocalTime().ToString("d MMM yyyy HH:mm") ?? "Not recorded";
+    }
+
     private static string DisplayPriority(RmaPriority? value)
     {
         return value?.ToString() ?? "Not set";
+    }
+
+    private static string DisplayOutcome(RmaOutcome? value)
+    {
+        return value is null ? "Not recorded" : FormatOutcome(value.Value);
     }
 
     private static string FormatStatus(RmaStatus status)
@@ -602,6 +1036,36 @@ else
             RmaStatus.CancelledNoReply => "Cancelled / No Reply",
             RmaStatus.CustomerFixed => "Customer Fixed",
             _ => status.ToString()
+        };
+    }
+
+    private static string FormatOutcome(RmaOutcome outcome)
+    {
+        return outcome switch
+        {
+            RmaOutcome.RepairedAndReturned => "Repaired and returned",
+            RmaOutcome.ReplacedAndReturned => "Replaced and returned",
+            RmaOutcome.NoFaultFound => "No fault found",
+            RmaOutcome.CustomerFixed => "Customer fixed",
+            RmaOutcome.ReturnedUnrepaired => "Returned unrepaired",
+            RmaOutcome.AwaitingCustomerResponseThenClosed => "Awaiting customer response then closed",
+            _ => outcome.ToString()
+        };
+    }
+
+    private static string StatusClass(RmaStatus status)
+    {
+        return status switch
+        {
+            RmaStatus.BookedIn => "status-booked-in",
+            RmaStatus.WorkInProgress => "status-in-progress",
+            RmaStatus.ReadyToShip => "status-ready",
+            RmaStatus.Shipped => "status-shipped",
+            RmaStatus.OnHold => "status-hold",
+            RmaStatus.CancelledNoReply => "status-cancelled",
+            RmaStatus.CustomerFixed => "status-customer-fixed",
+            RmaStatus.Closed => "status-closed",
+            _ => string.Empty
         };
     }
 }

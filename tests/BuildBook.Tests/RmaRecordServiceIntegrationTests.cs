@@ -331,7 +331,8 @@ public class RmaRecordServiceIntegrationTests
     {
         return new RmaRecordService(
             new TestDbContextFactory(options),
-            new RmaAuditService());
+            new RmaAuditService(),
+            new RmaStatusTransitionService());
     }
 
     private static async Task<int> SeedBuildRecordAsync(
