@@ -8,6 +8,10 @@ Before implementing any issue, read:
 - docs/backlog/BuildBook-Backlog.md
 - The current GitHub issue being worked on
 
+For RMA module work, also read:
+
+- docs/specs/BuildBook-RMA-Module-Specification.md
+
 ## Technology
 
 Use:
@@ -81,5 +85,7 @@ When finishing a task, summarise:
 - Commands run
 - Tests added or updated
 - Any follow-up issues needed
+
+
 
 
