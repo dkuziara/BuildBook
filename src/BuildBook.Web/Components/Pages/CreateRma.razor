@@ -1,0 +1,236 @@
+@page "/rmas/new"
+@rendermode InteractiveServer
+
+@attribute [Authorize(Policy = BuildBookRmaPolicies.CreateRmas)]
+
+@inject IRmaRecordService RmaRecordService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Add RMA</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">RMAs</p>
+        <h1>Add a new RMA record.</h1>
+        <p>Capture the core intake information now, then continue the repair workflow from the full RMA detail page.</p>
+    </div>
+</section>
+
+<section class="form-panel" aria-labelledby="add-rma-heading">
+    <h2 id="add-rma-heading">Required details</h2>
+
+    @if (serverErrors.Count > 0)
+    {
+        <div class="status-message error" role="alert">
+            <p>The RMA record could not be saved.</p>
+            <ul>
+                @foreach (var error in serverErrors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <EditForm Model="model" OnValidSubmit="CreateAsync" FormName="create-rma-record">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-grid">
+            <div class="form-field">
+                <label for="rma-customer-name">Customer</label>
+                <InputText id="rma-customer-name" class="text-input" @bind-Value="model.CustomerName" @bind-Value:after="RefreshSuggestionsAsync" />
+                <ValidationMessage For="() => model.CustomerName" />
+            </div>
+
+            <div class="form-field">
+                <label for="rma-product-name">Product name</label>
+                <InputText id="rma-product-name" class="text-input" @bind-Value="model.ProductName" @bind-Value:after="RefreshSuggestionsAsync" />
+                <ValidationMessage For="() => model.ProductName" />
+            </div>
+
+            <div class="form-field">
+                <label for="rma-product-code">Product code</label>
+                <InputText id="rma-product-code" class="text-input" @bind-Value="model.ProductCode" @bind-Value:after="RefreshSuggestionsAsync" />
+            </div>
+
+            <div class="form-field">
+                <label for="rma-serial-number">Serial number</label>
+                <InputText id="rma-serial-number" class="text-input" @bind-Value="model.SerialNumber" @bind-Value:after="RefreshSuggestionsAsync" />
+            </div>
+
+            <div class="form-field">
+                <label for="rma-fault-summary">Fault summary</label>
+                <InputText id="rma-fault-summary" class="text-input" @bind-Value="model.FaultSummary" />
+                <ValidationMessage For="() => model.FaultSummary" />
+            </div>
+
+            <div class="form-field">
+                <label for="rma-support-ticket">Support ticket number</label>
+                <InputText id="rma-support-ticket" class="text-input" @bind-Value="model.SupportTicketNumber" />
+            </div>
+
+            <div class="form-field">
+                <label for="rma-support-ticket-url">Support ticket URL</label>
+                <InputText id="rma-support-ticket-url" class="text-input" @bind-Value="model.SupportTicketUrl" />
+            </div>
+
+            <div class="form-field">
+                <label for="rma-contact-name">Contact name</label>
+                <InputText id="rma-contact-name" class="text-input" @bind-Value="model.ContactName" />
+            </div>
+
+            <div class="form-field">
+                <label for="rma-contact-email">Contact email</label>
+                <InputText id="rma-contact-email" class="text-input" @bind-Value="model.ContactEmail" />
+            </div>
+
+            <div class="form-field">
+                <label for="rma-contact-phone">Contact phone</label>
+                <InputText id="rma-contact-phone" class="text-input" @bind-Value="model.ContactPhone" />
+            </div>
+
+            <div class="form-field">
+                <label for="rma-order-number">Original order number</label>
+                <InputText id="rma-order-number" class="text-input" @bind-Value="model.OriginalOrderNumber" />
+            </div>
+
+            <div class="form-field">
+                <label for="rma-invoice-number">Original invoice number</label>
+                <InputText id="rma-invoice-number" class="text-input" @bind-Value="model.OriginalInvoiceNumber" />
+            </div>
+        </div>
+
+        <div class="form-field form-field-wide">
+            <label for="rma-fault-description">Fault description</label>
+            <InputTextArea id="rma-fault-description" class="text-input" @bind-Value="model.InitialFaultDescription" />
+            <ValidationMessage For="() => model.InitialFaultDescription" />
+        </div>
+
+        <div class="detail-panel detail-section" aria-labelledby="rma-build-record-matches-heading">
+            <div class="detail-panel-header">
+                <div>
+                    <h2 id="rma-build-record-matches-heading">Suggested Build Records</h2>
+                    <p>When serial number, product or customer details are entered, possible Build Record matches appear here.</p>
+                </div>
+            </div>
+
+            @if (isLoadingSuggestions)
+            {
+                <p class="empty-state">Checking for matching Build Records...</p>
+            }
+            else if (buildRecordMatches.Count == 0)
+            {
+                <p class="empty-state">No Build Record suggestions yet. Continue unlinked if no match exists.</p>
+            }
+            else
+            {
+                <ul class="recent-record-list">
+                    @foreach (var match in buildRecordMatches)
+                    {
+                        <li>
+                            <button type="button" class="recent-record-link" @onclick="@(() => SelectBuildRecordMatch(match.BuildRecordId))">
+                                <span class="recent-record-title">@match.ProductCode - Serial @match.SerialNumber</span>
+                                <span class="recent-record-meta">@match.ProductName</span>
+                                <span class="recent-record-meta">@Display(match.CustomerName)</span>
+                                <span class="recent-record-meta">@string.Join(", ", match.MatchReasons)</span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+
+            <div class="detail-actions">
+                <span class="empty-state">
+                    @(model.LinkedBuildRecordId is null
+                        ? "Creating this RMA without a Build Record link."
+                        : $"Linked to suggested Build Record #{model.LinkedBuildRecordId}.")
+                </span>
+                @if (model.LinkedBuildRecordId is not null)
+                {
+                    <button type="button" class="secondary-button button-small" @onclick="ClearBuildRecordMatch">Continue unlinked</button>
+                }
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="primary-button" disabled="@isSaving">
+                @(isSaving ? "Saving..." : "Create RMA")
+            </button>
+            <a class="action-link" href="/rmas">Back to RMA Register</a>
+        </div>
+    </EditForm>
+</section>
+
+@code {
+    private CreateRmaRequest model = new();
+    private readonly List<string> serverErrors = [];
+    private IReadOnlyList<RmaBuildRecordMatchSuggestion> buildRecordMatches = [];
+    private bool isSaving;
+    private bool isLoadingSuggestions;
+
+    private async Task CreateAsync()
+    {
+        isSaving = true;
+        serverErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await RmaRecordService.CreateAsync(model, userName);
+
+            if (result.Succeeded && result.RmaRecordId is not null)
+            {
+                NavigationManager.NavigateTo($"/rmas/{result.RmaRecordId}");
+            }
+            else
+            {
+                serverErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            serverErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task RefreshSuggestionsAsync()
+    {
+        isLoadingSuggestions = true;
+
+        try
+        {
+            buildRecordMatches = await RmaRecordService.SuggestBuildRecordMatchesAsync(
+                new RmaBuildRecordMatchRequest(
+                    model.SerialNumber,
+                    model.ProductCode,
+                    model.ProductName,
+                    model.CustomerName));
+        }
+        finally
+        {
+            isLoadingSuggestions = false;
+        }
+    }
+
+    private void SelectBuildRecordMatch(int buildRecordId)
+    {
+        model.LinkedBuildRecordId = buildRecordId;
+    }
+
+    private void ClearBuildRecordMatch()
+    {
+        model.LinkedBuildRecordId = null;
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+}

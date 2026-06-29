@@ -1,0 +1,607 @@
+@page "/rmas/{RmaRecordId:int}"
+@rendermode InteractiveServer
+
+@attribute [Authorize(Policy = BuildBookRmaPolicies.ViewRmas)]
+
+@inject IRmaRecordService RmaRecordService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>@PageTitleText</PageTitle>
+
+@if (isLoading)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading RMA record...</p>
+    </section>
+}
+else if (rmaRecord is null)
+{
+    <section class="page-heading">
+        <div class="page-heading-copy">
+            <p class="eyebrow">RMAs</p>
+            <h1>RMA record not found.</h1>
+            <p>The record may not exist, or it may no longer be active.</p>
+        </div>
+    </section>
+
+    <p>
+        <a class="secondary-link" href="/rmas">Back to RMA Register</a>
+    </p>
+}
+else
+{
+    <section class="page-heading">
+        <div class="page-heading-copy">
+            <p class="eyebrow">RMA Record</p>
+            <h1>@rmaRecord.RmaNumber</h1>
+            <p>@rmaRecord.ProductName - @rmaRecord.FaultSummary</p>
+        </div>
+        <div class="page-actions">
+            <a class="secondary-button" href="/rmas">Back to RMA Register</a>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="status-message @(statusIsError ? "error" : "success")" role="status">
+            <p>@statusMessage</p>
+        </div>
+    }
+
+    <section class="detail-panel" aria-labelledby="rma-summary-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-summary-heading">Summary</h2>
+                <p>Key operational information for this RMA record.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>RMA number</dt>
+                <dd>@rmaRecord.RmaNumber</dd>
+            </div>
+            <div>
+                <dt>Status</dt>
+                <dd>@FormatStatus(rmaRecord.Status)</dd>
+            </div>
+            <div>
+                <dt>Priority</dt>
+                <dd>@DisplayPriority(rmaRecord.Priority)</dd>
+            </div>
+            <div>
+                <dt>Customer</dt>
+                <dd>@Display(rmaRecord.CustomerName)</dd>
+            </div>
+            <div>
+                <dt>Product</dt>
+                <dd>@rmaRecord.ProductName</dd>
+            </div>
+            <div>
+                <dt>Serial number</dt>
+                <dd>@Display(rmaRecord.SerialNumber)</dd>
+            </div>
+            <div>
+                <dt>Assigned to</dt>
+                <dd>@Display(rmaRecord.AssignedTo)</dd>
+            </div>
+            <div>
+                <dt>Due date</dt>
+                <dd>@Display(rmaRecord.DueDate)</dd>
+            </div>
+            <div>
+                <dt>Linked Build Record</dt>
+                <dd>@(rmaRecord.BuildRecordId is null ? "Not linked" : "Linked")</dd>
+            </div>
+            <div>
+                <dt>Last updated</dt>
+                <dd>@rmaRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-intake-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-intake-heading">Intake &amp; Customer</h2>
+                <p>Customer, contact, support ticket and initial fault information.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                <Authorized>
+                    @if (!isEditingIntake)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingIntake">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingIntake)
+        {
+            @if (intakeErrors.Count > 0)
+            {
+                <div class="status-message error" role="alert">
+                    <p>RMA intake details could not be saved.</p>
+                    <ul>
+                        @foreach (var error in intakeErrors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <EditForm Model="intakeModel" OnValidSubmit="SaveIntakeAsync" FormName="edit-rma-intake">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-rma-customer">Customer</label>
+                        <InputText id="edit-rma-customer" class="text-input" @bind-Value="intakeModel.CustomerName" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-product-name">Product name</label>
+                        <InputText id="edit-rma-product-name" class="text-input" @bind-Value="intakeModel.ProductName" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-product-code">Product code</label>
+                        <InputText id="edit-rma-product-code" class="text-input" @bind-Value="intakeModel.ProductCode" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-serial-number">Serial number</label>
+                        <InputText id="edit-rma-serial-number" class="text-input" @bind-Value="intakeModel.SerialNumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-fault-summary">Fault summary</label>
+                        <InputText id="edit-rma-fault-summary" class="text-input" @bind-Value="intakeModel.FaultSummary" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-contact-name">Contact name</label>
+                        <InputText id="edit-rma-contact-name" class="text-input" @bind-Value="intakeModel.ContactName" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-contact-email">Contact email</label>
+                        <InputText id="edit-rma-contact-email" class="text-input" @bind-Value="intakeModel.ContactEmail" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-contact-phone">Contact phone</label>
+                        <InputText id="edit-rma-contact-phone" class="text-input" @bind-Value="intakeModel.ContactPhone" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-customer-reference">Customer reference</label>
+                        <InputText id="edit-rma-customer-reference" class="text-input" @bind-Value="intakeModel.CustomerReference" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-support-ticket-number">Support ticket number</label>
+                        <InputText id="edit-rma-support-ticket-number" class="text-input" @bind-Value="intakeModel.SupportTicketNumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-support-ticket-url">Support ticket URL</label>
+                        <InputText id="edit-rma-support-ticket-url" class="text-input" @bind-Value="intakeModel.SupportTicketUrl" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-original-order-number">Original order number</label>
+                        <InputText id="edit-rma-original-order-number" class="text-input" @bind-Value="intakeModel.OriginalOrderNumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-original-order-date">Original order date</label>
+                        <InputDate id="edit-rma-original-order-date" class="text-input" @bind-Value="intakeModel.OriginalOrderDate" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-rma-original-invoice-number">Original invoice number</label>
+                        <InputText id="edit-rma-original-invoice-number" class="text-input" @bind-Value="intakeModel.OriginalInvoiceNumber" />
+                    </div>
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-customer-address">Customer address</label>
+                    <InputTextArea id="edit-rma-customer-address" class="text-input" @bind-Value="intakeModel.CustomerAddress" />
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-initial-fault-description">Initial fault description</label>
+                    <InputTextArea id="edit-rma-initial-fault-description" class="text-input" @bind-Value="intakeModel.InitialFaultDescription" />
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-fault-description">Fault description</label>
+                    <InputTextArea id="edit-rma-fault-description" class="text-input" @bind-Value="intakeModel.FaultDescription" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingIntake">
+                        @(isSavingIntake ? "Saving..." : "Save intake details")
+                    </button>
+                    <button type="button" class="secondary-button" disabled="@isSavingIntake" @onclick="CancelIntakeEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Customer</dt>
+                    <dd>@Display(rmaRecord.CustomerName)</dd>
+                </div>
+                <div>
+                    <dt>Product name</dt>
+                    <dd>@rmaRecord.ProductName</dd>
+                </div>
+                <div>
+                    <dt>Product code</dt>
+                    <dd>@Display(rmaRecord.ProductCode)</dd>
+                </div>
+                <div>
+                    <dt>Serial number</dt>
+                    <dd>@Display(rmaRecord.SerialNumber)</dd>
+                </div>
+                <div>
+                    <dt>Contact name</dt>
+                    <dd>@Display(rmaRecord.ContactName)</dd>
+                </div>
+                <div>
+                    <dt>Contact email</dt>
+                    <dd>@Display(rmaRecord.ContactEmail)</dd>
+                </div>
+                <div>
+                    <dt>Contact phone</dt>
+                    <dd>@Display(rmaRecord.ContactPhone)</dd>
+                </div>
+                <div>
+                    <dt>Customer reference</dt>
+                    <dd>@Display(rmaRecord.CustomerReference)</dd>
+                </div>
+                <div>
+                    <dt>Support ticket number</dt>
+                    <dd>@Display(rmaRecord.SupportTicketNumber)</dd>
+                </div>
+                <div>
+                    <dt>Support ticket URL</dt>
+                    <dd>@Display(rmaRecord.SupportTicketUrl)</dd>
+                </div>
+                <div>
+                    <dt>Original order number</dt>
+                    <dd>@Display(rmaRecord.OriginalOrderNumber)</dd>
+                </div>
+                <div>
+                    <dt>Original order date</dt>
+                    <dd>@Display(rmaRecord.OriginalOrderDate)</dd>
+                </div>
+                <div>
+                    <dt>Original invoice number</dt>
+                    <dd>@Display(rmaRecord.OriginalInvoiceNumber)</dd>
+                </div>
+                <div>
+                    <dt>Date item received</dt>
+                    <dd>@Display(rmaRecord.DateItemReceived)</dd>
+                </div>
+                <div>
+                    <dt>Received by</dt>
+                    <dd>@Display(rmaRecord.ReceivedBy)</dd>
+                </div>
+            </dl>
+
+            <div class="detail-section">
+                <h3>Customer address</h3>
+                <p class="empty-state">@Display(rmaRecord.CustomerAddress)</p>
+            </div>
+
+            <div class="detail-section">
+                <h3>Initial fault description</h3>
+                <p class="empty-state">@rmaRecord.InitialFaultDescription</p>
+            </div>
+
+            <div class="detail-section">
+                <h3>Fault description</h3>
+                <p class="empty-state">@Display(rmaRecord.FaultDescription)</p>
+            </div>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-build-record-link-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-build-record-link-heading">Build Record link</h2>
+                <p>Confirm whether this RMA is linked to an existing Build Record.</p>
+            </div>
+        </div>
+
+        @if (rmaRecord.BuildRecordId is not null)
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Linked Build Record</dt>
+                    <dd><a class="table-link" href="@($"/build-records/{rmaRecord.BuildRecordId}")">@Display(rmaRecord.LinkedBuildRecordSerialNumber)</a></dd>
+                </div>
+                <div>
+                    <dt>Build product</dt>
+                    <dd>@Display(rmaRecord.LinkedBuildRecordProductName)</dd>
+                </div>
+                <div>
+                    <dt>Build customer</dt>
+                    <dd>@Display(rmaRecord.LinkedBuildRecordCustomerName)</dd>
+                </div>
+            </dl>
+
+            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                <Authorized>
+                    <div class="detail-actions">
+                        <button type="button" class="secondary-button" disabled="@isUpdatingLink" @onclick="UnlinkBuildRecordAsync">Unlink Build Record</button>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        }
+        else
+        {
+            @if (buildRecordSuggestions.Count == 0)
+            {
+                <p class="empty-state">No Build Record is linked, and no current match suggestions are available.</p>
+            }
+            else
+            {
+                <ul class="recent-record-list">
+                    @foreach (var suggestion in buildRecordSuggestions)
+                    {
+                        <li>
+                            <div class="recent-record-link">
+                                <span class="recent-record-title">@suggestion.ProductCode - Serial @suggestion.SerialNumber</span>
+                                <span class="recent-record-meta">@suggestion.ProductName</span>
+                                <span class="recent-record-meta">@Display(suggestion.CustomerName)</span>
+                                <span class="recent-record-meta">@string.Join(", ", suggestion.MatchReasons)</span>
+                                <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                                    <Authorized>
+                                        <span>
+                                            <button type="button" class="secondary-button button-small" disabled="@isUpdatingLink" @onclick="@(() => LinkBuildRecordAsync(suggestion.BuildRecordId))">Link Build Record</button>
+                                        </span>
+                                    </Authorized>
+                                </AuthorizeView>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public int RmaRecordId { get; set; }
+
+    private RmaDetailModel? rmaRecord;
+    private UpdateRmaIntakeRequest intakeModel = new();
+    private IReadOnlyList<RmaBuildRecordMatchSuggestion> buildRecordSuggestions = [];
+    private readonly List<string> intakeErrors = [];
+    private bool isLoading = true;
+    private bool isEditingIntake;
+    private bool isSavingIntake;
+    private bool isUpdatingLink;
+    private string? statusMessage;
+    private bool statusIsError;
+    private string PageTitleText => rmaRecord is null ? "RMA Record" : rmaRecord.RmaNumber;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadRmaAsync();
+    }
+
+    private async Task LoadRmaAsync()
+    {
+        isLoading = true;
+        rmaRecord = await RmaRecordService.GetByIdAsync(RmaRecordId);
+
+        if (rmaRecord is not null)
+        {
+            await LoadBuildRecordSuggestionsAsync();
+        }
+
+        isLoading = false;
+    }
+
+    private async Task LoadBuildRecordSuggestionsAsync()
+    {
+        if (rmaRecord is null)
+        {
+            buildRecordSuggestions = [];
+            return;
+        }
+
+        buildRecordSuggestions = await RmaRecordService.SuggestBuildRecordMatchesAsync(
+            new RmaBuildRecordMatchRequest(
+                rmaRecord.SerialNumber,
+                rmaRecord.ProductCode,
+                rmaRecord.ProductName,
+                rmaRecord.CustomerName));
+
+        if (rmaRecord.BuildRecordId is not null)
+        {
+            buildRecordSuggestions = buildRecordSuggestions
+                .Where(suggestion => suggestion.BuildRecordId != rmaRecord.BuildRecordId)
+                .ToList();
+        }
+    }
+
+    private void StartEditingIntake()
+    {
+        if (rmaRecord is null)
+        {
+            return;
+        }
+
+        intakeModel = new UpdateRmaIntakeRequest
+        {
+            CustomerName = rmaRecord.CustomerName ?? string.Empty,
+            ProductName = rmaRecord.ProductName,
+            ProductCode = rmaRecord.ProductCode,
+            SerialNumber = rmaRecord.SerialNumber,
+            FaultSummary = rmaRecord.FaultSummary,
+            InitialFaultDescription = rmaRecord.InitialFaultDescription,
+            FaultDescription = rmaRecord.FaultDescription,
+            ContactName = rmaRecord.ContactName,
+            ContactEmail = rmaRecord.ContactEmail,
+            ContactPhone = rmaRecord.ContactPhone,
+            CustomerAddress = rmaRecord.CustomerAddress,
+            CustomerReference = rmaRecord.CustomerReference,
+            SupportTicketNumber = rmaRecord.SupportTicketNumber,
+            SupportTicketUrl = rmaRecord.SupportTicketUrl,
+            OriginalOrderNumber = rmaRecord.OriginalOrderNumber,
+            OriginalOrderDate = rmaRecord.OriginalOrderDate,
+            OriginalInvoiceNumber = rmaRecord.OriginalInvoiceNumber
+        };
+
+        intakeErrors.Clear();
+        statusMessage = null;
+        isEditingIntake = true;
+    }
+
+    private async Task SaveIntakeAsync()
+    {
+        if (rmaRecord is null)
+        {
+            return;
+        }
+
+        isSavingIntake = true;
+        intakeErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await RmaRecordService.UpdateIntakeAsync(RmaRecordId, intakeModel, userName);
+
+            if (result.Succeeded)
+            {
+                await LoadRmaAsync();
+                isEditingIntake = false;
+                statusMessage = "RMA intake details were saved.";
+                statusIsError = false;
+            }
+            else
+            {
+                intakeErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            intakeErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingIntake = false;
+        }
+    }
+
+    private void CancelIntakeEdit()
+    {
+        intakeErrors.Clear();
+        isEditingIntake = false;
+    }
+
+    private async Task LinkBuildRecordAsync(int buildRecordId)
+    {
+        isUpdatingLink = true;
+        statusMessage = null;
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await RmaRecordService.LinkBuildRecordAsync(RmaRecordId, buildRecordId, userName);
+
+            if (result.Succeeded)
+            {
+                await LoadRmaAsync();
+                statusMessage = "Build Record link was updated.";
+                statusIsError = false;
+            }
+            else
+            {
+                statusMessage = string.Join(" ", result.Errors);
+                statusIsError = true;
+            }
+        }
+        catch
+        {
+            statusMessage = "Build Record link could not be updated. Try again.";
+            statusIsError = true;
+        }
+        finally
+        {
+            isUpdatingLink = false;
+        }
+    }
+
+    private async Task UnlinkBuildRecordAsync()
+    {
+        isUpdatingLink = true;
+        statusMessage = null;
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await RmaRecordService.UnlinkBuildRecordAsync(RmaRecordId, userName);
+
+            if (result.Succeeded)
+            {
+                await LoadRmaAsync();
+                statusMessage = "Build Record was unlinked.";
+                statusIsError = false;
+            }
+            else
+            {
+                statusMessage = string.Join(" ", result.Errors);
+                statusIsError = true;
+            }
+        }
+        catch
+        {
+            statusMessage = "Build Record could not be unlinked. Try again.";
+            statusIsError = true;
+        }
+        finally
+        {
+            isUpdatingLink = false;
+        }
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private static string Display(DateOnly? value)
+    {
+        return value?.ToString("d MMM yyyy") ?? "Not recorded";
+    }
+
+    private static string DisplayPriority(RmaPriority? value)
+    {
+        return value?.ToString() ?? "Not set";
+    }
+
+    private static string FormatStatus(RmaStatus status)
+    {
+        return status switch
+        {
+            RmaStatus.BookedIn => "Booked In",
+            RmaStatus.WorkInProgress => "Work In Progress",
+            RmaStatus.ReadyToShip => "Ready To Ship",
+            RmaStatus.CancelledNoReply => "Cancelled / No Reply",
+            RmaStatus.CustomerFixed => "Customer Fixed",
+            _ => status.ToString()
+        };
+    }
+}

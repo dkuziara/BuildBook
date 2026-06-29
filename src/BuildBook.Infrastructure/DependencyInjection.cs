@@ -1,7 +1,9 @@
 using BuildBook.Application.BuildRecords;
+using BuildBook.Application.Rmas;
 using BuildBook.Application.Security;
 using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.BuildRecords;
+using BuildBook.Infrastructure.Persistence.Rmas;
 using BuildBook.Infrastructure.Persistence.Security;
 using BuildBook.Infrastructure.Persistence.SeedData;
 using Microsoft.AspNetCore.DataProtection;
@@ -70,6 +72,9 @@ public static class DependencyInjection
         services.AddScoped<INetworkNotesUpdater, NetworkNotesUpdater>();
         services.AddScoped<IApplicationUserManagementService, ApplicationUserManagementService>();
         services.AddScoped<IBuildBookRoleResolver, ApplicationUserManagementService>();
+        services.AddScoped<IRmaAuditService, RmaAuditService>();
+        services.AddScoped<IRmaNumberGenerator, RmaNumberGenerator>();
+        services.AddScoped<IRmaRecordService, RmaRecordService>();
         services.AddSingleton<IRecentlyViewedBuildRecordTracker, RecentlyViewedBuildRecordTracker>();
 
         return services;

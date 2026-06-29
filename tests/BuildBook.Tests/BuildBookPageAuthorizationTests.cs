@@ -9,6 +9,8 @@ public class BuildBookPageAuthorizationTests
     [InlineData("BuildRegister.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRecordDetail.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("Rmas.razor", BuildBookRmaPolicies.ViewRmas)]
+    [InlineData("RmaDetail.razor", BuildBookRmaPolicies.ViewRmas)]
+    [InlineData("CreateRma.razor", BuildBookRmaPolicies.CreateRmas)]
     [InlineData("CreateBuildRecord.razor", BuildBookPolicies.EditBuildRecords)]
     [InlineData("ImportSpreadsheet.razor", BuildBookPolicies.ImportSpreadsheet)]
     [InlineData("ImportHistory.razor", BuildBookPolicies.ImportSpreadsheet)]
@@ -146,16 +148,101 @@ public class BuildBookPageAuthorizationTests
     }
 
     [Fact]
-    public void RmaPlaceholderPageDefinesExpectedRouteAndGuidance()
+    public void RmaRegisterPageDefinesExpectedRouteFiltersAndTable()
     {
         var pageContent = File.ReadAllText(GetPagePath("Rmas.razor"));
 
         Assert.Contains("@page \"/rmas\"", pageContent);
         Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("IRmaRecordService", pageContent);
         Assert.Contains("BuildBookRmaPolicies.ViewRmas", pageContent);
-        Assert.Contains("RMA workspace", pageContent);
-        Assert.Contains("Core register, workflow and reporting screens will be added", pageContent);
-        Assert.Contains("No Build Record secrets will be shown through RMAs", pageContent);
+        Assert.Contains("BuildBookRmaPolicies.CreateRmas", pageContent);
+        Assert.Contains("RMA Register", pageContent);
+        Assert.Contains("FormName=\"rma-register-filters\"", pageContent);
+        Assert.Contains("Apply filters", pageContent);
+        Assert.Contains("Clear filters", pageContent);
+        Assert.Contains("SortByAsync(RmaRegisterSortColumn.RmaNumber)", pageContent);
+        Assert.Contains("SortByAsync(RmaRegisterSortColumn.LastUpdated)", pageContent);
+        Assert.Contains("SortIndicator(RmaRegisterSortColumn.RmaNumber)", pageContent);
+        Assert.Contains("SortIndicator(RmaRegisterSortColumn.LastUpdated)", pageContent);
+        Assert.Contains("Search", pageContent);
+        Assert.Contains("Customer", pageContent);
+        Assert.Contains("Product", pageContent);
+        Assert.Contains("Serial number", pageContent);
+        Assert.Contains("Assigned to", pageContent);
+        Assert.Contains("Priority", pageContent);
+        Assert.Contains("Due date", pageContent);
+        Assert.Contains("Build Record link", pageContent);
+        Assert.Contains("Loading RMA records", pageContent);
+        Assert.Contains("No RMA records found", pageContent);
+        Assert.Contains("RMA number", pageContent);
+        Assert.Contains("Fault summary", pageContent);
+        Assert.Contains("Build Record", pageContent);
+        Assert.Contains("/rmas/{rmaRecord.Id}", pageContent);
+        Assert.DoesNotContain("Password", pageContent);
+        Assert.DoesNotContain("BitLocker", pageContent);
+    }
+
+    [Fact]
+    public void CreateRmaPageDefinesExpectedRouteFormAndBuildRecordMatching()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("CreateRma.razor"));
+
+        Assert.Contains("@page \"/rmas/new\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookRmaPolicies.CreateRmas", pageContent);
+        Assert.Contains("IRmaRecordService", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("NavigationManager", pageContent);
+        Assert.Contains("FormName=\"create-rma-record\"", pageContent);
+        Assert.Contains("Customer", pageContent);
+        Assert.Contains("Product name", pageContent);
+        Assert.Contains("Product code", pageContent);
+        Assert.Contains("Serial number", pageContent);
+        Assert.Contains("Fault summary", pageContent);
+        Assert.Contains("Fault description", pageContent);
+        Assert.Contains("Support ticket number", pageContent);
+        Assert.Contains("Support ticket URL", pageContent);
+        Assert.Contains("Contact name", pageContent);
+        Assert.Contains("Original order number", pageContent);
+        Assert.Contains("Original invoice number", pageContent);
+        Assert.Contains("Suggested Build Records", pageContent);
+        Assert.Contains("RefreshSuggestionsAsync", pageContent);
+        Assert.Contains("SelectBuildRecordMatch", pageContent);
+        Assert.Contains("Continue unlinked", pageContent);
+        Assert.Contains("RmaRecordService.CreateAsync", pageContent);
+        Assert.Contains("RmaRecordService.SuggestBuildRecordMatchesAsync", pageContent);
+        Assert.Contains("NavigationManager.NavigateTo($\"/rmas/{result.RmaRecordId}\")", pageContent);
+    }
+
+    [Fact]
+    public void RmaDetailPageDefinesExpectedRouteSummaryEditingAndBuildRecordLinking()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("RmaDetail.razor"));
+
+        Assert.Contains("@page \"/rmas/{RmaRecordId:int}\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookRmaPolicies.ViewRmas", pageContent);
+        Assert.Contains("BuildBookRmaPolicies.EditRmas", pageContent);
+        Assert.Contains("IRmaRecordService", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("Summary", pageContent);
+        Assert.Contains("Intake &amp; Customer", pageContent);
+        Assert.Contains("Build Record link", pageContent);
+        Assert.Contains("FormName=\"edit-rma-intake\"", pageContent);
+        Assert.Contains("Customer reference", pageContent);
+        Assert.Contains("Original order date", pageContent);
+        Assert.Contains("Customer address", pageContent);
+        Assert.Contains("Initial fault description", pageContent);
+        Assert.Contains("Fault description", pageContent);
+        Assert.Contains("LoadRmaAsync", pageContent);
+        Assert.Contains("LoadBuildRecordSuggestionsAsync", pageContent);
+        Assert.Contains("SaveIntakeAsync", pageContent);
+        Assert.Contains("LinkBuildRecordAsync", pageContent);
+        Assert.Contains("UnlinkBuildRecordAsync", pageContent);
+        Assert.Contains("/build-records/{rmaRecord.BuildRecordId}", pageContent);
+        Assert.DoesNotContain("Password", pageContent);
+        Assert.DoesNotContain("BitLocker", pageContent);
     }
 
     [Fact]
@@ -452,6 +539,7 @@ public class BuildBookPageAuthorizationTests
             BuildBookPolicies.ExportNonSensitiveData => nameof(BuildBookPolicies.ExportNonSensitiveData),
             BuildBookPolicies.ManageUsers => nameof(BuildBookPolicies.ManageUsers),
             BuildBookRmaPolicies.ViewRmas => nameof(BuildBookRmaPolicies.ViewRmas),
+            BuildBookRmaPolicies.CreateRmas => nameof(BuildBookRmaPolicies.CreateRmas),
             _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, "No constant-name assertion is configured for this policy.")
         };
     }
@@ -461,6 +549,7 @@ public class BuildBookPageAuthorizationTests
         return policy switch
         {
             BuildBookRmaPolicies.ViewRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ViewRmas)}",
+            BuildBookRmaPolicies.CreateRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.CreateRmas)}",
             _ => $"BuildBookPolicies.{GetPolicyConstantName(policy)}"
         };
     }

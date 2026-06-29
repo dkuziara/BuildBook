@@ -1,0 +1,38 @@
+using BuildBook.Domain.Rmas;
+
+namespace BuildBook.Application.Rmas;
+
+public sealed record RmaDetailModel(
+    int Id,
+    string RmaNumber,
+    RmaStatus Status,
+    RmaPriority? Priority,
+    string ProductName,
+    string? ProductCode,
+    string? SerialNumber,
+    string? CustomerName,
+    string FaultSummary,
+    string InitialFaultDescription,
+    string? FaultDescription,
+    string? ContactName,
+    string? ContactEmail,
+    string? ContactPhone,
+    string? CustomerAddress,
+    string? CustomerReference,
+    string? SupportTicketNumber,
+    string? SupportTicketUrl,
+    string? OriginalOrderNumber,
+    DateOnly? OriginalOrderDate,
+    string? OriginalInvoiceNumber,
+    int? BuildRecordId,
+    string? LinkedBuildRecordSerialNumber,
+    string? LinkedBuildRecordProductName,
+    string? LinkedBuildRecordCustomerName,
+    DateOnly? DateItemReceived,
+    string? ReceivedBy,
+    DateOnly? DueDate,
+    string? AssignedTo,
+    DateTimeOffset CreatedAt,
+    string CreatedBy,
+    DateTimeOffset LastUpdatedAt,
+    string LastUpdatedBy);
