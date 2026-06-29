@@ -8,20 +8,27 @@
 <PageTitle>Build Register</PageTitle>
 
 <section class="page-heading">
-    <p class="eyebrow">Build Register</p>
-    <h1>Build Register</h1>
-    <p>Use the register to open Build Records and review the most useful product, customer, software and shipping details.</p>
+    <div class="page-heading-copy">
+        <p class="eyebrow">Build Register</p>
+        <h1>Build Register</h1>
+        <p>Open Build Records and review key product, customer, software and shipping details.</p>
+    </div>
     <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
         <Authorized>
-            <p class="page-actions">
+            <div class="page-actions">
                 <a class="primary-button" href="/build-records/new">Add Build Record</a>
-            </p>
+            </div>
         </Authorized>
     </AuthorizeView>
 </section>
 
-<section class="filter-panel" aria-labelledby="build-register-filters-heading">
-    <h2 id="build-register-filters-heading">Filters</h2>
+<section class="filter-panel compact-filter-panel" aria-labelledby="build-register-filters-heading">
+    <div class="table-panel-heading compact-panel-title">
+        <div>
+            <h2 id="build-register-filters-heading">Filters</h2>
+            <p>Refine the active register without pushing the list too far down the page.</p>
+        </div>
+    </div>
 
     <EditForm Model="filterModel" OnValidSubmit="ApplyFiltersAsync" FormName="build-register-filters">
         <div class="filter-grid">
@@ -51,7 +58,7 @@
             </div>
         </div>
 
-        <div class="form-actions">
+        <div class="form-actions register-actions">
             <button type="submit" class="primary-button" disabled="@isLoading">Apply filters</button>
             <button type="button" class="secondary-button" disabled="@(!canClearFilters)" @onclick="ClearFiltersAsync">Clear filters</button>
             <AuthorizeView Policy="@BuildBookPolicies.ExportNonSensitiveData">
@@ -82,7 +89,7 @@ else if (buildRecords.Count == 0)
 }
 else
 {
-    <section class="table-panel" aria-labelledby="build-register-table-heading">
+    <section class="table-panel compact-table-panel" aria-labelledby="build-register-table-heading">
         <div class="table-panel-heading">
             <h2 id="build-register-table-heading">Build Records</h2>
             <p>@buildRecords.Count @(hasActiveFilters ? "matching" : "active") records</p>

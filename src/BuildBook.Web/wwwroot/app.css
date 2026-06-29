@@ -17,7 +17,7 @@
     --color-text-default: #24364f;
     --color-text-muted: #5b6d84;
     --color-text-subtle: #74849a;
-    --shadow-panel: 0 14px 40px rgba(24, 38, 59, 0.06);
+    --shadow-panel: 0 10px 28px rgba(24, 38, 59, 0.06);
     --shadow-soft: 0 6px 18px rgba(24, 38, 59, 0.07);
     --shadow-focus: 0 0 0 4px rgba(255, 98, 0, 0.18);
     --radius-sm: 0.55rem;
@@ -28,19 +28,19 @@
     --space-3: 0.75rem;
     --space-4: 1rem;
     --space-5: 1.25rem;
-    --space-6: 1.5rem;
-    --space-7: 2rem;
-    --space-8: 2.5rem;
+    --space-6: 1.35rem;
+    --space-7: 1.7rem;
+    --space-8: 2.1rem;
     --font-size-xs: 0.78rem;
     --font-size-sm: 0.9rem;
     --font-size-md: 1rem;
     --font-size-lg: 1.15rem;
-    --font-size-xl: clamp(2rem, 2vw + 1.3rem, 2.85rem);
-    --font-size-h2: 1.3rem;
-    --font-size-h3: 1.05rem;
+    --font-size-xl: clamp(1.7rem, 1vw + 1.2rem, 2.15rem);
+    --font-size-h2: 1.12rem;
+    --font-size-h3: 1rem;
     --content-width: 78rem;
-    --button-height: 2.9rem;
-    --button-height-sm: 2.45rem;
+    --button-height: 2.45rem;
+    --button-height-sm: 2.05rem;
     --table-min-width: 54rem;
 }
 
@@ -86,7 +86,12 @@ textarea:focus-visible {
 }
 
 .page-heading {
-    margin-bottom: var(--space-7);
+    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    justify-content: space-between;
+    margin-bottom: var(--space-5);
 }
 
 .page-heading h1 {
@@ -94,17 +99,23 @@ textarea:focus-visible {
     font-size: var(--font-size-xl);
     font-weight: 700;
     letter-spacing: -0.03em;
-    line-height: 1.04;
-    margin: 0 0 var(--space-4);
+    line-height: 1.08;
+    margin: 0 0 var(--space-2);
     max-width: 48rem;
 }
 
 .page-heading p {
     color: var(--color-text-muted);
-    font-size: 1.02rem;
-    line-height: 1.7;
+    font-size: 0.95rem;
+    line-height: 1.5;
     margin: 0;
     max-width: 46rem;
+}
+
+.page-heading-copy {
+    display: grid;
+    gap: var(--space-1);
+    min-width: 0;
 }
 
 .page-heading .eyebrow {
@@ -112,12 +123,16 @@ textarea:focus-visible {
     font-size: var(--font-size-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
-    margin-bottom: var(--space-3);
+    margin-bottom: 0;
     text-transform: uppercase;
 }
 
 .page-heading .page-actions {
-    margin-top: var(--space-5);
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0;
 }
 
 .placeholder-panel,
@@ -136,7 +151,7 @@ textarea:focus-visible {
 .detail-panel,
 .filter-panel,
 .table-panel {
-    padding: clamp(1rem, 2vw, 1.5rem);
+    padding: clamp(0.9rem, 1.2vw, 1.2rem);
 }
 
 .placeholder-panel h2,
@@ -165,7 +180,7 @@ textarea:focus-visible {
 }
 
 .detail-section {
-    margin-top: var(--space-5);
+    margin-top: var(--space-4);
 }
 
 .detail-panel-header,
@@ -174,10 +189,10 @@ textarea:focus-visible {
     align-items: flex-start;
     border-bottom: 1px solid var(--color-border-soft);
     display: flex;
-    gap: var(--space-4);
+    gap: var(--space-3);
     justify-content: space-between;
-    margin-bottom: var(--space-5);
-    padding-bottom: var(--space-4);
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
 }
 
 .detail-panel-header p,
@@ -188,8 +203,8 @@ textarea:focus-visible {
 
 .summary-list {
     display: grid;
-    gap: var(--space-4);
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
     margin: 0;
 }
 
@@ -198,7 +213,7 @@ textarea:focus-visible {
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-md);
     min-width: 0;
-    padding: var(--space-4);
+    padding: var(--space-3);
 }
 
 .summary-list dt {
@@ -212,7 +227,7 @@ textarea:focus-visible {
 
 .summary-list dd {
     color: var(--color-text-strong);
-    font-size: 1.02rem;
+    font-size: 0.98rem;
     font-weight: 600;
     margin: 0;
     overflow-wrap: anywhere;
@@ -221,7 +236,7 @@ textarea:focus-visible {
 .form-grid,
 .filter-grid {
     display: grid;
-    gap: var(--space-4);
+    gap: var(--space-3);
 }
 
 .form-grid {
@@ -229,7 +244,7 @@ textarea:focus-visible {
 }
 
 .filter-grid {
-    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
 }
 
 .form-field {
@@ -253,15 +268,15 @@ input[type="file"] {
     border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-sm);
     color: var(--color-text-strong);
-    min-height: 2.65rem;
-    padding: 0.58rem 0.8rem;
+    min-height: 2.35rem;
+    padding: 0.48rem 0.72rem;
     transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
 }
 
 input.text-input,
 select.text-input {
     box-sizing: border-box;
-    height: 2.65rem;
+    height: 2.35rem;
 }
 
 textarea.text-input {
@@ -291,11 +306,11 @@ input[type="file"]:focus {
     align-items: center;
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-3);
+    gap: var(--space-2);
 }
 
 .form-actions {
-    margin-top: var(--space-5);
+    margin-top: var(--space-4);
 }
 
 .primary-button,
@@ -311,7 +326,7 @@ input[type="file"]:focus {
     gap: var(--space-2);
     justify-content: center;
     min-height: var(--button-height);
-    padding: 0.7rem 1rem;
+    padding: 0.5rem 0.9rem;
     text-decoration: none;
     transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
     white-space: nowrap;
@@ -358,7 +373,7 @@ input[type="file"]:focus {
 
 .button-small {
     min-height: var(--button-height-sm);
-    padding: 0.5rem 0.85rem;
+    padding: 0.38rem 0.72rem;
 }
 
 .primary-button:disabled,
@@ -387,8 +402,8 @@ a.secondary-button[aria-disabled="true"] {
 
 .status-message {
     border-radius: var(--radius-md);
-    margin-bottom: var(--space-4);
-    padding: 0.95rem 1rem;
+    margin-bottom: var(--space-3);
+    padding: 0.8rem 0.9rem;
 }
 
 .status-message p {
@@ -421,7 +436,7 @@ a.secondary-button[aria-disabled="true"] {
 .home-activity-grid {
     align-items: start;
     display: grid;
-    gap: var(--space-5);
+    gap: var(--space-4);
     grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
 }
 
@@ -440,7 +455,7 @@ a.secondary-button[aria-disabled="true"] {
     color: inherit;
     display: grid;
     gap: 0.25rem;
-    padding: var(--space-4);
+    padding: var(--space-3);
     text-decoration: none;
     transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
@@ -478,7 +493,7 @@ a.secondary-button[aria-disabled="true"] {
 .data-table th,
 .data-table td {
     border-bottom: 1px solid var(--color-border-soft);
-    padding: 0.85rem 0.8rem;
+    padding: 0.68rem 0.7rem;
     text-align: left;
     vertical-align: top;
 }
@@ -529,8 +544,8 @@ a.secondary-button[aria-disabled="true"] {
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-md);
     display: grid;
-    gap: var(--space-3);
-    padding: var(--space-4);
+    gap: var(--space-2);
+    padding: var(--space-3);
 }
 
 .secret-status-row {
@@ -590,15 +605,15 @@ a.secondary-button[aria-disabled="true"] {
 }
 
 .detail-actions {
-    margin-top: var(--space-4);
+    margin-top: var(--space-3);
 }
 
 .report-scroll-target {
-    scroll-margin-top: 8.5rem;
+    scroll-margin-top: 7rem;
 }
 
 .report-scroll-heading {
-    scroll-margin-top: 8.5rem;
+    scroll-margin-top: 7rem;
 }
 
 .form-introduction {
@@ -615,9 +630,9 @@ a.secondary-button[aria-disabled="true"] {
     border-radius: var(--radius-md);
     color: var(--color-text-strong);
     display: grid;
-    gap: 0.15rem;
-    min-width: 17rem;
-    padding: 0.85rem 1rem;
+    gap: 0.1rem;
+    min-width: 14rem;
+    padding: 0.65rem 0.85rem;
 }
 
 .current-user-label,
@@ -630,8 +645,8 @@ a.secondary-button[aria-disabled="true"] {
     background: var(--color-surface-panel);
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-md);
-    margin-top: var(--space-4);
-    padding: var(--space-4);
+    margin-top: var(--space-3);
+    padding: var(--space-3);
 }
 
 .user-management-card:first-of-type {
@@ -644,8 +659,8 @@ a.secondary-button[aria-disabled="true"] {
 
 .role-assignment-section {
     display: grid;
-    gap: var(--space-4);
-    margin-top: var(--space-4);
+    gap: var(--space-3);
+    margin-top: var(--space-3);
 }
 
 .user-active-toggle,
@@ -669,7 +684,45 @@ a.secondary-button[aria-disabled="true"] {
     color: var(--color-brand-700);
     display: inline-block;
     font-weight: 600;
-    padding: 0.5rem 0.85rem;
+    padding: 0.4rem 0.75rem;
+}
+
+.compact-panel-title {
+    margin-bottom: var(--space-2);
+}
+
+.compact-actions {
+    justify-content: flex-start;
+}
+
+.register-actions {
+    align-items: center;
+}
+
+.register-actions .action-link {
+    background: var(--color-surface-panel);
+    border: 1px solid var(--color-border-strong);
+    color: var(--color-text-default);
+    padding: 0.38rem 0.72rem;
+}
+
+.register-actions .action-link:hover {
+    background: var(--color-brand-100);
+    border-color: #b8cae0;
+    color: var(--color-text-strong);
+}
+
+.table-panel.compact-table-panel .table-panel-heading,
+.filter-panel.compact-filter-panel h2 {
+    margin-bottom: var(--space-3);
+}
+
+.compact-filter-panel .filter-grid {
+    margin-top: var(--space-3);
+}
+
+.compact-filter-panel .form-actions {
+    margin-top: var(--space-3);
 }
 
 .mapping-table {
@@ -773,8 +826,13 @@ a.secondary-button[aria-disabled="true"] {
 }
 
 @media (max-width: 52rem) {
+    .page-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
     .page-heading h1 {
-        font-size: 2rem;
+        font-size: 1.8rem;
     }
 
     .detail-panel-header,

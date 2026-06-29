@@ -24,9 +24,11 @@
 else
 {
     <section class="page-heading">
-        <p class="eyebrow">Admin</p>
-        <h1>Users &amp; Roles</h1>
-        <p>Windows Authentication identifies each person. BuildBook roles decide what they can view, edit, reveal and administer.</p>
+        <div class="page-heading-copy">
+            <p class="eyebrow">Admin</p>
+            <h1>Users &amp; Roles</h1>
+            <p>Windows Authentication identifies each person. BuildBook roles decide what they can view, edit, reveal and administer.</p>
+        </div>
     </section>
 
     @if (!string.IsNullOrWhiteSpace(statusMessage))
@@ -89,7 +91,7 @@ else
 
     <section class="form-panel detail-section" aria-labelledby="add-user-heading">
         <h2 id="add-user-heading">Add Windows user</h2>
-        <p class="form-introduction">Add a Windows username first, then assign the BuildBook roles the user needs.</p>
+        <p class="form-introduction">Add the Windows username, then assign the BuildBook roles they need.</p>
 
         <div class="form-grid">
             <div class="form-field">

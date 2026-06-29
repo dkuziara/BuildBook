@@ -28,9 +28,11 @@
 else if (buildRecord is null)
 {
     <section class="page-heading">
-        <p class="eyebrow">Build Records</p>
-        <h1>Build Record not found.</h1>
-        <p>The record may not exist, or it may no longer be active.</p>
+        <div class="page-heading-copy">
+            <p class="eyebrow">Build Records</p>
+            <h1>Build Record not found.</h1>
+            <p>The record may not exist, or it may no longer be active.</p>
+        </div>
     </section>
 
     <p>
@@ -40,9 +42,14 @@ else if (buildRecord is null)
 else
 {
     <section class="page-heading">
-        <p class="eyebrow">Build Record</p>
-        <h1>@buildRecord.ProductName</h1>
-        <p>@buildRecord.ProductCode - Serial @buildRecord.SerialNumber</p>
+        <div class="page-heading-copy">
+            <p class="eyebrow">Build Record</p>
+            <h1>@buildRecord.ProductName</h1>
+            <p>@buildRecord.ProductCode - Serial @buildRecord.SerialNumber</p>
+        </div>
+        <div class="page-actions">
+            <a class="secondary-button" href="/build-register">Back to Build Register</a>
+        </div>
     </section>
 
     @if (saveSucceeded)

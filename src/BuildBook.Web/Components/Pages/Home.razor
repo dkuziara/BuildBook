@@ -16,16 +16,16 @@
 else
 {
     <section class="page-heading">
-        <p class="eyebrow">BuildBook</p>
-        <h1>Find and manage internal build records.</h1>
-        <p>
-            Recent activity is shown below. Global search and summary counts will be added in later backlog items.
-        </p>
+        <div class="page-heading-copy">
+            <p class="eyebrow">BuildBook</p>
+            <h1>Find and manage internal build records.</h1>
+            <p>Recent activity is shown below while wider search and summary views are still being added.</p>
+        </div>
         <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
             <Authorized>
-                <p class="page-actions">
+                <div class="page-actions">
                     <a class="primary-button" href="/build-records/new">Add Build Record</a>
-                </p>
+                </div>
             </Authorized>
         </AuthorizeView>
     </section>

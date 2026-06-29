@@ -11,9 +11,11 @@
 <PageTitle>Import Spreadsheet</PageTitle>
 
 <section class="page-heading">
-    <p class="eyebrow">Import</p>
-    <h1>Upload Spreadsheet</h1>
-    <p>Upload the existing spreadsheet, review the detected headers and map each column to the right BuildBook field.</p>
+    <div class="page-heading-copy">
+        <p class="eyebrow">Import</p>
+        <h1>Upload Spreadsheet</h1>
+        <p>Upload the spreadsheet, review detected headers and map each column to the right BuildBook field.</p>
+    </div>
 </section>
 
 @if (uploadSucceeded)
@@ -355,9 +357,9 @@
             @importExecution.Summary
         </div>
 
-        <p class="detail-actions">
+        <div class="detail-actions">
             <a class="action-link" href="/imports">View Import History</a>
-        </p>
+        </div>
     </section>
 }
 
