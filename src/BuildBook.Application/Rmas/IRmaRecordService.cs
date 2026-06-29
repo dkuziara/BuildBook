@@ -14,6 +14,9 @@ public interface IRmaRecordService
     Task<RmaDashboardSummary> GetDashboardSummaryAsync(
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<RmaBoardCardModel>> GetBoardAsync(
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<RmaStatusHistoryEntry>> GetStatusHistoryAsync(
         int rmaRecordId,
         CancellationToken cancellationToken = default);
@@ -41,6 +44,18 @@ public interface IRmaRecordService
     Task<RmaAttachmentContentModel?> GetAttachmentContentAsync(
         int rmaRecordId,
         int attachmentId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<BuildRecordRmaHistoryRow>> GetBuildRecordHistoryAsync(
+        int buildRecordId,
+        CancellationToken cancellationToken = default);
+
+    Task<RmaRepeatReturnSummary> GetRepeatReturnSummaryAsync(
+        RmaRepeatReturnRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<RmaCreatePrefillModel?> GetCreatePrefillAsync(
+        int buildRecordId,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<RmaRegisterRow>> SearchAsync(

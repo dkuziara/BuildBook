@@ -674,6 +674,114 @@ public class RmaRecordServiceIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task GetBoardAsync_ReturnsChecklistProgressRepeatCountsAndWarnings()
+    {
+        var options = DatabaseTestHelper.CreateSqlServerOptions("BuildBookRmaBoard");
+        await DatabaseTestHelper.InitializeDatabaseAsync(options);
+
+        try
+        {
+            await using (var setupContext = new BuildBookDbContext(options))
+            {
+                var customer = CreateCustomer("Acme Medical");
+                var buildRecord = CreateBuildRecord("CDM61100", "Device A", "SN-1000", customer);
+                var previousRma = CreateRmaRecord("RMA-0001", "Device A", "SN-1000", customer, buildRecord, RmaStatus.Closed);
+                var readyToShipRma = CreateRmaRecord("RMA-0002", "Device A", "SN-1000", customer, null, RmaStatus.ReadyToShip);
+                readyToShipRma.DueDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2));
+
+                setupContext.Customers.Add(customer);
+                setupContext.BuildRecords.Add(buildRecord);
+                setupContext.RmaRecords.AddRange(previousRma, readyToShipRma);
+                await setupContext.SaveChangesAsync();
+
+                setupContext.RmaChecklistItems.AddRange(
+                    new RmaChecklistItem
+                    {
+                        RmaRecordId = readyToShipRma.Id,
+                        DisplayOrder = 1,
+                        Text = "Diagnose fault",
+                        IsCompleted = true
+                    },
+                    new RmaChecklistItem
+                    {
+                        RmaRecordId = readyToShipRma.Id,
+                        DisplayOrder = 2,
+                        Text = "Run functional test",
+                        IsCompleted = false
+                    });
+
+                await setupContext.SaveChangesAsync();
+            }
+
+            var service = CreateService(options);
+            var board = await service.GetBoardAsync();
+
+            var card = Assert.Single(board, item => item.RmaNumber == "RMA-0002");
+            Assert.Equal(1, card.CompletedChecklistCount);
+            Assert.Equal(2, card.TotalChecklistCount);
+            Assert.True(card.IsOverdue);
+            Assert.Equal(1, card.PreviousRmaCount);
+            Assert.Contains("No linked Build Record", card.Warnings);
+            Assert.Contains("Checklist incomplete", card.Warnings);
+            Assert.Contains("Repair action missing", card.Warnings);
+        }
+        finally
+        {
+            await DatabaseTestHelper.DeleteDatabaseAsync(options);
+        }
+    }
+
+    [Fact]
+    public async Task BuildRecordLinkageHelpers_ReturnHistoryRepeatSummaryAndCreatePrefill()
+    {
+        var options = DatabaseTestHelper.CreateSqlServerOptions("BuildBookRmaBuildRecordLinkage");
+        await DatabaseTestHelper.InitializeDatabaseAsync(options);
+
+        try
+        {
+            int buildRecordId;
+            int currentRmaId;
+
+            await using (var setupContext = new BuildBookDbContext(options))
+            {
+                var customer = CreateCustomer("Acme Medical");
+                var buildRecord = CreateBuildRecord("CDM61100", "Device A", "SN-1000", customer);
+                var olderRma = CreateRmaRecord("RMA-0001", "Device A", "SN-1000", customer, buildRecord, RmaStatus.Closed);
+                var currentRma = CreateRmaRecord("RMA-0002", "Device A", "SN-1000", customer, buildRecord, RmaStatus.WorkInProgress);
+
+                setupContext.Customers.Add(customer);
+                setupContext.BuildRecords.Add(buildRecord);
+                setupContext.RmaRecords.AddRange(olderRma, currentRma);
+                await setupContext.SaveChangesAsync();
+
+                buildRecordId = buildRecord.Id;
+                currentRmaId = currentRma.Id;
+            }
+
+            var service = CreateService(options);
+            var history = await service.GetBuildRecordHistoryAsync(buildRecordId);
+            var repeatSummary = await service.GetRepeatReturnSummaryAsync(
+                new RmaRepeatReturnRequest(currentRmaId, buildRecordId, "SN-1000"));
+            var prefill = await service.GetCreatePrefillAsync(buildRecordId);
+
+            Assert.Equal(2, history.Count);
+            Assert.Equal("RMA-0002", history[0].RmaNumber);
+            Assert.True(repeatSummary.HasPreviousRmas);
+            Assert.Equal(1, repeatSummary.PreviousRmaCount);
+            Assert.Equal("RMA-0001", Assert.Single(repeatSummary.PreviousRmas).RmaNumber);
+            Assert.NotNull(prefill);
+            Assert.Equal(buildRecordId, prefill!.BuildRecordId);
+            Assert.Equal("CDM61100", prefill.ProductCode);
+            Assert.Equal("SN-1000", prefill.SerialNumber);
+            Assert.Equal("Acme Medical", prefill.CustomerName);
+        }
+        finally
+        {
+            await DatabaseTestHelper.DeleteDatabaseAsync(options);
+        }
+    }
+
     private static RmaRecordService CreateService(DbContextOptions<BuildBookDbContext> options, string? attachmentRoot = null)
     {
         var configuration = new ConfigurationBuilder()

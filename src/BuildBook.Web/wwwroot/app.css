@@ -690,6 +690,40 @@ a.secondary-button[aria-disabled="true"] {
     margin-top: var(--space-3);
 }
 
+.board-grid {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.board-column {
+    align-self: start;
+}
+
+.board-card-link {
+    gap: var(--space-2);
+}
+
+.board-card-row,
+.board-card-meta-row {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: space-between;
+}
+
+.board-card-meta-row {
+    justify-content: flex-start;
+}
+
+.board-warning-list {
+    color: var(--color-accent-amber);
+    font-size: var(--font-size-sm);
+    margin: 0;
+    padding-left: 1rem;
+}
+
 .report-scroll-target {
     scroll-margin-top: 7rem;
 }

@@ -113,6 +113,52 @@ else
         </dl>
     </section>
 
+    <section class="detail-panel detail-section" aria-labelledby="rma-repeat-history-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-repeat-history-heading">Repeat Return History</h2>
+                <p>See whether this serial number or linked Build Record has previous RMAs.</p>
+            </div>
+        </div>
+
+        @if (!repeatReturnSummary.HasPreviousRmas)
+        {
+            <p class="empty-state">No previous RMAs were found for this device.</p>
+        }
+        else
+        {
+            <div class="status-message warning" role="status">
+                <p>This device has @repeatReturnSummary.PreviousRmaCount previous RMA@(repeatReturnSummary.PreviousRmaCount == 1 ? string.Empty : "s").</p>
+            </div>
+
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">RMA number</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Customer</th>
+                            <th scope="col">Fault summary</th>
+                            <th scope="col">Last updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var previousRma in repeatReturnSummary.PreviousRmas.Take(5))
+                        {
+                            <tr>
+                                <td><a class="table-link" href="@($"/rmas/{previousRma.Id}")">@previousRma.RmaNumber</a></td>
+                                <td>@FormatStatus(previousRma.Status)</td>
+                                <td>@Display(previousRma.CustomerName)</td>
+                                <td>@previousRma.FaultSummary</td>
+                                <td>@Display(previousRma.LastUpdatedAt)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
     <section class="detail-panel detail-section" aria-labelledby="rma-workflow-heading">
         <div class="detail-panel-header">
             <div>
@@ -1537,6 +1583,7 @@ else
     private IReadOnlyList<RmaStatusHistoryEntry> statusHistoryEntries = [];
     private IReadOnlyList<RmaChecklistItemModel> checklistItems = [];
     private IReadOnlyList<RmaPartModel> parts = [];
+    private RmaRepeatReturnSummary repeatReturnSummary = RmaRepeatReturnSummary.Empty;
     private IReadOnlyList<RmaNoteModel> notes = [];
     private IReadOnlyList<RmaCommunicationModel> communications = [];
     private IReadOnlyList<RmaAttachmentModel> attachments = [];
@@ -1609,6 +1656,11 @@ else
         if (rmaRecord is not null)
         {
             await LoadBuildRecordSuggestionsAsync();
+            repeatReturnSummary = await RmaRecordService.GetRepeatReturnSummaryAsync(
+                new RmaRepeatReturnRequest(
+                    RmaRecordId,
+                    rmaRecord.BuildRecordId,
+                    rmaRecord.SerialNumber));
             statusHistoryEntries = await RmaRecordService.GetStatusHistoryAsync(RmaRecordId);
             checklistItems = await RmaRecordService.GetChecklistAsync(RmaRecordId);
             parts = await RmaRecordService.GetPartsAsync(RmaRecordId);
@@ -1620,6 +1672,7 @@ else
         else
         {
             buildRecordSuggestions = [];
+            repeatReturnSummary = RmaRepeatReturnSummary.Empty;
             statusHistoryEntries = [];
             checklistItems = [];
             parts = [];

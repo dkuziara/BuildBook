@@ -235,6 +235,118 @@ public sealed class RmaRecordService(
             shippedNotClosedCount);
     }
 
+    public async Task<IReadOnlyList<RmaBoardCardModel>> GetBoardAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var records = await dbContext.RmaRecords
+            .AsNoTracking()
+            .Where(rmaRecord => rmaRecord.IsActive)
+            .Select(rmaRecord => new
+            {
+                rmaRecord.Id,
+                rmaRecord.RmaNumber,
+                rmaRecord.Status,
+                CustomerName = rmaRecord.Customer == null ? null : rmaRecord.Customer.Name,
+                rmaRecord.ProductName,
+                rmaRecord.SerialNumber,
+                rmaRecord.FaultSummary,
+                rmaRecord.Priority,
+                rmaRecord.AssignedTo,
+                rmaRecord.DueDate,
+                rmaRecord.BuildRecordId,
+                rmaRecord.RepairActionTaken,
+                rmaRecord.RepairCompletedDate,
+                rmaRecord.RepairCompletedBy,
+                rmaRecord.TestRequired,
+                rmaRecord.TestResult,
+                rmaRecord.QaRequired,
+                rmaRecord.QaResult,
+                rmaRecord.ReleaseApproved,
+                rmaRecord.CustomerApprovalRequired,
+                rmaRecord.CustomerApprovalReceived
+            })
+            .OrderBy(rmaRecord => rmaRecord.Status)
+            .ThenBy(rmaRecord => rmaRecord.DueDate)
+            .ThenBy(rmaRecord => rmaRecord.RmaNumber)
+            .ToListAsync(cancellationToken);
+
+        var recordIds = records.Select(record => record.Id).ToArray();
+        var checklistItems = await dbContext.RmaChecklistItems
+            .AsNoTracking()
+            .Where(item => recordIds.Contains(item.RmaRecordId))
+            .Select(item => new
+            {
+                item.RmaRecordId,
+                item.Text,
+                item.IsCompleted
+            })
+            .ToListAsync(cancellationToken);
+
+        var checklistLookup = checklistItems
+            .GroupBy(item => item.RmaRecordId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        return records
+            .Select(record =>
+            {
+                checklistLookup.TryGetValue(record.Id, out var recordChecklistItems);
+                recordChecklistItems ??= [];
+                var boardChecklistItems = recordChecklistItems
+                    .Select(item => (item.Text, item.IsCompleted))
+                    .ToList();
+
+                var completedChecklistCount = boardChecklistItems.Count(item => item.IsCompleted);
+                var warnings = BuildBoardWarnings(
+                    record.Status,
+                    today,
+                    record.DueDate,
+                    record.SerialNumber,
+                    record.BuildRecordId,
+                    record.RepairActionTaken,
+                    record.RepairCompletedDate,
+                    record.RepairCompletedBy,
+                    record.TestRequired,
+                    record.TestResult,
+                    record.QaRequired,
+                    record.QaResult,
+                    record.ReleaseApproved,
+                    record.CustomerApprovalRequired,
+                    record.CustomerApprovalReceived,
+                    boardChecklistItems);
+
+                var previousRmaCount = records.Count(other =>
+                    other.Id != record.Id
+                    && HasRepeatLink(
+                        record.BuildRecordId,
+                        record.SerialNumber,
+                        other.BuildRecordId,
+                        other.SerialNumber));
+
+                return new RmaBoardCardModel(
+                    record.Id,
+                    record.RmaNumber,
+                    record.Status,
+                    record.CustomerName,
+                    record.ProductName,
+                    record.SerialNumber,
+                    record.FaultSummary,
+                    record.Priority,
+                    record.AssignedTo,
+                    record.DueDate,
+                    record.BuildRecordId is not null,
+                    record.BuildRecordId,
+                    IsOverdue(record.Status, record.DueDate, today),
+                    completedChecklistCount,
+                    boardChecklistItems.Count,
+                    previousRmaCount,
+                    warnings);
+            })
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<RmaStatusHistoryEntry>> GetStatusHistoryAsync(
         int rmaRecordId,
         CancellationToken cancellationToken = default)
@@ -394,6 +506,90 @@ public sealed class RmaRecordService(
                 attachment.FileName,
                 attachment.ContentType,
                 content);
+    }
+
+    public async Task<IReadOnlyList<BuildRecordRmaHistoryRow>> GetBuildRecordHistoryAsync(
+        int buildRecordId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.RmaRecords
+            .AsNoTracking()
+            .Where(rmaRecord => rmaRecord.IsActive && rmaRecord.BuildRecordId == buildRecordId)
+            .OrderByDescending(rmaRecord => rmaRecord.CreatedAt)
+            .ThenByDescending(rmaRecord => rmaRecord.Id)
+            .Select(rmaRecord => new BuildRecordRmaHistoryRow(
+                rmaRecord.Id,
+                rmaRecord.RmaNumber,
+                rmaRecord.Status,
+                rmaRecord.FaultSummary,
+                rmaRecord.CreatedAt,
+                rmaRecord.ClosedAt,
+                rmaRecord.Outcome))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<RmaRepeatReturnSummary> GetRepeatReturnSummaryAsync(
+        RmaRepeatReturnRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var serialNumber = NormalizeOptionalValue(request.SerialNumber);
+        var linkedBuildRecordId = request.LinkedBuildRecordId;
+        var currentRmaRecordId = request.CurrentRmaRecordId;
+        var hasLinkedBuildRecordId = linkedBuildRecordId.HasValue;
+        var hasSerialNumber = !string.IsNullOrWhiteSpace(serialNumber);
+
+        if (!hasLinkedBuildRecordId && !hasSerialNumber)
+        {
+            return RmaRepeatReturnSummary.Empty;
+        }
+
+        var rows = await dbContext.RmaRecords
+            .AsNoTracking()
+            .Where(rmaRecord =>
+                rmaRecord.IsActive
+                && (!currentRmaRecordId.HasValue || rmaRecord.Id != currentRmaRecordId.Value)
+                && ((hasLinkedBuildRecordId && rmaRecord.BuildRecordId == linkedBuildRecordId!.Value)
+                    || (hasSerialNumber && rmaRecord.SerialNumber == serialNumber)))
+            .OrderByDescending(rmaRecord => rmaRecord.CreatedAt)
+            .ThenByDescending(rmaRecord => rmaRecord.Id)
+            .Select(rmaRecord => new RmaRegisterRow(
+                rmaRecord.Id,
+                rmaRecord.RmaNumber,
+                rmaRecord.Status,
+                rmaRecord.Customer == null ? null : rmaRecord.Customer.Name,
+                rmaRecord.ProductName,
+                rmaRecord.SerialNumber,
+                rmaRecord.FaultSummary,
+                rmaRecord.Priority,
+                rmaRecord.AssignedTo,
+                rmaRecord.DueDate,
+                rmaRecord.BuildRecordId != null,
+                rmaRecord.BuildRecordId,
+                rmaRecord.LastUpdatedAt))
+            .ToListAsync(cancellationToken);
+
+        return new RmaRepeatReturnSummary(rows.Count, rows);
+    }
+
+    public async Task<RmaCreatePrefillModel?> GetCreatePrefillAsync(
+        int buildRecordId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.BuildRecords
+            .AsNoTracking()
+            .Where(buildRecord => buildRecord.Id == buildRecordId && buildRecord.IsActive)
+            .Select(buildRecord => new RmaCreatePrefillModel(
+                buildRecord.Id,
+                buildRecord.ProductCode,
+                buildRecord.ProductName,
+                buildRecord.SerialNumber,
+                buildRecord.Customer == null ? null : buildRecord.Customer.Name))
+            .SingleOrDefaultAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<RmaRegisterRow>> SearchAsync(
@@ -2007,6 +2203,111 @@ public sealed class RmaRecordService(
 
         dbContext.Customers.Add(customer);
         return customer;
+    }
+
+    private static bool HasRepeatLink(
+        int? buildRecordId,
+        string? serialNumber,
+        int? otherBuildRecordId,
+        string? otherSerialNumber)
+    {
+        return (buildRecordId is not null && otherBuildRecordId == buildRecordId)
+            || (serialNumber is not null
+                && otherSerialNumber is not null
+                && string.Equals(serialNumber, otherSerialNumber, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsOverdue(
+        RmaStatus status,
+        DateOnly? dueDate,
+        DateOnly today)
+    {
+        return dueDate is not null
+            && dueDate < today
+            && status != RmaStatus.Closed
+            && status != RmaStatus.CancelledNoReply
+            && status != RmaStatus.CustomerFixed;
+    }
+
+    private static IReadOnlyList<string> BuildBoardWarnings(
+        RmaStatus status,
+        DateOnly today,
+        DateOnly? dueDate,
+        string? serialNumber,
+        int? buildRecordId,
+        string? repairActionTaken,
+        DateOnly? repairCompletedDate,
+        string? repairCompletedBy,
+        bool? testRequired,
+        RmaTestResult? testResult,
+        bool? qaRequired,
+        RmaQaResult? qaResult,
+        bool? releaseApproved,
+        bool? customerApprovalRequired,
+        bool? customerApprovalReceived,
+        IReadOnlyList<(string Text, bool IsCompleted)> checklistItems)
+    {
+        var warnings = new List<string>();
+
+        if (IsOverdue(status, dueDate, today))
+        {
+            warnings.Add("Overdue");
+        }
+
+        if (string.IsNullOrWhiteSpace(serialNumber))
+        {
+            warnings.Add("Serial number missing");
+        }
+
+        if (buildRecordId is null)
+        {
+            warnings.Add("No linked Build Record");
+        }
+
+        if (status == RmaStatus.ReadyToShip)
+        {
+            var incompleteChecklist = checklistItems
+                .Where(item => !item.IsCompleted && !ReadyToShipDeferredChecklistItems.Contains(item.Text))
+                .Select(item => item.Text)
+                .ToList();
+
+            if (incompleteChecklist.Count > 0)
+            {
+                warnings.Add("Checklist incomplete");
+            }
+
+            if (string.IsNullOrWhiteSpace(repairActionTaken))
+            {
+                warnings.Add("Repair action missing");
+            }
+
+            if (repairCompletedDate is null || string.IsNullOrWhiteSpace(repairCompletedBy))
+            {
+                warnings.Add("Repair completion missing");
+            }
+
+            if (testRequired == true && testResult != RmaTestResult.Pass)
+            {
+                warnings.Add("Required test not passed");
+            }
+
+            if (qaRequired == true && qaResult != RmaQaResult.Pass)
+            {
+                warnings.Add("QA sign-off missing");
+            }
+
+            if (releaseApproved != true)
+            {
+                warnings.Add("Release approval missing");
+            }
+
+            if (customerApprovalRequired == true && customerApprovalReceived != true)
+            {
+                warnings.Add("Customer approval missing");
+            }
+        }
+
+        return warnings;
     }
 
     private static string NormalizeUserName(string userName)

@@ -1,0 +1,146 @@
+@page "/rmas/board"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.Rmas
+@using BuildBook.Domain.Rmas
+
+@attribute [Authorize(Policy = BuildBookRmaPolicies.ViewRmas)]
+
+@inject IRmaRecordService RmaRecordService
+
+<PageTitle>RMA Board</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">RMAs</p>
+        <h1>RMA Board</h1>
+        <p>Group current RMA work by status and surface the operational warnings that matter most.</p>
+    </div>
+    <div class="page-actions">
+        <a class="secondary-button" href="/rmas">Open RMA Register</a>
+    </div>
+</section>
+
+@if (isLoading)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading RMA board...</p>
+    </section>
+}
+else
+{
+    <section class="board-grid" aria-label="RMA board">
+        @foreach (var status in BoardStatuses)
+        {
+            var cards = boardCards.Where(card => card.Status == status).ToList();
+
+            <article class="detail-panel board-column">
+                <div class="detail-panel-header">
+                    <div>
+                        <h2>@FormatStatus(status)</h2>
+                        <p>@cards.Count @(cards.Count == 1 ? "record" : "records")</p>
+                    </div>
+                </div>
+
+                @if (cards.Count == 0)
+                {
+                    <p class="empty-state">No RMAs in this status.</p>
+                }
+                else
+                {
+                    <ul class="recent-record-list">
+                        @foreach (var card in cards)
+                        {
+                            <li>
+                                <a class="recent-record-link board-card-link" href="@($"/rmas/{card.Id}")">
+                                    <div class="board-card-row">
+                                        <span class="recent-record-title">@card.RmaNumber</span>
+                                        <span class="status-pill @StatusClass(card.Status)">@FormatStatus(card.Status)</span>
+                                    </div>
+                                    <span class="recent-record-meta">@card.ProductName</span>
+                                    <span class="recent-record-meta">@Display(card.CustomerName)</span>
+                                    <span class="recent-record-meta">@Display(card.SerialNumber)</span>
+                                    <span class="recent-record-meta">@card.FaultSummary</span>
+                                    <div class="board-card-meta-row">
+                                        <span class="validation-badge">Checklist @card.CompletedChecklistCount/@card.TotalChecklistCount</span>
+                                        @if (card.PreviousRmaCount > 0)
+                                        {
+                                            <span class="validation-badge warning">@card.PreviousRmaCount previous RMA@(card.PreviousRmaCount == 1 ? string.Empty : "s")</span>
+                                        }
+                                        @if (card.IsOverdue)
+                                        {
+                                            <span class="validation-badge error">Overdue</span>
+                                        }
+                                    </div>
+                                    <div class="board-card-meta-row">
+                                        <span class="recent-record-meta">Assigned: @Display(card.AssignedTo)</span>
+                                        <span class="recent-record-meta">Due: @Display(card.DueDate)</span>
+                                    </div>
+
+                                    @if (card.Warnings.Count > 0)
+                                    {
+                                        <ul class="board-warning-list">
+                                            @foreach (var warning in card.Warnings)
+                                            {
+                                                <li>@warning</li>
+                                            }
+                                        </ul>
+                                    }
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                }
+            </article>
+        }
+    </section>
+}
+
+@code {
+    private IReadOnlyList<RmaBoardCardModel> boardCards = [];
+    private bool isLoading = true;
+
+    private static IReadOnlyList<RmaStatus> BoardStatuses { get; } =
+    [
+        RmaStatus.BookedIn,
+        RmaStatus.WorkInProgress,
+        RmaStatus.OnHold,
+        RmaStatus.ReadyToShip,
+        RmaStatus.Shipped,
+        RmaStatus.CustomerFixed,
+        RmaStatus.CancelledNoReply,
+        RmaStatus.Closed
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        boardCards = await RmaRecordService.GetBoardAsync();
+        isLoading = false;
+    }
+
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    private static string Display(DateOnly? value) => value?.ToString("d MMM yyyy") ?? "Not recorded";
+
+    private static string FormatStatus(RmaStatus status) => status switch
+    {
+        RmaStatus.BookedIn => "Booked In",
+        RmaStatus.WorkInProgress => "Work In Progress",
+        RmaStatus.ReadyToShip => "Ready To Ship",
+        RmaStatus.CancelledNoReply => "Cancelled / No Reply",
+        RmaStatus.CustomerFixed => "Customer Fixed",
+        _ => status.ToString()
+    };
+
+    private static string StatusClass(RmaStatus status) => status switch
+    {
+        RmaStatus.BookedIn => "status-booked-in",
+        RmaStatus.WorkInProgress => "status-in-progress",
+        RmaStatus.ReadyToShip => "status-ready",
+        RmaStatus.Shipped => "status-shipped",
+        RmaStatus.OnHold => "status-hold",
+        RmaStatus.CancelledNoReply => "status-cancelled",
+        RmaStatus.CustomerFixed => "status-customer-fixed",
+        RmaStatus.Closed => "status-closed",
+        _ => string.Empty
+    };
+}

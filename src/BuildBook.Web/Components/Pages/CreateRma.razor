@@ -1,6 +1,8 @@
 @page "/rmas/new"
 @rendermode InteractiveServer
 
+@using BuildBook.Domain.Rmas
+
 @attribute [Authorize(Policy = BuildBookRmaPolicies.CreateRmas)]
 
 @inject IRmaRecordService RmaRecordService
@@ -15,10 +17,20 @@
         <h1>Add a new RMA record.</h1>
         <p>Capture the core intake information now, then continue the repair workflow from the full RMA detail page.</p>
     </div>
+    <div class="page-actions">
+        <a class="secondary-button" href="/rmas">Back to RMA Register</a>
+    </div>
 </section>
 
 <section class="form-panel" aria-labelledby="add-rma-heading">
     <h2 id="add-rma-heading">Required details</h2>
+
+    @if (!string.IsNullOrWhiteSpace(prefillMessage))
+    {
+        <div class="status-message success" role="status">
+            <p>@prefillMessage</p>
+        </div>
+    }
 
     @if (serverErrors.Count > 0)
     {
@@ -154,21 +166,91 @@
             </div>
         </div>
 
+        <div class="detail-panel detail-section" aria-labelledby="rma-repeat-return-heading">
+            <div class="detail-panel-header">
+                <div>
+                    <h2 id="rma-repeat-return-heading">Repeat Return Check</h2>
+                    <p>See whether this serial number or linked Build Record already has previous RMAs.</p>
+                </div>
+            </div>
+
+            @if (isLoadingRepeatSummary)
+            {
+                <p class="empty-state">Checking previous RMAs...</p>
+            }
+            else if (!repeatReturnSummary.HasPreviousRmas)
+            {
+                <p class="empty-state">No previous RMAs were found for the current serial number or linked Build Record.</p>
+            }
+            else
+            {
+                <div class="status-message warning" role="status">
+                    <p>This device has @repeatReturnSummary.PreviousRmaCount previous RMA@(repeatReturnSummary.PreviousRmaCount == 1 ? string.Empty : "s").</p>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">RMA number</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Customer</th>
+                                <th scope="col">Fault summary</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var previousRma in repeatReturnSummary.PreviousRmas.Take(5))
+                            {
+                                <tr>
+                                    <td><a class="table-link" href="@($"/rmas/{previousRma.Id}")">@previousRma.RmaNumber</a></td>
+                                    <td>@FormatStatus(previousRma.Status)</td>
+                                    <td>@Display(previousRma.CustomerName)</td>
+                                    <td>@previousRma.FaultSummary</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="primary-button" disabled="@isSaving">
                 @(isSaving ? "Saving..." : "Create RMA")
             </button>
-            <a class="action-link" href="/rmas">Back to RMA Register</a>
         </div>
     </EditForm>
 </section>
 
 @code {
+    [SupplyParameterFromQuery(Name = "buildRecordId")]
+    public int? PrefillBuildRecordId { get; set; }
+
     private CreateRmaRequest model = new();
     private readonly List<string> serverErrors = [];
     private IReadOnlyList<RmaBuildRecordMatchSuggestion> buildRecordMatches = [];
+    private RmaRepeatReturnSummary repeatReturnSummary = RmaRepeatReturnSummary.Empty;
     private bool isSaving;
     private bool isLoadingSuggestions;
+    private bool isLoadingRepeatSummary;
+    private int? loadedPrefillBuildRecordId;
+    private string? prefillMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (PrefillBuildRecordId is not null && PrefillBuildRecordId != loadedPrefillBuildRecordId)
+        {
+            await LoadPrefillAsync(PrefillBuildRecordId.Value);
+            loadedPrefillBuildRecordId = PrefillBuildRecordId;
+        }
+        else if (PrefillBuildRecordId is null && loadedPrefillBuildRecordId is not null)
+        {
+            loadedPrefillBuildRecordId = null;
+            prefillMessage = null;
+        }
+
+        await RefreshRepeatReturnSummaryAsync();
+    }
 
     private async Task CreateAsync()
     {
@@ -217,20 +299,70 @@
         {
             isLoadingSuggestions = false;
         }
+
+        await RefreshRepeatReturnSummaryAsync();
     }
 
-    private void SelectBuildRecordMatch(int buildRecordId)
+    private async Task SelectBuildRecordMatch(int buildRecordId)
     {
         model.LinkedBuildRecordId = buildRecordId;
+        await RefreshRepeatReturnSummaryAsync();
     }
 
-    private void ClearBuildRecordMatch()
+    private async Task ClearBuildRecordMatch()
     {
         model.LinkedBuildRecordId = null;
+        await RefreshRepeatReturnSummaryAsync();
     }
 
-    private static string Display(string? value)
+    private async Task LoadPrefillAsync(int buildRecordId)
     {
-        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+        var prefill = await RmaRecordService.GetCreatePrefillAsync(buildRecordId);
+
+        if (prefill is null)
+        {
+            serverErrors.Clear();
+            serverErrors.Add("The selected Build Record could not be loaded.");
+            prefillMessage = null;
+            return;
+        }
+
+        model.LinkedBuildRecordId = prefill.BuildRecordId;
+        model.ProductCode = prefill.ProductCode;
+        model.ProductName = prefill.ProductName;
+        model.SerialNumber = prefill.SerialNumber;
+        model.CustomerName = prefill.CustomerName ?? string.Empty;
+        prefillMessage = $"Pre-filled from Build Record #{prefill.BuildRecordId}.";
+        await RefreshSuggestionsAsync();
     }
+
+    private async Task RefreshRepeatReturnSummaryAsync()
+    {
+        isLoadingRepeatSummary = true;
+
+        try
+        {
+            repeatReturnSummary = await RmaRecordService.GetRepeatReturnSummaryAsync(
+                new RmaRepeatReturnRequest(
+                    CurrentRmaRecordId: null,
+                    LinkedBuildRecordId: model.LinkedBuildRecordId,
+                    SerialNumber: model.SerialNumber));
+        }
+        finally
+        {
+            isLoadingRepeatSummary = false;
+        }
+    }
+
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+
+    private static string FormatStatus(RmaStatus status) => status switch
+    {
+        RmaStatus.BookedIn => "Booked In",
+        RmaStatus.WorkInProgress => "Work In Progress",
+        RmaStatus.ReadyToShip => "Ready To Ship",
+        RmaStatus.CancelledNoReply => "Cancelled / No Reply",
+        RmaStatus.CustomerFixed => "Customer Fixed",
+        _ => status.ToString()
+    };
 }

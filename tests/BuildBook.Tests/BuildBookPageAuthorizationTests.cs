@@ -9,6 +9,7 @@ public class BuildBookPageAuthorizationTests
     [InlineData("BuildRegister.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRecordDetail.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("Rmas.razor", BuildBookRmaPolicies.ViewRmas)]
+    [InlineData("RmaBoard.razor", BuildBookRmaPolicies.ViewRmas)]
     [InlineData("RmaDetail.razor", BuildBookRmaPolicies.ViewRmas)]
     [InlineData("CreateRma.razor", BuildBookRmaPolicies.CreateRmas)]
     [InlineData("CreateBuildRecord.razor", BuildBookPolicies.EditBuildRecords)]
@@ -158,6 +159,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("BuildBookRmaPolicies.ViewRmas", pageContent);
         Assert.Contains("BuildBookRmaPolicies.CreateRmas", pageContent);
         Assert.Contains("RMA Register", pageContent);
+        Assert.Contains("Board view", pageContent);
+        Assert.Contains("/rmas/board", pageContent);
         Assert.Contains("RMA dashboard summary", pageContent);
         Assert.Contains("Open RMAs", pageContent);
         Assert.Contains("Waiting for customer", pageContent);
@@ -213,6 +216,11 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Original order number", pageContent);
         Assert.Contains("Original invoice number", pageContent);
         Assert.Contains("Suggested Build Records", pageContent);
+        Assert.Contains("Repeat Return Check", pageContent);
+        Assert.Contains("GetRepeatReturnSummaryAsync", pageContent);
+        Assert.Contains("SupplyParameterFromQuery", pageContent);
+        Assert.Contains("GetCreatePrefillAsync", pageContent);
+        Assert.Contains("Pre-filled from Build Record", pageContent);
         Assert.Contains("RefreshSuggestionsAsync", pageContent);
         Assert.Contains("SelectBuildRecordMatch", pageContent);
         Assert.Contains("Continue unlinked", pageContent);
@@ -245,6 +253,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Repair Checklist", pageContent);
         Assert.Contains("Testing and QA", pageContent);
         Assert.Contains("Build Record link", pageContent);
+        Assert.Contains("Repeat Return History", pageContent);
+        Assert.Contains("GetRepeatReturnSummaryAsync", pageContent);
         Assert.Contains("FormName=\"edit-rma-intake\"", pageContent);
         Assert.Contains("FormName=\"edit-rma-fault-details\"", pageContent);
         Assert.Contains("FormName=\"edit-rma-repair-details\"", pageContent);
@@ -281,6 +291,25 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("/build-records/{rmaRecord.BuildRecordId}", pageContent);
         Assert.DoesNotContain("Password", pageContent);
         Assert.DoesNotContain("BitLocker", pageContent);
+    }
+
+    [Fact]
+    public void RmaBoardPageDefinesExpectedRouteGroupingAndWarnings()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("RmaBoard.razor"));
+
+        Assert.Contains("@page \"/rmas/board\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookRmaPolicies.ViewRmas", pageContent);
+        Assert.Contains("IRmaRecordService", pageContent);
+        Assert.Contains("RMA Board", pageContent);
+        Assert.Contains("GetBoardAsync", pageContent);
+        Assert.Contains("BoardStatuses", pageContent);
+        Assert.Contains("Checklist", pageContent);
+        Assert.Contains("previous RMA", pageContent);
+        Assert.Contains("Overdue", pageContent);
+        Assert.Contains("board-warning-list", pageContent);
+        Assert.Contains("/rmas/{card.Id}", pageContent);
     }
 
     [Fact]
@@ -400,6 +429,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("ISoftwareFirmwareUpdater", pageContent);
         Assert.Contains("INetworkNotesUpdater", pageContent);
         Assert.Contains("IBuildRecordSecretService", pageContent);
+        Assert.Contains("IRmaRecordService", pageContent);
         Assert.Contains("IBuildBookPermissionService", pageContent);
         Assert.Contains("IRecentlyViewedBuildRecordTracker", pageContent);
         Assert.Contains("FormName=\"edit-product-details\"", pageContent);
@@ -417,6 +447,10 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Network", pageContent);
         Assert.Contains("Credentials &amp; Recovery", pageContent);
         Assert.Contains("Notes", pageContent);
+        Assert.Contains("Linked RMAs", pageContent);
+        Assert.Contains("Create RMA", pageContent);
+        Assert.Contains("GetBuildRecordHistoryAsync", pageContent);
+        Assert.Contains("/rmas/new?buildRecordId={BuildRecordId}", pageContent);
         Assert.Contains("History", pageContent);
         Assert.Contains("Audit history for this Build Record.", pageContent);
         Assert.Contains("Date/time", pageContent);

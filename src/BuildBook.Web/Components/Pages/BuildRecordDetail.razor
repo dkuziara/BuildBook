@@ -1,6 +1,9 @@
 @page "/build-records/{BuildRecordId:int}"
 @rendermode InteractiveServer
 
+@using BuildBook.Application.Rmas
+@using BuildBook.Domain.Rmas
+
 @attribute [Authorize(Policy = BuildBookPolicies.ViewBuildRecords)]
 
 @inject IBuildRecordDetailReader BuildRecordDetailReader
@@ -13,6 +16,7 @@
 @inject ISoftwareFirmwareUpdater SoftwareFirmwareUpdater
 @inject INetworkNotesUpdater NetworkNotesUpdater
 @inject IBuildRecordSecretService BuildRecordSecretService
+@inject IRmaRecordService RmaRecordService
 @inject IRecentlyViewedBuildRecordTracker RecentlyViewedBuildRecordTracker
 @inject BuildBook.Web.Authorization.IBuildBookPermissionService BuildBookPermissionService
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -897,6 +901,55 @@ else
         }
     </section>
 
+    <section class="detail-panel detail-section" aria-labelledby="linked-rmas-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="linked-rmas-heading">Linked RMAs</h2>
+                <p>Previous and current RMAs linked to this Build Record.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookRmaPolicies.CreateRmas">
+                <Authorized>
+                    <a class="secondary-button" href="@($"/rmas/new?buildRecordId={BuildRecordId}")">Create RMA</a>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (linkedRmas.Count == 0)
+        {
+            <p class="empty-state">No RMAs are currently linked to this Build Record.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">RMA number</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Fault summary</th>
+                            <th scope="col">Created</th>
+                            <th scope="col">Closed</th>
+                            <th scope="col">Outcome</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var linkedRma in linkedRmas)
+                        {
+                            <tr>
+                                <td><a class="table-link" href="@($"/rmas/{linkedRma.Id}")">@linkedRma.RmaNumber</a></td>
+                                <td>@DisplayRmaStatus(linkedRma.Status)</td>
+                                <td>@linkedRma.FaultSummary</td>
+                                <td>@linkedRma.CreatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                                <td>@Display(linkedRma.ClosedAt)</td>
+                                <td>@DisplayRmaOutcome(linkedRma.Outcome)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
     <section class="detail-panel detail-section" aria-labelledby="history-heading">
         <div class="detail-panel-header">
             <div>
@@ -960,6 +1013,7 @@ else
     private UpdateNetworkNotesRequest notesModel = new();
     private IReadOnlyList<CustomerOption> customerOptions = [];
     private IReadOnlyList<BuildRecordAuditHistoryEntry> auditHistory = [];
+    private IReadOnlyList<BuildRecordRmaHistoryRow> linkedRmas = [];
     private readonly List<string> productDetailErrors = [];
     private readonly List<string> buildDetailErrors = [];
     private readonly List<string> customerShippingErrors = [];
@@ -1023,6 +1077,7 @@ else
             var userName = user.Identity?.Name;
             RecentlyViewedBuildRecordTracker.TrackView(buildRecord.Id, userName);
             auditHistory = await BuildRecordAuditHistoryReader.ListByBuildRecordIdAsync(BuildRecordId);
+            linkedRmas = await RmaRecordService.GetBuildRecordHistoryAsync(BuildRecordId);
             canRevealSensitiveData = await BuildBookPermissionService.IsAuthorizedAsync(
                 user,
                 BuildBookPolicies.RevealSensitiveData);
@@ -1033,6 +1088,7 @@ else
         else
         {
             auditHistory = [];
+            linkedRmas = [];
             canRevealSensitiveData = false;
             canManageSensitiveData = false;
         }
@@ -1784,6 +1840,39 @@ else
     private static string DisplayAuditValue(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private static string Display(DateTimeOffset? value)
+    {
+        return value?.ToLocalTime().ToString("d MMM yyyy HH:mm") ?? "Not recorded";
+    }
+
+    private static string DisplayRmaStatus(RmaStatus status)
+    {
+        return status switch
+        {
+            RmaStatus.BookedIn => "Booked In",
+            RmaStatus.WorkInProgress => "Work In Progress",
+            RmaStatus.ReadyToShip => "Ready To Ship",
+            RmaStatus.CancelledNoReply => "Cancelled / No Reply",
+            RmaStatus.CustomerFixed => "Customer Fixed",
+            _ => status.ToString()
+        };
+    }
+
+    private static string DisplayRmaOutcome(RmaOutcome? outcome)
+    {
+        return outcome switch
+        {
+            null => "Not recorded",
+            RmaOutcome.RepairedAndReturned => "Repaired and returned",
+            RmaOutcome.ReplacedAndReturned => "Replaced and returned",
+            RmaOutcome.NoFaultFound => "No fault found",
+            RmaOutcome.CustomerFixed => "Customer fixed",
+            RmaOutcome.ReturnedUnrepaired => "Returned unrepaired",
+            RmaOutcome.AwaitingCustomerResponseThenClosed => "Awaiting customer response then closed",
+            _ => outcome?.ToString() ?? "Not recorded"
+        };
     }
 
     private static string DisplayAuditAction(AuditAction action)
