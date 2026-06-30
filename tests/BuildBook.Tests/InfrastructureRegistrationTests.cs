@@ -1,4 +1,5 @@
 using BuildBook.Application.BuildRecords;
+using BuildBook.Application.Customers;
 using BuildBook.Application.Rmas;
 using BuildBook.Application.Security;
 using BuildBook.Application.Settings;
@@ -42,7 +43,9 @@ public class InfrastructureRegistrationTests
         var productDetailsUpdater = provider.GetRequiredService<IProductDetailsUpdater>();
         var buildDetailsUpdater = provider.GetRequiredService<IBuildDetailsUpdater>();
         var customerOptionsReader = provider.GetRequiredService<ICustomerOptionsReader>();
+        var customerService = provider.GetRequiredService<ICustomerService>();
         var customerShippingUpdater = provider.GetRequiredService<ICustomerShippingUpdater>();
+        var supportContractLevelService = provider.GetRequiredService<ISupportContractLevelService>();
         var hardwareDetailsUpdater = provider.GetRequiredService<IHardwareDetailsUpdater>();
         var softwareFirmwareUpdater = provider.GetRequiredService<ISoftwareFirmwareUpdater>();
         var networkNotesUpdater = provider.GetRequiredService<INetworkNotesUpdater>();
@@ -71,7 +74,9 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(productDetailsUpdater);
         Assert.NotNull(buildDetailsUpdater);
         Assert.NotNull(customerOptionsReader);
+        Assert.NotNull(customerService);
         Assert.NotNull(customerShippingUpdater);
+        Assert.NotNull(supportContractLevelService);
         Assert.NotNull(hardwareDetailsUpdater);
         Assert.NotNull(softwareFirmwareUpdater);
         Assert.NotNull(networkNotesUpdater);

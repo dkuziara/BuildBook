@@ -1,0 +1,331 @@
+@page "/customers/{CustomerId:int}"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.Customers
+@using BuildBook.Domain.Rmas
+
+@attribute [Authorize(Policy = BuildBookPolicies.ViewCustomers)]
+
+@inject ICustomerService CustomerService
+
+<PageTitle>Customer Detail</PageTitle>
+
+@if (customer is null)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>@statusMessage</p>
+    </section>
+}
+else
+{
+    <section class="page-heading">
+        <div class="page-heading-copy">
+            <p class="eyebrow">Customers</p>
+            <h1>@customer.Name</h1>
+            <p>Customer master data, support contract context and linked BuildBook activity.</p>
+        </div>
+        <div class="page-actions">
+            <AuthorizeView Policy="@BuildBookPolicies.EditCustomers">
+                <Authorized>
+                    <a class="primary-button" href="@($"/customers/{customer.Id}/edit")">Edit customer</a>
+                </Authorized>
+            </AuthorizeView>
+            <a class="secondary-button" href="/customers">Back to Customers</a>
+        </div>
+    </section>
+
+    <section class="detail-panel" aria-labelledby="customer-summary-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="customer-summary-heading">Summary</h2>
+                <p>Shared customer information used across Build Records and RMAs.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Account code</dt>
+                <dd>@Display(customer.AccountCode)</dd>
+            </div>
+            <div>
+                <dt>Support contract level</dt>
+                <dd>@Display(customer.SupportContractLevelName)</dd>
+            </div>
+            <div>
+                <dt>Support contract status</dt>
+                <dd>@customer.SupportContractStatus</dd>
+            </div>
+            <div>
+                <dt>Open RMAs</dt>
+                <dd>@customer.LinkedRmas.Count(rma => rma.IsOpen)</dd>
+            </div>
+            <div>
+                <dt>Overdue RMAs</dt>
+                <dd>@customer.LinkedRmas.Count(rma => rma.IsOverdue)</dd>
+            </div>
+            <div>
+                <dt>Status</dt>
+                <dd>@(customer.IsActive ? "Active" : "Inactive")</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="customer-address-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="customer-address-heading">Address</h2>
+                <p>Stored address details for shipping, support and account context.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Address line 1</dt>
+                <dd>@Display(customer.AddressLine1)</dd>
+            </div>
+            <div>
+                <dt>Address line 2</dt>
+                <dd>@Display(customer.AddressLine2)</dd>
+            </div>
+            <div>
+                <dt>Town / City</dt>
+                <dd>@Display(customer.TownCity)</dd>
+            </div>
+            <div>
+                <dt>County / Region</dt>
+                <dd>@Display(customer.CountyRegion)</dd>
+            </div>
+            <div>
+                <dt>Postcode</dt>
+                <dd>@Display(customer.Postcode)</dd>
+            </div>
+            <div>
+                <dt>Country</dt>
+                <dd>@Display(customer.Country)</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="customer-contacts-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="customer-contacts-heading">Contacts</h2>
+                <p>Main customer contact details and the primary named contact if one is recorded.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Main phone</dt>
+                <dd>@Display(customer.MainPhone)</dd>
+            </div>
+            <div>
+                <dt>Main email</dt>
+                <dd>@Display(customer.MainEmail)</dd>
+            </div>
+            <div>
+                <dt>Website</dt>
+                <dd>@Display(customer.Website)</dd>
+            </div>
+            <div>
+                <dt>Primary contact name</dt>
+                <dd>@Display(customer.PrimaryContactName)</dd>
+            </div>
+            <div>
+                <dt>Primary contact email</dt>
+                <dd>@Display(customer.PrimaryContactEmail)</dd>
+            </div>
+            <div>
+                <dt>Primary contact phone</dt>
+                <dd>@Display(customer.PrimaryContactPhone)</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="customer-contract-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="customer-contract-heading">Support Contract</h2>
+                <p>Support contract details that later RMA workflows can use for priority guidance and reporting.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Contract level</dt>
+                <dd>@Display(customer.SupportContractLevelName)</dd>
+            </div>
+            <div>
+                <dt>Contract status</dt>
+                <dd>@customer.SupportContractStatus</dd>
+            </div>
+            <div>
+                <dt>Start date</dt>
+                <dd>@Display(customer.SupportContractStartDate)</dd>
+            </div>
+            <div>
+                <dt>End date</dt>
+                <dd>@Display(customer.SupportContractEndDate)</dd>
+            </div>
+            <div>
+                <dt>Support notes</dt>
+                <dd>@Display(customer.SupportNotes)</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="table-panel compact-table-panel detail-section" aria-labelledby="customer-build-records-heading">
+        <div class="table-panel-heading">
+            <h2 id="customer-build-records-heading">Linked Build Records</h2>
+            <p>@customer.LinkedBuildRecords.Count matching Build Records</p>
+        </div>
+
+        @if (customer.LinkedBuildRecords.Count == 0)
+        {
+            <p class="empty-state">No Build Records are linked to this customer yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Product</th>
+                            <th scope="col">Serial number</th>
+                            <th scope="col">Machine name</th>
+                            <th scope="col">RadSight version</th>
+                            <th scope="col">Date shipped</th>
+                            <th scope="col">Last updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var buildRecord in customer.LinkedBuildRecords)
+                        {
+                            <tr>
+                                <td><a class="table-link" href="@($"/build-records/{buildRecord.Id}")">@buildRecord.ProductCode / @buildRecord.ProductName</a></td>
+                                <td>@buildRecord.SerialNumber</td>
+                                <td>@Display(buildRecord.MachineName)</td>
+                                <td>@Display(buildRecord.RadSightVersion)</td>
+                                <td>@Display(buildRecord.DateShipped)</td>
+                                <td>@buildRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="table-panel compact-table-panel detail-section" aria-labelledby="customer-rmas-heading">
+        <div class="table-panel-heading">
+            <h2 id="customer-rmas-heading">Linked RMAs</h2>
+            <p>@customer.LinkedRmas.Count matching RMA records</p>
+        </div>
+
+        @if (customer.LinkedRmas.Count == 0)
+        {
+            <p class="empty-state">No RMA records are linked to this customer yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">RMA number</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Product</th>
+                            <th scope="col">Serial number</th>
+                            <th scope="col">Fault summary</th>
+                            <th scope="col">Support ticket number</th>
+                            <th scope="col">Due date</th>
+                            <th scope="col">Last updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var rmaRecord in customer.LinkedRmas)
+                        {
+                            <tr>
+                                <td><a class="table-link" href="@($"/rmas/{rmaRecord.Id}")">@rmaRecord.RmaNumber</a></td>
+                                <td>@FormatStatus(rmaRecord.Status)</td>
+                                <td>@rmaRecord.ProductName</td>
+                                <td>@Display(rmaRecord.SerialNumber)</td>
+                                <td>@rmaRecord.FaultSummary</td>
+                                <td>@Display(rmaRecord.SupportTicketNumber)</td>
+                                <td>@Display(rmaRecord.DueDate)</td>
+                                <td>@rmaRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="customer-history-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="customer-history-heading">History</h2>
+                <p>Basic lifecycle details for this customer record. Detailed customer change history is tracked in a later issue.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Created</dt>
+                <dd>@customer.CreatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</dd>
+            </div>
+            <div>
+                <dt>Created by</dt>
+                <dd>@customer.CreatedBy</dd>
+            </div>
+            <div>
+                <dt>Last updated</dt>
+                <dd>@customer.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</dd>
+            </div>
+            <div>
+                <dt>Last updated by</dt>
+                <dd>@customer.LastUpdatedBy</dd>
+            </div>
+        </dl>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public int CustomerId { get; set; }
+
+    private CustomerDetailModel? customer;
+    private string statusMessage = "Loading customer details...";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        customer = await CustomerService.GetDetailAsync(CustomerId);
+        statusMessage = customer is null
+            ? "Customer was not found."
+            : string.Empty;
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private static string Display(DateOnly? value)
+    {
+        return value?.ToString("d MMM yyyy") ?? "Not recorded";
+    }
+
+    private static string FormatStatus(RmaStatus status)
+    {
+        return status switch
+        {
+            RmaStatus.BookedIn => "Booked In",
+            RmaStatus.WorkInProgress => "Work In Progress",
+            RmaStatus.ReadyToShip => "Ready To Ship",
+            RmaStatus.CancelledNoReply => "Cancelled / No Reply",
+            RmaStatus.CustomerFixed => "Customer Fixed",
+            _ => status.ToString()
+        };
+    }
+}

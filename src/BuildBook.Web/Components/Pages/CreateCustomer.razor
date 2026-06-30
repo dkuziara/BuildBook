@@ -1,0 +1,215 @@
+@page "/customers/new"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.Customers
+@using BuildBook.Domain.Customers
+
+@attribute [Authorize(Policy = BuildBookPolicies.AddCustomers)]
+
+@inject ICustomerService CustomerService
+@inject ISupportContractLevelService SupportContractLevelService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Add Customer</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">Customers</p>
+        <h1>Add a new customer.</h1>
+        <p>Create a shared customer record so Build Records and RMAs can stop drifting into duplicate free-text names.</p>
+    </div>
+</section>
+
+<section class="form-panel" aria-labelledby="add-customer-heading">
+    <h2 id="add-customer-heading">Customer details</h2>
+
+    @if (serverErrors.Count > 0)
+    {
+        <div class="status-message error" role="alert">
+            <p>The customer record could not be saved.</p>
+            <ul>
+                @foreach (var error in serverErrors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <EditForm Model="model" OnValidSubmit="CreateAsync" FormName="create-customer">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-grid">
+            <div class="form-field">
+                <label for="customer-name">Customer name</label>
+                <InputText id="customer-name" class="text-input" @bind-Value="model.Name" />
+                <ValidationMessage For="() => model.Name" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-account-code">Account code</label>
+                <InputText id="customer-account-code" class="text-input" @bind-Value="model.AccountCode" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-main-phone">Main phone</label>
+                <InputText id="customer-main-phone" class="text-input" @bind-Value="model.MainPhone" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-main-email">Main email</label>
+                <InputText id="customer-main-email" class="text-input" @bind-Value="model.MainEmail" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-website">Website</label>
+                <InputText id="customer-website" class="text-input" @bind-Value="model.Website" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-primary-contact-name">Primary contact name</label>
+                <InputText id="customer-primary-contact-name" class="text-input" @bind-Value="model.PrimaryContactName" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-primary-contact-email">Primary contact email</label>
+                <InputText id="customer-primary-contact-email" class="text-input" @bind-Value="model.PrimaryContactEmail" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-primary-contact-phone">Primary contact phone</label>
+                <InputText id="customer-primary-contact-phone" class="text-input" @bind-Value="model.PrimaryContactPhone" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-contract-level">Support contract level</label>
+                <InputSelect id="customer-contract-level" class="text-input" @bind-Value="model.SupportContractLevelId">
+                    <option value="">No contract level</option>
+                    @foreach (var supportContractLevel in supportContractLevels)
+                    {
+                        <option value="@supportContractLevel.Id">@supportContractLevel.Name</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="form-field">
+                <label for="customer-contract-status">Support contract status</label>
+                <InputSelect id="customer-contract-status" class="text-input" @bind-Value="model.SupportContractStatus">
+                    @foreach (var supportContractStatus in CustomerSupportContractStatuses.All)
+                    {
+                        <option value="@supportContractStatus">@supportContractStatus</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="form-field">
+                <label for="customer-contract-start-date">Support contract start date</label>
+                <InputDate id="customer-contract-start-date" class="text-input" @bind-Value="model.SupportContractStartDate" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-contract-end-date">Support contract end date</label>
+                <InputDate id="customer-contract-end-date" class="text-input" @bind-Value="model.SupportContractEndDate" />
+            </div>
+        </div>
+
+        <div class="form-field form-field-wide detail-section">
+            <label for="customer-address-line-1">Address line 1</label>
+            <InputText id="customer-address-line-1" class="text-input" @bind-Value="model.AddressLine1" />
+        </div>
+
+        <div class="form-field form-field-wide">
+            <label for="customer-address-line-2">Address line 2</label>
+            <InputText id="customer-address-line-2" class="text-input" @bind-Value="model.AddressLine2" />
+        </div>
+
+        <div class="form-grid detail-section">
+            <div class="form-field">
+                <label for="customer-town-city">Town / City</label>
+                <InputText id="customer-town-city" class="text-input" @bind-Value="model.TownCity" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-county-region">County / Region</label>
+                <InputText id="customer-county-region" class="text-input" @bind-Value="model.CountyRegion" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-postcode">Postcode</label>
+                <InputText id="customer-postcode" class="text-input" @bind-Value="model.Postcode" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-country">Country</label>
+                <InputText id="customer-country" class="text-input" @bind-Value="model.Country" />
+            </div>
+        </div>
+
+        <div class="form-field form-field-wide detail-section">
+            <label class="user-active-toggle" for="customer-is-active">
+                <InputCheckbox id="customer-is-active" @bind-Value="model.IsActive" />
+                Active customer
+            </label>
+        </div>
+
+        <div class="form-field form-field-wide">
+            <label for="customer-support-notes">Support notes</label>
+            <InputTextArea id="customer-support-notes" class="text-input" @bind-Value="model.SupportNotes" />
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="primary-button" disabled="@isSaving">
+                @(isSaving ? "Saving..." : "Create customer")
+            </button>
+            <a class="action-link" href="/customers">Back to Customers</a>
+        </div>
+    </EditForm>
+</section>
+
+@code {
+    private CreateCustomerRequest model = new()
+    {
+        SupportContractStatus = CustomerSupportContractStatuses.NoContract
+    };
+
+    private IReadOnlyList<SupportContractLevelModel> supportContractLevels = [];
+    private readonly List<string> serverErrors = [];
+    private bool isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        supportContractLevels = await SupportContractLevelService.ListAsync(includeInactive: false);
+    }
+
+    private async Task CreateAsync()
+    {
+        isSaving = true;
+        serverErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await CustomerService.CreateAsync(model, userName);
+
+            if (result.Succeeded && result.CustomerId is not null)
+            {
+                NavigationManager.NavigateTo($"/customers/{result.CustomerId.Value}");
+            }
+            else
+            {
+                serverErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            serverErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

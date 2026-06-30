@@ -1,9 +1,13 @@
 @page "/customers"
 @rendermode InteractiveServer
 
-@using BuildBook.Application.Security
+@using BuildBook.Application.Customers
+@using BuildBook.Domain.Customers
 
 @attribute [Authorize(Policy = BuildBookPolicies.ViewCustomers)]
+
+@inject ICustomerService CustomerService
+@inject ISupportContractLevelService SupportContractLevelService
 
 <PageTitle>Customers</PageTitle>
 
@@ -11,41 +15,210 @@
     <div class="page-heading-copy">
         <p class="eyebrow">Customers</p>
         <h1>Customer &amp; Support Contracts</h1>
-        <p>BuildBook will use this area for shared customer records, contact details, support contract information, linked Build Records and linked RMAs.</p>
+        <p>Use shared customer records to keep Build Records, RMAs and support contract information consistent across BuildBook.</p>
+    </div>
+    <div class="page-actions">
+        <AuthorizeView Policy="@BuildBookPolicies.ManageSupportContractLevels">
+            <Authorized>
+                <a class="secondary-button" href="/admin/support-contract-levels">Support contract levels</a>
+            </Authorized>
+        </AuthorizeView>
+        <AuthorizeView Policy="@BuildBookPolicies.AddCustomers">
+            <Authorized>
+                <a class="primary-button" href="/customers/new">Add customer</a>
+            </Authorized>
+        </AuthorizeView>
     </div>
 </section>
 
-<section class="detail-panel">
-    <div class="detail-panel-header">
+<section class="filter-panel compact-filter-panel" aria-labelledby="customers-filters-heading">
+    <div class="table-panel-heading compact-panel-title">
         <div>
-            <h2>Module foundation</h2>
-            <p>This module is being introduced in small, reviewable steps so existing BuildBook work can continue safely.</p>
+            <h2 id="customers-filters-heading">Filters</h2>
+            <p>Search customer names, contacts and contract details without treating this as a full CRM workflow.</p>
         </div>
     </div>
 
-    <dl class="summary-list">
-        <div>
-            <dt>Module name</dt>
-            <dd>Customers</dd>
+    <EditForm Model="filterModel" OnValidSubmit="ApplyFiltersAsync" FormName="customers-filters">
+        <div class="filter-grid">
+            <div class="form-field">
+                <label for="customer-search">Search</label>
+                <InputText id="customer-search" class="text-input" @bind-Value="filterModel.Search" />
+            </div>
+
+            <div class="form-field">
+                <label for="customer-contract-level">Contract level</label>
+                <InputSelect id="customer-contract-level" class="text-input" @bind-Value="filterModel.SupportContractLevelId">
+                    <option value="">Any level</option>
+                    @foreach (var supportContractLevel in supportContractLevels)
+                    {
+                        <option value="@supportContractLevel.Id">@supportContractLevel.Name</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="form-field">
+                <label for="customer-contract-status">Contract status</label>
+                <InputSelect id="customer-contract-status" class="text-input" @bind-Value="filterModel.SupportContractStatus">
+                    <option value="">Any status</option>
+                    @foreach (var supportContractStatus in CustomerSupportContractStatuses.All)
+                    {
+                        <option value="@supportContractStatus">@supportContractStatus</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="form-field">
+                <label for="customer-active-state">Active</label>
+                <InputSelect id="customer-active-state" class="text-input" @bind-Value="activeFilterValue">
+                    <option value="">Any status</option>
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </InputSelect>
+            </div>
         </div>
-        <div>
-            <dt>Feature scope</dt>
-            <dd>Customer master data for BuildBook, not a full CRM.</dd>
+
+        <div class="form-actions register-actions">
+            <button type="submit" class="primary-button" disabled="@isLoading">Apply filters</button>
+            <button type="button" class="secondary-button" disabled="@(!canClearFilters)" @onclick="ClearFiltersAsync">Clear filters</button>
         </div>
-        <div>
-            <dt>Planned focus</dt>
-            <dd>Shared customer records, support contracts, linked Build Records and linked RMAs.</dd>
-        </div>
-    </dl>
+    </EditForm>
 </section>
 
-<section class="detail-panel detail-section">
-    <div class="detail-panel-header">
-        <div>
-            <h2>What comes next</h2>
-            <p>Later customer-module issues will add the data model, customer pages, support contract administration and controlled customer selection across Build Records and RMAs.</p>
+@if (customers is null)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading customers...</p>
+    </section>
+}
+else if (customers.Count == 0)
+{
+    <section class="placeholder-panel" aria-labelledby="empty-customers-heading">
+        <h2 id="empty-customers-heading">No customers found</h2>
+        <p>@(hasActiveFilters ? "No customer records match the current filters." : "Add the first customer record to start centralising support contract details.")</p>
+    </section>
+}
+else
+{
+    <section class="table-panel compact-table-panel" aria-labelledby="customers-table-heading">
+        <div class="table-panel-heading">
+            <h2 id="customers-table-heading">Customer records</h2>
+            <p>@customers.Count @(hasActiveFilters ? "matching" : "available") records</p>
         </div>
-    </div>
 
-    <p class="empty-state">This placeholder page confirms the module name, navigation entry point and intended scope without introducing unfinished customer-management workflows yet.</p>
-</section>
+        <div class="table-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(CustomerSortColumn.Name))">Customer name @SortIndicator(CustomerSortColumn.Name)</button></th>
+                        <th scope="col">Primary contact</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Phone</th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(CustomerSortColumn.SupportContractLevel))">Support contract level @SortIndicator(CustomerSortColumn.SupportContractLevel)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(CustomerSortColumn.SupportContractStatus))">Support contract status @SortIndicator(CustomerSortColumn.SupportContractStatus)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(CustomerSortColumn.ContractEndDate))">Contract end date @SortIndicator(CustomerSortColumn.ContractEndDate)</button></th>
+                        <th scope="col">Active</th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(CustomerSortColumn.LastUpdated))">Last updated @SortIndicator(CustomerSortColumn.LastUpdated)</button></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var customer in customers)
+                    {
+                        <tr>
+                            <td><a class="table-link" href="@($"/customers/{customer.Id}")">@customer.Name</a></td>
+                            <td>@Display(customer.PrimaryContactName)</td>
+                            <td>@Display(customer.MainEmail)</td>
+                            <td>@Display(customer.MainPhone)</td>
+                            <td>@Display(customer.SupportContractLevelName)</td>
+                            <td>@customer.SupportContractStatus</td>
+                            <td>@Display(customer.SupportContractEndDate)</td>
+                            <td>@(customer.IsActive ? "Active" : "Inactive")</td>
+                            <td>@customer.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@code {
+    private IReadOnlyList<CustomerListItem>? customers;
+    private IReadOnlyList<SupportContractLevelModel> supportContractLevels = [];
+    private CustomerListFilter filterModel = new();
+    private bool hasActiveFilters;
+    private bool isLoading;
+    private string? activeFilterValue;
+    private bool canClearFilters => !isLoading && hasActiveFilters;
+
+    protected override async Task OnInitializedAsync()
+    {
+        supportContractLevels = await SupportContractLevelService.ListAsync(includeInactive: false);
+        await LoadCustomersAsync();
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        filterModel.IsActive = ParseActiveFilter();
+        await LoadCustomersAsync(filterModel);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        filterModel = new CustomerListFilter();
+        activeFilterValue = null;
+        await LoadCustomersAsync();
+    }
+
+    private async Task SortByAsync(CustomerSortColumn column)
+    {
+        if (filterModel.SortBy == column)
+        {
+            filterModel.SortDescending = !filterModel.SortDescending;
+        }
+        else
+        {
+            filterModel.SortBy = column;
+            filterModel.SortDescending = column == CustomerSortColumn.LastUpdated;
+        }
+
+        filterModel.IsActive = ParseActiveFilter();
+        await LoadCustomersAsync(filterModel);
+    }
+
+    private async Task LoadCustomersAsync(CustomerListFilter? filter = null)
+    {
+        isLoading = true;
+        var activeFilter = filter ?? new CustomerListFilter();
+        hasActiveFilters = activeFilter.HasAnyFilter();
+        customers = await CustomerService.SearchAsync(activeFilter);
+        isLoading = false;
+    }
+
+    private bool? ParseActiveFilter()
+    {
+        return bool.TryParse(activeFilterValue, out var parsedValue)
+            ? parsedValue
+            : null;
+    }
+
+    private string SortIndicator(CustomerSortColumn column)
+    {
+        if (filterModel.SortBy != column)
+        {
+            return string.Empty;
+        }
+
+        return filterModel.SortDescending ? "v" : "^";
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private static string Display(DateOnly? value)
+    {
+        return value?.ToString("d MMM yyyy") ?? "Not recorded";
+    }
+}

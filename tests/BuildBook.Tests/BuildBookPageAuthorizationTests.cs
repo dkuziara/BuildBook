@@ -17,8 +17,12 @@ public class BuildBookPageAuthorizationTests
     [InlineData("ImportSpreadsheet.razor", BuildBookPolicies.ImportSpreadsheet)]
     [InlineData("ImportHistory.razor", BuildBookPolicies.ImportSpreadsheet)]
     [InlineData("Customers.razor", BuildBookPolicies.ViewCustomers)]
+    [InlineData("CustomerDetail.razor", BuildBookPolicies.ViewCustomers)]
+    [InlineData("CreateCustomer.razor", BuildBookPolicies.AddCustomers)]
+    [InlineData("EditCustomer.razor", BuildBookPolicies.EditCustomers)]
     [InlineData("Reports.razor", BuildBookPolicies.ExportNonSensitiveData)]
     [InlineData("Admin.razor", BuildBookPolicies.ManageUsers)]
+    [InlineData("SupportContractLevels.razor", BuildBookPolicies.ManageSupportContractLevels)]
     public void PagesDeclareExpectedAuthorizationPolicy(string pageFileName, string expectedPolicy)
     {
         var pageContent = File.ReadAllText(GetPagePath(pageFileName));
@@ -610,10 +614,13 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Open Upload Screen", pageContent);
         Assert.Contains("/imports", pageContent);
         Assert.Contains("View Import History", pageContent);
+        Assert.Contains("Customer Support Contracts", pageContent);
+        Assert.Contains("/admin/support-contract-levels", pageContent);
+        Assert.Contains("Open Support Contract Levels", pageContent);
     }
 
     [Fact]
-    public void CustomersPageDefinesPlaceholderScopeAndNaming()
+    public void CustomersPageDefinesListFiltersAndActions()
     {
         var pageContent = File.ReadAllText(GetPagePath("Customers.razor"));
 
@@ -621,11 +628,86 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("@rendermode InteractiveServer", pageContent);
         Assert.Contains("BuildBookPolicies.ViewCustomers", pageContent);
         Assert.Contains("Customer &amp; Support Contracts", pageContent);
-        Assert.Contains("shared customer records", pageContent);
-        Assert.Contains("not a full CRM", pageContent);
-        Assert.Contains("linked Build Records", pageContent);
-        Assert.Contains("linked RMAs", pageContent);
-        Assert.Contains("placeholder page", pageContent);
+        Assert.Contains("ICustomerService", pageContent);
+        Assert.Contains("ISupportContractLevelService", pageContent);
+        Assert.Contains("FormName=\"customers-filters\"", pageContent);
+        Assert.Contains("Support contract levels", pageContent);
+        Assert.Contains("/customers/new", pageContent);
+        Assert.Contains("Customer name", pageContent);
+        Assert.Contains("Support contract level", pageContent);
+        Assert.Contains("Support contract status", pageContent);
+        Assert.Contains("Apply filters", pageContent);
+        Assert.Contains("Clear filters", pageContent);
+    }
+
+    [Fact]
+    public void CustomerDetailPageDefinesExpectedSectionsAndLinkedTables()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("CustomerDetail.razor"));
+
+        Assert.Contains("@page \"/customers/{CustomerId:int}\"", pageContent);
+        Assert.Contains("ICustomerService", pageContent);
+        Assert.Contains("Summary", pageContent);
+        Assert.Contains("Address", pageContent);
+        Assert.Contains("Contacts", pageContent);
+        Assert.Contains("Support Contract", pageContent);
+        Assert.Contains("Linked Build Records", pageContent);
+        Assert.Contains("Linked RMAs", pageContent);
+        Assert.Contains("History", pageContent);
+        Assert.Contains("/build-records/{buildRecord.Id}", pageContent);
+        Assert.Contains("/rmas/{rmaRecord.Id}", pageContent);
+        Assert.Contains("/customers/{customer.Id}/edit", pageContent);
+    }
+
+    [Fact]
+    public void CreateCustomerPageDefinesExpectedRouteAndForm()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("CreateCustomer.razor"));
+
+        Assert.Contains("@page \"/customers/new\"", pageContent);
+        Assert.Contains("ICustomerService", pageContent);
+        Assert.Contains("ISupportContractLevelService", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("NavigationManager", pageContent);
+        Assert.Contains("FormName=\"create-customer\"", pageContent);
+        Assert.Contains("Customer name", pageContent);
+        Assert.Contains("Support contract level", pageContent);
+        Assert.Contains("Support contract status", pageContent);
+        Assert.Contains("Support notes", pageContent);
+        Assert.Contains("Create customer", pageContent);
+    }
+
+    [Fact]
+    public void EditCustomerPageDefinesExpectedRouteAndForm()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("EditCustomer.razor"));
+
+        Assert.Contains("@page \"/customers/{CustomerId:int}/edit\"", pageContent);
+        Assert.Contains("ICustomerService", pageContent);
+        Assert.Contains("ISupportContractLevelService", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("NavigationManager", pageContent);
+        Assert.Contains("FormName=\"edit-customer\"", pageContent);
+        Assert.Contains("Save customer", pageContent);
+        Assert.Contains("/customers/{CustomerId}", pageContent);
+    }
+
+    [Fact]
+    public void SupportContractLevelsPageDefinesExpectedRouteAndManagementUi()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("SupportContractLevels.razor"));
+
+        Assert.Contains("@page \"/admin/support-contract-levels\"", pageContent);
+        Assert.Contains("BuildBookPolicies.ManageSupportContractLevels", pageContent);
+        Assert.Contains("ISupportContractLevelService", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("Add support contract level", pageContent);
+        Assert.Contains("Current support contract levels", pageContent);
+        Assert.Contains("FormName=\"create-support-contract-level\"", pageContent);
+        Assert.Contains("edit-support-contract-level-", pageContent);
+        Assert.Contains("Default RMA priority", pageContent);
+        Assert.Contains("Display order", pageContent);
+        Assert.Contains("/admin", pageContent);
     }
 
     [Fact]
@@ -668,9 +750,12 @@ public class BuildBookPageAuthorizationTests
             BuildBookPolicies.ViewBuildRecords => nameof(BuildBookPolicies.ViewBuildRecords),
             BuildBookPolicies.EditBuildRecords => nameof(BuildBookPolicies.EditBuildRecords),
             BuildBookPolicies.ViewCustomers => nameof(BuildBookPolicies.ViewCustomers),
+            BuildBookPolicies.AddCustomers => nameof(BuildBookPolicies.AddCustomers),
+            BuildBookPolicies.EditCustomers => nameof(BuildBookPolicies.EditCustomers),
             BuildBookPolicies.ImportSpreadsheet => nameof(BuildBookPolicies.ImportSpreadsheet),
             BuildBookPolicies.ExportNonSensitiveData => nameof(BuildBookPolicies.ExportNonSensitiveData),
             BuildBookPolicies.ManageUsers => nameof(BuildBookPolicies.ManageUsers),
+            BuildBookPolicies.ManageSupportContractLevels => nameof(BuildBookPolicies.ManageSupportContractLevels),
             BuildBookRmaPolicies.ViewRmas => nameof(BuildBookRmaPolicies.ViewRmas),
             BuildBookRmaPolicies.CreateRmas => nameof(BuildBookRmaPolicies.CreateRmas),
             BuildBookRmaPolicies.ExportRmaReports => nameof(BuildBookRmaPolicies.ExportRmaReports),

@@ -1,0 +1,468 @@
+@page "/admin/support-contract-levels"
+@rendermode InteractiveServer
+
+@using System.Linq.Expressions
+@using BuildBook.Application.Customers
+@using BuildBook.Domain.Customers
+@using BuildBook.Domain.Rmas
+
+@attribute [Authorize(Policy = BuildBookPolicies.ManageSupportContractLevels)]
+
+@inject ISupportContractLevelService SupportContractLevelService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Support Contract Levels</PageTitle>
+
+@if (isLoading)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading support contract levels...</p>
+    </section>
+}
+else
+{
+    <section class="page-heading">
+        <div class="page-heading-copy">
+            <p class="eyebrow">Admin</p>
+            <h1>Support Contract Levels</h1>
+            <p>Manage the editable contract levels used by the Customers module without hard-coding Bronze, Silver or Gold into the application logic.</p>
+        </div>
+        <div class="page-actions">
+            <a class="secondary-button" href="/admin">Back to Admin</a>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="status-message @(statusIsError ? "error" : "success")" role="alert">
+            <p>@statusMessage</p>
+        </div>
+    }
+
+    <section class="form-panel" aria-labelledby="add-support-contract-level-heading">
+        <h2 id="add-support-contract-level-heading">Add support contract level</h2>
+        <p class="form-introduction">Create an editable contract level for Customers and future RMA priority guidance.</p>
+
+        <EditForm Model="newLevel" OnValidSubmit="AddLevelAsync" FormName="create-support-contract-level">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            @RenderLevelFields(newLevel, "new")
+
+            <div class="form-actions">
+                <button type="submit" class="primary-button" disabled="@isSavingNewLevel">
+                    @(isSavingNewLevel ? "Saving..." : "Add support contract level")
+                </button>
+            </div>
+        </EditForm>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="support-contract-levels-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="support-contract-levels-heading">Current support contract levels</h2>
+                <p>Edit names, timings, priority defaults, ordering and active status.</p>
+            </div>
+        </div>
+
+        @if (editableLevels.Count == 0)
+        {
+            <p class="empty-state">No support contract levels have been configured yet.</p>
+        }
+        else
+        {
+            @foreach (var level in editableLevels)
+            {
+                <section class="user-management-card">
+                    <div class="user-management-card-header">
+                        <div>
+                            <h3>@level.Name</h3>
+                            <p>@DescribeLevel(level)</p>
+                        </div>
+                        <div class="user-management-card-actions">
+                            @if (!level.IsEditing)
+                            {
+                                <button type="button" class="secondary-button" @onclick="() => EditLevel(level)">Edit level</button>
+                            }
+                        </div>
+                    </div>
+
+                    @if (level.Errors.Count > 0)
+                    {
+                        <div class="status-message error" role="alert">
+                            <ul>
+                                @foreach (var error in level.Errors)
+                                {
+                                    <li>@error</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+
+                    @if (!level.IsEditing)
+                    {
+                        <dl class="summary-list">
+                            <div>
+                                <dt>Description</dt>
+                                <dd>@Display(level.Description)</dd>
+                            </div>
+                            <div>
+                                <dt>Target response time</dt>
+                                <dd>@DisplayResponseTime(level.TargetResponseTimeValue, level.TargetResponseTimeUnit)</dd>
+                            </div>
+                            <div>
+                                <dt>Default RMA priority</dt>
+                                <dd>@DisplayPriority(level.DefaultRmaPriority)</dd>
+                            </div>
+                            <div>
+                                <dt>RMA priority weight</dt>
+                                <dd>@level.RmaPriorityWeight</dd>
+                            </div>
+                            <div>
+                                <dt>Display order</dt>
+                                <dd>@level.DisplayOrder</dd>
+                            </div>
+                            <div>
+                                <dt>Status</dt>
+                                <dd>@(level.IsActive ? "Active" : "Inactive")</dd>
+                            </div>
+                        </dl>
+                    }
+                    else
+                    {
+                        <EditForm Model="level" OnValidSubmit="() => SaveLevelAsync(level)" FormName="@($"edit-support-contract-level-{level.Id}")">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+
+                            @RenderLevelFields(level, level.Id.ToString())
+
+                            <div class="form-actions">
+                                <button type="submit" class="primary-button" disabled="@level.IsSaving">Save level</button>
+                                <button type="button" class="secondary-button" disabled="@level.IsSaving" @onclick="() => CancelEdit(level)">Cancel</button>
+                            </div>
+                        </EditForm>
+                    }
+                </section>
+            }
+        }
+    </section>
+}
+
+@code {
+    private readonly EditableSupportContractLevelModel newLevel = new();
+    private List<EditableSupportContractLevelModel> editableLevels = [];
+    private bool isLoading = true;
+    private bool isSavingNewLevel;
+    private string? statusMessage;
+    private bool statusIsError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLevelsAsync();
+        isLoading = false;
+    }
+
+    private async Task AddLevelAsync()
+    {
+        statusMessage = null;
+        statusIsError = false;
+        isSavingNewLevel = true;
+
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+        var result = await SupportContractLevelService.CreateAsync(
+            new CreateSupportContractLevelRequest
+            {
+                Name = newLevel.Name,
+                Description = newLevel.Description,
+                TargetResponseTimeValue = newLevel.TargetResponseTimeValue,
+                TargetResponseTimeUnit = newLevel.TargetResponseTimeUnit,
+                DefaultRmaPriority = newLevel.DefaultRmaPriority,
+                RmaPriorityWeight = newLevel.RmaPriorityWeight,
+                DisplayOrder = newLevel.DisplayOrder,
+                IsActive = newLevel.IsActive
+            },
+            userName);
+
+        isSavingNewLevel = false;
+
+        if (!result.Succeeded)
+        {
+            statusMessage = result.Errors.FirstOrDefault() ?? "The support contract level could not be added.";
+            statusIsError = true;
+            return;
+        }
+
+        ResetNewLevel();
+        statusMessage = "Support contract level added.";
+        await LoadLevelsAsync();
+    }
+
+    private async Task SaveLevelAsync(EditableSupportContractLevelModel level)
+    {
+        level.IsSaving = true;
+        level.Errors.Clear();
+        statusMessage = null;
+        statusIsError = false;
+
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+        var result = await SupportContractLevelService.UpdateAsync(
+            level.Id,
+            new UpdateSupportContractLevelRequest
+            {
+                Name = level.Name,
+                Description = level.Description,
+                TargetResponseTimeValue = level.TargetResponseTimeValue,
+                TargetResponseTimeUnit = level.TargetResponseTimeUnit,
+                DefaultRmaPriority = level.DefaultRmaPriority,
+                RmaPriorityWeight = level.RmaPriorityWeight,
+                DisplayOrder = level.DisplayOrder,
+                IsActive = level.IsActive
+            },
+            userName);
+
+        level.IsSaving = false;
+
+        if (!result.Succeeded)
+        {
+            level.Errors.AddRange(result.Errors);
+            statusMessage = "The support contract level changes could not be saved.";
+            statusIsError = true;
+            return;
+        }
+
+        statusMessage = $"Saved support contract level {level.Name}.";
+        await LoadLevelsAsync();
+    }
+
+    private async Task LoadLevelsAsync()
+    {
+        editableLevels = (await SupportContractLevelService.ListAsync())
+            .Select(level => new EditableSupportContractLevelModel(level))
+            .ToList();
+    }
+
+    private void EditLevel(EditableSupportContractLevelModel level)
+    {
+        foreach (var editableLevel in editableLevels)
+        {
+            editableLevel.IsEditing = false;
+            editableLevel.Errors.Clear();
+        }
+
+        level.IsEditing = true;
+    }
+
+    private void CancelEdit(EditableSupportContractLevelModel level)
+    {
+        level.IsEditing = false;
+        level.Errors.Clear();
+    }
+
+    private void ResetNewLevel()
+    {
+        newLevel.Name = string.Empty;
+        newLevel.Description = null;
+        newLevel.TargetResponseTimeValue = null;
+        newLevel.TargetResponseTimeUnit = null;
+        newLevel.DefaultRmaPriority = null;
+        newLevel.RmaPriorityWeight = 0;
+        newLevel.DisplayOrder = 0;
+        newLevel.IsActive = true;
+    }
+
+    private RenderFragment RenderLevelFields(EditableSupportContractLevelModel level, string idPrefix) => builder =>
+    {
+        builder.AddMarkupContent(0, $@"
+<div class=""form-grid"">
+    <div class=""form-field"">
+        <label for=""support-contract-level-name-{idPrefix}"">Level name</label>
+");
+        builder.OpenComponent<InputText>(1);
+        builder.AddAttribute(2, "id", $"support-contract-level-name-{idPrefix}");
+        builder.AddAttribute(3, "class", "text-input");
+        builder.AddAttribute(4, "Value", BindConverter.FormatValue(level.Name));
+        builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string?>(this, value => level.Name = value ?? string.Empty));
+        builder.AddAttribute(6, "ValueExpression", (Expression<Func<string>>)(() => level.Name));
+        builder.CloseComponent();
+        builder.AddMarkupContent(7, @"
+    </div>
+    <div class=""form-field"">
+        <label for=""support-contract-level-description-" + idPrefix + @""">Description</label>");
+        builder.OpenComponent<InputText>(8);
+        builder.AddAttribute(9, "id", $"support-contract-level-description-{idPrefix}");
+        builder.AddAttribute(10, "class", "text-input");
+        builder.AddAttribute(11, "Value", BindConverter.FormatValue(level.Description));
+        builder.AddAttribute(12, "ValueChanged", EventCallback.Factory.Create<string?>(this, value => level.Description = value));
+        builder.AddAttribute(13, "ValueExpression", (Expression<Func<string?>>)(() => level.Description));
+        builder.CloseComponent();
+        builder.AddMarkupContent(14, @"
+    </div>
+    <div class=""form-field"">
+        <label for=""support-contract-level-response-value-" + idPrefix + @""">Target response time value</label>");
+        builder.OpenComponent<InputNumber<int?>>(15);
+        builder.AddAttribute(16, "id", $"support-contract-level-response-value-{idPrefix}");
+        builder.AddAttribute(17, "class", "text-input");
+        builder.AddAttribute(18, "Value", level.TargetResponseTimeValue);
+        builder.AddAttribute(19, "ValueChanged", EventCallback.Factory.Create<int?>(this, value => level.TargetResponseTimeValue = value));
+        builder.AddAttribute(20, "ValueExpression", (Expression<Func<int?>>)(() => level.TargetResponseTimeValue));
+        builder.CloseComponent();
+        builder.AddMarkupContent(21, @"
+    </div>
+    <div class=""form-field"">
+        <label for=""support-contract-level-response-unit-" + idPrefix + @""">Target response time unit</label>");
+        builder.OpenElement(22, "select");
+        builder.AddAttribute(23, "id", $"support-contract-level-response-unit-{idPrefix}");
+        builder.AddAttribute(24, "class", "text-input");
+        builder.AddAttribute(25, "value", BindConverter.FormatValue(level.TargetResponseTimeUnit));
+        builder.AddAttribute(26, "onchange", EventCallback.Factory.CreateBinder<SupportResponseTimeUnit?>(this, value => level.TargetResponseTimeUnit = value, level.TargetResponseTimeUnit));
+        builder.OpenElement(27, "option");
+        builder.AddAttribute(28, "value", "");
+        builder.AddContent(29, "Not set");
+        builder.CloseElement();
+        foreach (var responseTimeUnit in Enum.GetValues<SupportResponseTimeUnit>())
+        {
+            builder.OpenElement(30, "option");
+            builder.AddAttribute(31, "value", responseTimeUnit);
+            builder.AddContent(32, FormatResponseTimeUnit(responseTimeUnit));
+            builder.CloseElement();
+        }
+        builder.CloseElement();
+        builder.AddMarkupContent(33, @"
+    </div>
+    <div class=""form-field"">
+        <label for=""support-contract-level-default-priority-" + idPrefix + @""">Default RMA priority</label>");
+        builder.OpenElement(34, "select");
+        builder.AddAttribute(35, "id", $"support-contract-level-default-priority-{idPrefix}");
+        builder.AddAttribute(36, "class", "text-input");
+        builder.AddAttribute(37, "value", BindConverter.FormatValue(level.DefaultRmaPriority));
+        builder.AddAttribute(38, "onchange", EventCallback.Factory.CreateBinder<RmaPriority?>(this, value => level.DefaultRmaPriority = value, level.DefaultRmaPriority));
+        builder.OpenElement(39, "option");
+        builder.AddAttribute(40, "value", "");
+        builder.AddContent(41, "Not set");
+        builder.CloseElement();
+        foreach (var priority in Enum.GetValues<RmaPriority>())
+        {
+            builder.OpenElement(42, "option");
+            builder.AddAttribute(43, "value", priority);
+            builder.AddContent(44, priority.ToString());
+            builder.CloseElement();
+        }
+        builder.CloseElement();
+        builder.AddMarkupContent(45, @"
+    </div>
+    <div class=""form-field"">
+        <label for=""support-contract-level-priority-weight-" + idPrefix + @""">RMA priority weight</label>");
+        builder.OpenComponent<InputNumber<int>>(46);
+        builder.AddAttribute(47, "id", $"support-contract-level-priority-weight-{idPrefix}");
+        builder.AddAttribute(48, "class", "text-input");
+        builder.AddAttribute(49, "Value", level.RmaPriorityWeight);
+        builder.AddAttribute(50, "ValueChanged", EventCallback.Factory.Create<int>(this, value => level.RmaPriorityWeight = value));
+        builder.AddAttribute(51, "ValueExpression", (Expression<Func<int>>)(() => level.RmaPriorityWeight));
+        builder.CloseComponent();
+        builder.AddMarkupContent(52, @"
+    </div>
+    <div class=""form-field"">
+        <label for=""support-contract-level-display-order-" + idPrefix + @""">Display order</label>");
+        builder.OpenComponent<InputNumber<int>>(53);
+        builder.AddAttribute(54, "id", $"support-contract-level-display-order-{idPrefix}");
+        builder.AddAttribute(55, "class", "text-input");
+        builder.AddAttribute(56, "Value", level.DisplayOrder);
+        builder.AddAttribute(57, "ValueChanged", EventCallback.Factory.Create<int>(this, value => level.DisplayOrder = value));
+        builder.AddAttribute(58, "ValueExpression", (Expression<Func<int>>)(() => level.DisplayOrder));
+        builder.CloseComponent();
+        builder.AddMarkupContent(59, @"
+    </div>
+</div>
+<div class=""form-field form-field-wide detail-section"">
+    <label class=""user-active-toggle"" for=""support-contract-level-is-active-" + idPrefix + @""">");
+        builder.OpenComponent<InputCheckbox>(60);
+        builder.AddAttribute(61, "id", $"support-contract-level-is-active-{idPrefix}");
+        builder.AddAttribute(62, "Value", level.IsActive);
+        builder.AddAttribute(63, "ValueChanged", EventCallback.Factory.Create<bool>(this, value => level.IsActive = value));
+        builder.AddAttribute(64, "ValueExpression", (Expression<Func<bool>>)(() => level.IsActive));
+        builder.CloseComponent();
+        builder.AddMarkupContent(65, @"
+        Active level
+    </label>
+</div>");
+    };
+
+    private static string DescribeLevel(EditableSupportContractLevelModel level)
+    {
+        var responseTime = DisplayResponseTime(level.TargetResponseTimeValue, level.TargetResponseTimeUnit);
+        return $"{Display(level.Description)}. Response target: {responseTime}.";
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private static string DisplayResponseTime(int? value, SupportResponseTimeUnit? unit)
+    {
+        return value is null || unit is null
+            ? "Not set"
+            : $"{value} {FormatResponseTimeUnit(unit.Value)}";
+    }
+
+    private static string DisplayPriority(RmaPriority? priority)
+    {
+        return priority?.ToString() ?? "Not set";
+    }
+
+    private static string FormatResponseTimeUnit(SupportResponseTimeUnit responseTimeUnit)
+    {
+        return responseTimeUnit switch
+        {
+            SupportResponseTimeUnit.WorkingHours => "Working Hours",
+            SupportResponseTimeUnit.WorkingDays => "Working Days",
+            _ => responseTimeUnit.ToString()
+        };
+    }
+
+    private sealed class EditableSupportContractLevelModel
+    {
+        public EditableSupportContractLevelModel()
+        {
+        }
+
+        public EditableSupportContractLevelModel(SupportContractLevelModel level)
+        {
+            Id = level.Id;
+            Name = level.Name;
+            Description = level.Description;
+            TargetResponseTimeValue = level.TargetResponseTimeValue;
+            TargetResponseTimeUnit = level.TargetResponseTimeUnit;
+            DefaultRmaPriority = level.DefaultRmaPriority;
+            RmaPriorityWeight = level.RmaPriorityWeight;
+            DisplayOrder = level.DisplayOrder;
+            IsActive = level.IsActive;
+        }
+
+        public int Id { get; init; }
+
+        public string Name { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+
+        public int? TargetResponseTimeValue { get; set; }
+
+        public SupportResponseTimeUnit? TargetResponseTimeUnit { get; set; }
+
+        public RmaPriority? DefaultRmaPriority { get; set; }
+
+        public int RmaPriorityWeight { get; set; }
+
+        public int DisplayOrder { get; set; }
+
+        public bool IsActive { get; set; } = true;
+
+        public bool IsEditing { get; set; }
+
+        public bool IsSaving { get; set; }
+
+        public List<string> Errors { get; } = [];
+    }
+}

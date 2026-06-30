@@ -1,8 +1,10 @@
 using BuildBook.Application.BuildRecords;
+using BuildBook.Application.Customers;
 using BuildBook.Application.Rmas;
 using BuildBook.Application.Security;
 using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.BuildRecords;
+using BuildBook.Infrastructure.Persistence.Customers;
 using BuildBook.Infrastructure.Persistence.Rmas;
 using BuildBook.Infrastructure.Persistence.Security;
 using BuildBook.Infrastructure.Persistence.SeedData;
@@ -66,7 +68,9 @@ public static class DependencyInjection
         services.AddScoped<IProductDetailsUpdater, ProductDetailsUpdater>();
         services.AddScoped<IBuildDetailsUpdater, BuildDetailsUpdater>();
         services.AddScoped<ICustomerOptionsReader, CustomerOptionsReader>();
+        services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<ICustomerShippingUpdater, CustomerShippingUpdater>();
+        services.AddScoped<ISupportContractLevelService, SupportContractLevelService>();
         services.AddScoped<IHardwareDetailsUpdater, HardwareDetailsUpdater>();
         services.AddScoped<ISoftwareFirmwareUpdater, SoftwareFirmwareUpdater>();
         services.AddScoped<INetworkNotesUpdater, NetworkNotesUpdater>();
