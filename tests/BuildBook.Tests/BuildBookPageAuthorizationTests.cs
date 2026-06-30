@@ -23,6 +23,7 @@ public class BuildBookPageAuthorizationTests
     [InlineData("Reports.razor", BuildBookPolicies.ExportNonSensitiveData)]
     [InlineData("Admin.razor", BuildBookPolicies.ManageUsers)]
     [InlineData("SupportContractLevels.razor", BuildBookPolicies.ManageSupportContractLevels)]
+    [InlineData("SystemSettings.razor", BuildBookPolicies.ManageSystemSettings)]
     public void PagesDeclareExpectedAuthorizationPolicy(string pageFileName, string expectedPolicy)
     {
         var pageContent = File.ReadAllText(GetPagePath(pageFileName));
@@ -220,8 +221,10 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Serial number", pageContent);
         Assert.Contains("Fault summary", pageContent);
         Assert.Contains("Fault description", pageContent);
-        Assert.Contains("Support ticket number", pageContent);
-        Assert.Contains("Support ticket URL", pageContent);
+        Assert.Contains("ISystemSettingsService", pageContent);
+        Assert.Contains("SupportTicketLabel", pageContent);
+        Assert.Contains("SupportTicketSettingsValidator.DefaultSupportTicketLabel", pageContent);
+        Assert.DoesNotContain("Support ticket URL", pageContent);
         Assert.Contains("Contact name", pageContent);
         Assert.Contains("Original order number", pageContent);
         Assert.Contains("Original invoice number", pageContent);
@@ -250,6 +253,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("BuildBookRmaPolicies.EditRmas", pageContent);
         Assert.Contains("BuildBookRmaPolicies.ChangeRmaStatus", pageContent);
         Assert.Contains("IRmaRecordService", pageContent);
+        Assert.Contains("ICustomerOptionsReader", pageContent);
         Assert.Contains("IRmaStatusTransitionService", pageContent);
         Assert.Contains("AuthenticationStateProvider", pageContent);
         Assert.Contains("Summary", pageContent);
@@ -296,6 +300,9 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("LoadRmaAsync", pageContent);
         Assert.Contains("GetStatusHistoryAsync", pageContent);
         Assert.Contains("Customer reference", pageContent);
+        Assert.Contains("InputSelect id=\"edit-rma-customer\"", pageContent);
+        Assert.Contains("Select customer", pageContent);
+        Assert.Contains("selectedCustomerId", pageContent);
         Assert.Contains("Original order date", pageContent);
         Assert.Contains("Customer address", pageContent);
         Assert.Contains("Initial fault description", pageContent);
@@ -617,6 +624,9 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Customer Support Contracts", pageContent);
         Assert.Contains("/admin/support-contract-levels", pageContent);
         Assert.Contains("Open Support Contract Levels", pageContent);
+        Assert.Contains("System Settings", pageContent);
+        Assert.Contains("/admin/system-settings", pageContent);
+        Assert.Contains("Open System Settings", pageContent);
     }
 
     [Fact]
@@ -711,6 +721,22 @@ public class BuildBookPageAuthorizationTests
     }
 
     [Fact]
+    public void SystemSettingsPageDefinesExpectedRouteAndSupportTicketSettingsUi()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("SystemSettings.razor"));
+
+        Assert.Contains("@page \"/admin/system-settings\"", pageContent);
+        Assert.Contains("BuildBookPolicies.ManageSystemSettings", pageContent);
+        Assert.Contains("ISystemSettingsService", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("Support Site URL Template", pageContent);
+        Assert.Contains("Support ticket label", pageContent);
+        Assert.Contains("FormName=\"edit-system-settings\"", pageContent);
+        Assert.Contains("Save settings", pageContent);
+        Assert.Contains("/admin", pageContent);
+    }
+
+    [Fact]
     public void RoutesShowAccessDeniedForAuthenticatedUnauthorizedUsers()
     {
         var routesPath = Path.Combine(
@@ -756,6 +782,7 @@ public class BuildBookPageAuthorizationTests
             BuildBookPolicies.ExportNonSensitiveData => nameof(BuildBookPolicies.ExportNonSensitiveData),
             BuildBookPolicies.ManageUsers => nameof(BuildBookPolicies.ManageUsers),
             BuildBookPolicies.ManageSupportContractLevels => nameof(BuildBookPolicies.ManageSupportContractLevels),
+            BuildBookPolicies.ManageSystemSettings => nameof(BuildBookPolicies.ManageSystemSettings),
             BuildBookRmaPolicies.ViewRmas => nameof(BuildBookRmaPolicies.ViewRmas),
             BuildBookRmaPolicies.CreateRmas => nameof(BuildBookRmaPolicies.CreateRmas),
             BuildBookRmaPolicies.ExportRmaReports => nameof(BuildBookRmaPolicies.ExportRmaReports),

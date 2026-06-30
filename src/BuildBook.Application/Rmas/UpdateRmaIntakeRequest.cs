@@ -28,8 +28,6 @@ public sealed class UpdateRmaIntakeRequest
 
     public string? SupportTicketNumber { get; set; }
 
-    public string? SupportTicketUrl { get; set; }
-
     public string? OriginalOrderNumber { get; set; }
 
     public DateOnly? OriginalOrderDate { get; set; }

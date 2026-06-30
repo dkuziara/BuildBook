@@ -46,6 +46,7 @@ public class InfrastructureRegistrationTests
         var customerService = provider.GetRequiredService<ICustomerService>();
         var customerShippingUpdater = provider.GetRequiredService<ICustomerShippingUpdater>();
         var supportContractLevelService = provider.GetRequiredService<ISupportContractLevelService>();
+        var systemSettingsService = provider.GetRequiredService<ISystemSettingsService>();
         var hardwareDetailsUpdater = provider.GetRequiredService<IHardwareDetailsUpdater>();
         var softwareFirmwareUpdater = provider.GetRequiredService<ISoftwareFirmwareUpdater>();
         var networkNotesUpdater = provider.GetRequiredService<INetworkNotesUpdater>();
@@ -77,6 +78,7 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(customerService);
         Assert.NotNull(customerShippingUpdater);
         Assert.NotNull(supportContractLevelService);
+        Assert.NotNull(systemSettingsService);
         Assert.NotNull(hardwareDetailsUpdater);
         Assert.NotNull(softwareFirmwareUpdater);
         Assert.NotNull(networkNotesUpdater);

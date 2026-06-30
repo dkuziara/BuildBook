@@ -28,8 +28,6 @@ public sealed class CreateRmaRequest
 
     public string? SupportTicketNumber { get; set; }
 
-    public string? SupportTicketUrl { get; set; }
-
     public string? OriginalOrderNumber { get; set; }
 
     public string? OriginalInvoiceNumber { get; set; }

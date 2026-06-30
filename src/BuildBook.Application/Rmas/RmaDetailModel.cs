@@ -10,6 +10,7 @@ public sealed record RmaDetailModel(
     string ProductName,
     string? ProductCode,
     string? SerialNumber,
+    int? CustomerId,
     string? CustomerName,
     string FaultSummary,
     string InitialFaultDescription,

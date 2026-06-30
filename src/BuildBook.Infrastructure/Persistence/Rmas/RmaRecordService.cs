@@ -68,7 +68,6 @@ public sealed class RmaRecordService(
             ContactEmail = NormalizeOptionalValue(request.ContactEmail),
             ContactPhone = NormalizeOptionalValue(request.ContactPhone),
             SupportTicketNumber = NormalizeOptionalValue(request.SupportTicketNumber),
-            SupportTicketUrl = NormalizeOptionalValue(request.SupportTicketUrl),
             OriginalOrderNumber = NormalizeOptionalValue(request.OriginalOrderNumber),
             OriginalInvoiceNumber = NormalizeOptionalValue(request.OriginalInvoiceNumber),
             MigrationSource = NormalizeOptionalValue(request.MigrationSource),
@@ -122,6 +121,7 @@ public sealed class RmaRecordService(
                 rmaRecord.ProductName,
                 rmaRecord.ProductCode,
                 rmaRecord.SerialNumber,
+                rmaRecord.CustomerId,
                 rmaRecord.Customer == null ? null : rmaRecord.Customer.Name,
                 rmaRecord.FaultSummary,
                 rmaRecord.InitialFaultDescription,
@@ -836,7 +836,6 @@ public sealed class RmaRecordService(
         var customerAddress = NormalizeOptionalValue(request.CustomerAddress);
         var customerReference = NormalizeOptionalValue(request.CustomerReference);
         var supportTicketNumber = NormalizeOptionalValue(request.SupportTicketNumber);
-        var supportTicketUrl = NormalizeOptionalValue(request.SupportTicketUrl);
         var originalOrderNumber = NormalizeOptionalValue(request.OriginalOrderNumber);
         var originalInvoiceNumber = NormalizeOptionalValue(request.OriginalInvoiceNumber);
         var migrationSource = NormalizeOptionalValue(request.MigrationSource);
@@ -859,7 +858,6 @@ public sealed class RmaRecordService(
                 new RmaAuditChange("CustomerAddress", rmaRecord.CustomerAddress, customerAddress),
                 new RmaAuditChange("CustomerReference", rmaRecord.CustomerReference, customerReference),
                 new RmaAuditChange("SupportTicketNumber", rmaRecord.SupportTicketNumber, supportTicketNumber),
-                new RmaAuditChange("SupportTicketUrl", rmaRecord.SupportTicketUrl, supportTicketUrl),
                 new RmaAuditChange("OriginalOrderNumber", rmaRecord.OriginalOrderNumber, originalOrderNumber),
                 new RmaAuditChange("OriginalOrderDate", FormatDate(rmaRecord.OriginalOrderDate), FormatDate(request.OriginalOrderDate)),
                 new RmaAuditChange("OriginalInvoiceNumber", rmaRecord.OriginalInvoiceNumber, originalInvoiceNumber),
@@ -888,7 +886,6 @@ public sealed class RmaRecordService(
         rmaRecord.CustomerAddress = customerAddress;
         rmaRecord.CustomerReference = customerReference;
         rmaRecord.SupportTicketNumber = supportTicketNumber;
-        rmaRecord.SupportTicketUrl = supportTicketUrl;
         rmaRecord.OriginalOrderNumber = originalOrderNumber;
         rmaRecord.OriginalOrderDate = request.OriginalOrderDate;
         rmaRecord.OriginalInvoiceNumber = originalInvoiceNumber;

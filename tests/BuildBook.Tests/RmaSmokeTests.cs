@@ -52,7 +52,7 @@ public class RmaSmokeTests
 
         var intakeSection = page.Locator("section[aria-labelledby='rma-intake-heading']");
         await intakeSection.GetByRole(AriaRole.Button, new() { Name = "Edit" }).ClickAsync();
-        await page.GetByLabel("Support ticket number").FillAsync("SMOKE-TICKET-1");
+        await page.GetByLabel("Support Ticket No.").FillAsync("SMOKE-TICKET-1");
         await page.GetByLabel("Migration source").FillAsync("Planner cutover batch");
         await page.GetByRole(AriaRole.Button, new() { Name = "Save intake details" }).ClickAsync();
 

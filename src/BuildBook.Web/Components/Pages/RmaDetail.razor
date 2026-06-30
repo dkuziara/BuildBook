@@ -1,7 +1,9 @@
 @page "/rmas/{RmaRecordId:int}"
 @rendermode InteractiveServer
 
+@using BuildBook.Application.BuildRecords
 @using BuildBook.Application.Rmas
+@using BuildBook.Application.Settings
 @using BuildBook.Domain.Rmas
 @using Microsoft.AspNetCore.Components.Forms
 
@@ -10,6 +12,8 @@
 @inject IRmaRecordService RmaRecordService
 @inject IRmaReportReader RmaReportReader
 @inject IRmaStatusTransitionService RmaStatusTransitionService
+@inject ISystemSettingsService SystemSettingsService
+@inject ICustomerOptionsReader CustomerOptionsReader
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -487,7 +491,13 @@ else
                 <div class="form-grid">
                     <div class="form-field">
                         <label for="edit-rma-customer">Customer</label>
-                        <InputText id="edit-rma-customer" class="text-input" @bind-Value="intakeModel.CustomerName" />
+                        <InputSelect id="edit-rma-customer" class="text-input" @bind-Value="selectedCustomerId">
+                            <option value="">Select customer</option>
+                            @foreach (var customer in customerOptions)
+                            {
+                                <option value="@customer.Id">@customer.Name</option>
+                            }
+                        </InputSelect>
                     </div>
                     <div class="form-field">
                         <label for="edit-rma-product-name">Product name</label>
@@ -522,12 +532,8 @@ else
                         <InputText id="edit-rma-customer-reference" class="text-input" @bind-Value="intakeModel.CustomerReference" />
                     </div>
                     <div class="form-field">
-                        <label for="edit-rma-support-ticket-number">Support ticket number</label>
+                        <label for="edit-rma-support-ticket-number">@SupportTicketLabel</label>
                         <InputText id="edit-rma-support-ticket-number" class="text-input" @bind-Value="intakeModel.SupportTicketNumber" />
-                    </div>
-                    <div class="form-field">
-                        <label for="edit-rma-support-ticket-url">Support ticket URL</label>
-                        <InputText id="edit-rma-support-ticket-url" class="text-input" @bind-Value="intakeModel.SupportTicketUrl" />
                     </div>
                     <div class="form-field">
                         <label for="edit-rma-original-order-number">Original order number</label>
@@ -583,8 +589,16 @@ else
                 <div><dt>Contact email</dt><dd>@Display(rmaRecord.ContactEmail)</dd></div>
                 <div><dt>Contact phone</dt><dd>@Display(rmaRecord.ContactPhone)</dd></div>
                 <div><dt>Customer reference</dt><dd>@Display(rmaRecord.CustomerReference)</dd></div>
-                <div><dt>Support ticket number</dt><dd>@Display(rmaRecord.SupportTicketNumber)</dd></div>
-                <div><dt>Support ticket URL</dt><dd>@Display(rmaRecord.SupportTicketUrl)</dd></div>
+                <div>
+                    <dt>@SupportTicketLabel</dt>
+                    <dd>
+                        @Display(rmaRecord.SupportTicketNumber)
+                        @if (OpenSupportTicketUrl is not null)
+                        {
+                            <span> </span><a class="action-link" href="@OpenSupportTicketUrl" target="_blank" rel="noopener noreferrer">Open Support Ticket</a>
+                        }
+                    </dd>
+                </div>
                 <div><dt>Original order number</dt><dd>@Display(rmaRecord.OriginalOrderNumber)</dd></div>
                 <div><dt>Original order date</dt><dd>@Display(rmaRecord.OriginalOrderDate)</dd></div>
                 <div><dt>Original invoice number</dt><dd>@Display(rmaRecord.OriginalInvoiceNumber)</dd></div>
@@ -1642,6 +1656,7 @@ else
     private IReadOnlyList<RmaStatusHistoryEntry> statusHistoryEntries = [];
     private IReadOnlyList<RmaChecklistItemModel> checklistItems = [];
     private IReadOnlyList<RmaPartModel> parts = [];
+    private IReadOnlyList<CustomerOption> customerOptions = [];
     private RmaDurationMetrics? rmaMetrics;
     private RmaRepeatReturnSummary repeatReturnSummary = RmaRepeatReturnSummary.Empty;
     private IReadOnlyList<RmaNoteModel> notes = [];
@@ -1690,11 +1705,18 @@ else
     private string? selectedAttachmentName;
     private string? statusMessage;
     private bool statusIsError;
+    private int? selectedCustomerId;
     private int completedChecklistCount;
+    private string supportTicketLabel = SupportTicketSettingsValidator.DefaultSupportTicketLabel;
+    private string? supportTicketUrlTemplate;
     private const long MaxAttachmentSizeBytes = 15 * 1024 * 1024;
     private static readonly string[] CommunicationMethods = ["Email", "Phone", "Teams", "Freshdesk", "On site", "Other"];
     private static readonly string[] AttachmentTypes = ["Photo", "Screenshot", "Test result", "Courier document", "Customer email", "Approval", "Other"];
     private string PageTitleText => rmaRecord is null ? "RMA Record" : rmaRecord.RmaNumber;
+    private string SupportTicketLabel => supportTicketLabel;
+    private string? OpenSupportTicketUrl => rmaRecord is null
+        ? null
+        : SupportTicketLinkBuilder.BuildUrl(supportTicketUrlTemplate, rmaRecord.SupportTicketNumber);
     private IReadOnlyList<RmaStatus> AllowedNextStatuses => rmaRecord is null ? [] : RmaStatusTransitionService.GetAllowedNextStatuses(rmaRecord.Status);
     private string? CurrentStatusReason => statusHistoryEntries.FirstOrDefault()?.Reason;
     private bool ShouldShowOnHoldReason => statusModel.NewStatus == RmaStatus.OnHold;
@@ -1705,7 +1727,15 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
+        await LoadSupportTicketSettingsAsync();
         await LoadRmaAsync();
+    }
+
+    private async Task LoadSupportTicketSettingsAsync()
+    {
+        var settings = await SystemSettingsService.GetSupportTicketSettingsAsync();
+        supportTicketLabel = settings.SupportTicketLabel;
+        supportTicketUrlTemplate = settings.SupportTicketUrlTemplate;
     }
 
     private async Task LoadRmaAsync()
@@ -1713,9 +1743,12 @@ else
         isLoading = true;
         rmaRecord = await RmaRecordService.GetByIdAsync(RmaRecordId);
         rmaMetrics = await RmaReportReader.GetMetricsAsync(RmaRecordId);
+        customerOptions = await CustomerOptionsReader.ListActiveAsync();
 
         if (rmaRecord is not null)
         {
+            selectedCustomerId = rmaRecord.CustomerId;
+            customerOptions = EnsureCurrentCustomerOption(customerOptions, rmaRecord.CustomerId, rmaRecord.CustomerName);
             await LoadBuildRecordSuggestionsAsync();
             repeatReturnSummary = await RmaRecordService.GetRepeatReturnSummaryAsync(
                 new RmaRepeatReturnRequest(
@@ -1742,6 +1775,7 @@ else
             communications = [];
             attachments = [];
             completedChecklistCount = 0;
+            selectedCustomerId = null;
         }
 
         isLoading = false;
@@ -1789,7 +1823,6 @@ else
             CustomerAddress = rmaRecord.CustomerAddress,
             CustomerReference = rmaRecord.CustomerReference,
             SupportTicketNumber = rmaRecord.SupportTicketNumber,
-            SupportTicketUrl = rmaRecord.SupportTicketUrl,
             OriginalOrderNumber = rmaRecord.OriginalOrderNumber,
             OriginalOrderDate = rmaRecord.OriginalOrderDate,
             OriginalInvoiceNumber = rmaRecord.OriginalInvoiceNumber,
@@ -1797,6 +1830,7 @@ else
             OriginalPlannerTaskTitle = rmaRecord.OriginalPlannerTaskTitle,
             OriginalPlannerNotes = rmaRecord.OriginalPlannerNotes
         };
+        selectedCustomerId = rmaRecord.CustomerId;
 
         intakeErrors.Clear();
         statusMessage = null;
@@ -1806,6 +1840,9 @@ else
     private async Task SaveIntakeAsync()
     {
         isSavingIntake = true;
+        intakeModel.CustomerName = customerOptions
+            .FirstOrDefault(customer => customer.Id == selectedCustomerId)?
+            .Name ?? string.Empty;
         await ExecuteSaveAsync(
             async () => await RmaRecordService.UpdateIntakeAsync(RmaRecordId, intakeModel, await GetCurrentUserNameAsync()),
             intakeErrors,
@@ -1814,6 +1851,24 @@ else
             value => value.Succeeded,
             value => value.Errors);
         isSavingIntake = false;
+    }
+
+    private static IReadOnlyList<CustomerOption> EnsureCurrentCustomerOption(
+        IReadOnlyList<CustomerOption> activeCustomerOptions,
+        int? currentCustomerId,
+        string? currentCustomerName)
+    {
+        if (currentCustomerId is null || string.IsNullOrWhiteSpace(currentCustomerName))
+        {
+            return activeCustomerOptions;
+        }
+
+        if (activeCustomerOptions.Any(customer => customer.Id == currentCustomerId.Value))
+        {
+            return activeCustomerOptions;
+        }
+
+        return [.. activeCustomerOptions, new CustomerOption(currentCustomerId.Value, currentCustomerName)];
     }
 
     private void CancelIntakeEdit()

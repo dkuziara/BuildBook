@@ -2,11 +2,13 @@
 @rendermode InteractiveServer
 
 @using BuildBook.Application.Customers
+@using BuildBook.Application.Settings
 @using BuildBook.Domain.Rmas
 
 @attribute [Authorize(Policy = BuildBookPolicies.ViewCustomers)]
 
 @inject ICustomerService CustomerService
+@inject ISystemSettingsService SystemSettingsService
 
 <PageTitle>Customer Detail</PageTitle>
 
@@ -237,7 +239,7 @@ else
                             <th scope="col">Product</th>
                             <th scope="col">Serial number</th>
                             <th scope="col">Fault summary</th>
-                            <th scope="col">Support ticket number</th>
+                            <th scope="col">@SupportTicketLabel</th>
                             <th scope="col">Due date</th>
                             <th scope="col">Last updated</th>
                         </tr>
@@ -251,7 +253,13 @@ else
                                 <td>@rmaRecord.ProductName</td>
                                 <td>@Display(rmaRecord.SerialNumber)</td>
                                 <td>@rmaRecord.FaultSummary</td>
-                                <td>@Display(rmaRecord.SupportTicketNumber)</td>
+                                <td>
+                                    @Display(rmaRecord.SupportTicketNumber)
+                                    @if (GetSupportTicketUrl(rmaRecord.SupportTicketNumber) is { } supportTicketUrl)
+                                    {
+                                        <span> </span><a class="action-link" href="@supportTicketUrl" target="_blank" rel="noopener noreferrer">Open Support Ticket</a>
+                                    }
+                                </td>
                                 <td>@Display(rmaRecord.DueDate)</td>
                                 <td>@rmaRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
                             </tr>
@@ -297,13 +305,24 @@ else
 
     private CustomerDetailModel? customer;
     private string statusMessage = "Loading customer details...";
+    private string supportTicketLabel = SupportTicketSettingsValidator.DefaultSupportTicketLabel;
+    private string? supportTicketUrlTemplate;
+    private string SupportTicketLabel => supportTicketLabel;
 
     protected override async Task OnParametersSetAsync()
     {
+        var settings = await SystemSettingsService.GetSupportTicketSettingsAsync();
+        supportTicketLabel = settings.SupportTicketLabel;
+        supportTicketUrlTemplate = settings.SupportTicketUrlTemplate;
         customer = await CustomerService.GetDetailAsync(CustomerId);
         statusMessage = customer is null
             ? "Customer was not found."
             : string.Empty;
+    }
+
+    private string? GetSupportTicketUrl(string? supportTicketNumber)
+    {
+        return SupportTicketLinkBuilder.BuildUrl(supportTicketUrlTemplate, supportTicketNumber);
     }
 
     private static string Display(string? value)

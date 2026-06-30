@@ -1,11 +1,13 @@
 @page "/rmas/new"
 @rendermode InteractiveServer
 
+@using BuildBook.Application.Settings
 @using BuildBook.Domain.Rmas
 
 @attribute [Authorize(Policy = BuildBookRmaPolicies.CreateRmas)]
 
 @inject IRmaRecordService RmaRecordService
+@inject ISystemSettingsService SystemSettingsService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
@@ -84,13 +86,8 @@
             </div>
 
             <div class="form-field">
-                <label for="rma-support-ticket">Support ticket number</label>
+                <label for="rma-support-ticket">@SupportTicketLabel</label>
                 <InputText id="rma-support-ticket" class="text-input" @bind-Value="model.SupportTicketNumber" />
-            </div>
-
-            <div class="form-field">
-                <label for="rma-support-ticket-url">Support ticket URL</label>
-                <InputText id="rma-support-ticket-url" class="text-input" @bind-Value="model.SupportTicketUrl" />
             </div>
 
             <div class="form-field">
@@ -266,9 +263,13 @@
     private bool isLoadingRepeatSummary;
     private int? loadedPrefillBuildRecordId;
     private string? prefillMessage;
+    private string supportTicketLabel = SupportTicketSettingsValidator.DefaultSupportTicketLabel;
+    private string SupportTicketLabel => supportTicketLabel;
 
     protected override async Task OnParametersSetAsync()
     {
+        await LoadSupportTicketSettingsAsync();
+
         if (PrefillBuildRecordId is not null && PrefillBuildRecordId != loadedPrefillBuildRecordId)
         {
             await LoadPrefillAsync(PrefillBuildRecordId.Value);
@@ -281,6 +282,12 @@
         }
 
         await RefreshRepeatReturnSummaryAsync();
+    }
+
+    private async Task LoadSupportTicketSettingsAsync()
+    {
+        var settings = await SystemSettingsService.GetSupportTicketSettingsAsync();
+        supportTicketLabel = settings.SupportTicketLabel;
     }
 
     private async Task CreateAsync()
