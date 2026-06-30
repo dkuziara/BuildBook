@@ -54,14 +54,15 @@ else
     </section>
 
     <nav class="section-chip-nav" aria-label="RMA detail sections">
-        <a class="section-chip" href="#rma-summary-heading">Summary</a>
-        <a class="section-chip" href="#rma-metrics-summary-heading">Metrics</a>
-        <a class="section-chip" href="#rma-workflow-heading">Workflow</a>
-        <a class="section-chip" href="#rma-status-heading">Status</a>
-        <a class="section-chip" href="#rma-intake-heading">Intake</a>
-        <a class="section-chip" href="#rma-fault-details-heading">Fault</a>
-        <a class="section-chip" href="#rma-notes-heading">Notes</a>
-        <a class="section-chip" href="#rma-build-record-heading">Build Record</a>
+        <a class="section-chip" href="@RecordSectionLink("rma-summary")">Summary</a>
+        <a class="section-chip" href="@RecordSectionLink("rma-metrics-summary")">Metrics</a>
+        <a class="section-chip" href="@RecordSectionLink("rma-workflow")">Workflow</a>
+        <a class="section-chip" href="@RecordSectionLink("rma-status")">Status</a>
+        <a class="section-chip" href="@RecordSectionLink("rma-intake")">Intake</a>
+        <a class="section-chip" href="@RecordSectionLink("rma-fault-details")">Fault</a>
+        <a class="section-chip" href="@RecordSectionLink("rma-warranty-commercial")">Commercial</a>
+        <a class="section-chip" href="@RecordSectionLink("rma-notes")">Notes</a>
+        <a class="section-chip" href="@RecordSectionLink("rma-build-record-link")">Build Record</a>
     </nav>
 
     @if (!string.IsNullOrWhiteSpace(statusMessage))
@@ -71,7 +72,7 @@ else
         </div>
     }
 
-    <section class="detail-panel" aria-labelledby="rma-summary-heading">
+    <section id="rma-summary" class="detail-panel" aria-labelledby="rma-summary-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="rma-summary-heading">Summary</h2>
@@ -131,7 +132,7 @@ else
         </dl>
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="rma-metrics-summary-heading">
+    <section id="rma-metrics-summary" class="detail-panel detail-section" aria-labelledby="rma-metrics-summary-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="rma-metrics-summary-heading">RMA Metrics</h2>
@@ -202,7 +203,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="rma-workflow-heading">
+    <section id="rma-workflow" class="detail-panel detail-section" aria-labelledby="rma-workflow-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="rma-workflow-heading">Workflow &amp; Assignment</h2>
@@ -305,7 +306,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="rma-status-heading">
+    <section id="rma-status" class="detail-panel detail-section" aria-labelledby="rma-status-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="rma-status-heading">Status Workflow</h2>
@@ -467,7 +468,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="rma-intake-heading">
+    <section id="rma-intake" class="detail-panel detail-section" aria-labelledby="rma-intake-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="rma-intake-heading">Intake &amp; Customer</h2>
@@ -625,7 +626,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="rma-fault-details-heading">
+    <section id="rma-fault-details" class="detail-panel detail-section" aria-labelledby="rma-fault-details-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="rma-fault-details-heading">Fault Details</h2>
@@ -842,6 +843,116 @@ else
                 <h3>Repair action taken</h3>
                 <p class="empty-state">@Display(rmaRecord.RepairActionTaken)</p>
             </div>
+        }
+    </section>
+
+    <section id="rma-warranty-commercial" class="detail-panel detail-section" aria-labelledby="rma-warranty-commercial-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-warranty-commercial-heading">Warranty &amp; Commercial</h2>
+                <p>Warranty state, approvals and repair cost details for chargeable or out-of-warranty work.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookRmaPolicies.EditRmas">
+                <Authorized>
+                    @if (!isEditingWarrantyCommercial)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingWarrantyCommercial">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingWarrantyCommercial)
+        {
+            @SectionErrors(warrantyCommercialErrors, "Warranty and commercial details could not be saved.")
+
+            <EditForm Model="warrantyCommercialModel" OnValidSubmit="SaveWarrantyCommercialAsync" FormName="edit-rma-warranty-commercial">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-rma-warranty-status">Warranty status</label>
+                        <InputSelect id="edit-rma-warranty-status" class="text-input" @bind-Value="warrantyCommercialModel.WarrantyStatus">
+                            <option value="">Not set</option>
+                            @foreach (var status in Enum.GetValues<RmaWarrantyStatus>())
+                            {
+                                <option value="@status">@FormatWarrantyStatus(status)</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-warranty-expiry-date">Warranty expiry date</label>
+                        <InputDate id="edit-rma-warranty-expiry-date" class="text-input" @bind-Value="warrantyCommercialModel.WarrantyExpiryDate" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-chargeable-repair">Chargeable repair</label>
+                        <InputSelect id="edit-rma-chargeable-repair" class="text-input" @bind-Value="warrantyCommercialModel.ChargeableRepair">
+                            <option value="">Not set</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-customer-approval-required">Customer approval required</label>
+                        <InputSelect id="edit-rma-customer-approval-required" class="text-input" @bind-Value="warrantyCommercialModel.CustomerApprovalRequired">
+                            <option value="">Not set</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-customer-approval-received">Customer approval received</label>
+                        <InputSelect id="edit-rma-customer-approval-received" class="text-input" @bind-Value="warrantyCommercialModel.CustomerApprovalReceived">
+                            <option value="">Not set</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-customer-approval-date">Customer approval date</label>
+                        <InputDate id="edit-rma-customer-approval-date" class="text-input" @bind-Value="warrantyCommercialModel.CustomerApprovalDate" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-quote-number">Quote number</label>
+                        <InputText id="edit-rma-quote-number" class="text-input" @bind-Value="warrantyCommercialModel.QuoteNumber" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-purchase-order-number">Purchase order number</label>
+                        <InputText id="edit-rma-purchase-order-number" class="text-input" @bind-Value="warrantyCommercialModel.PurchaseOrderNumber" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-repair-invoice-number">Repair invoice number</label>
+                        <InputText id="edit-rma-repair-invoice-number" class="text-input" @bind-Value="warrantyCommercialModel.RepairInvoiceNumber" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-estimated-repair-cost">Estimated repair cost</label>
+                        <InputNumber id="edit-rma-estimated-repair-cost" class="text-input" @bind-Value="warrantyCommercialModel.EstimatedRepairCost" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-actual-repair-cost">Actual repair cost</label>
+                        <InputNumber id="edit-rma-actual-repair-cost" class="text-input" @bind-Value="warrantyCommercialModel.ActualRepairCost" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingWarrantyCommercial">@(isSavingWarrantyCommercial ? "Saving..." : "Save warranty and commercial details")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingWarrantyCommercial" @onclick="CancelWarrantyCommercialEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div><dt>Warranty status</dt><dd>@DisplayWarrantyStatus(rmaRecord.WarrantyStatus)</dd></div>
+                <div><dt>Warranty expiry date</dt><dd>@Display(rmaRecord.WarrantyExpiryDate)</dd></div>
+                <div><dt>Chargeable repair</dt><dd>@DisplayBool(rmaRecord.ChargeableRepair)</dd></div>
+                <div><dt>Customer approval required</dt><dd>@DisplayBool(rmaRecord.CustomerApprovalRequired)</dd></div>
+                <div><dt>Customer approval received</dt><dd>@DisplayBool(rmaRecord.CustomerApprovalReceived)</dd></div>
+                <div><dt>Customer approval date</dt><dd>@Display(rmaRecord.CustomerApprovalDate)</dd></div>
+                <div><dt>Quote number</dt><dd>@Display(rmaRecord.QuoteNumber)</dd></div>
+                <div><dt>Purchase order number</dt><dd>@Display(rmaRecord.PurchaseOrderNumber)</dd></div>
+                <div><dt>Repair invoice number</dt><dd>@Display(rmaRecord.RepairInvoiceNumber)</dd></div>
+                <div><dt>Estimated repair cost</dt><dd>@DisplayCurrency(rmaRecord.EstimatedRepairCost)</dd></div>
+                <div><dt>Actual repair cost</dt><dd>@DisplayCurrency(rmaRecord.ActualRepairCost)</dd></div>
+            </dl>
         }
     </section>
 
@@ -1496,7 +1607,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="rma-notes-heading">
+    <section id="rma-notes" class="detail-panel detail-section" aria-labelledby="rma-notes-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="rma-notes-heading">Typed Notes</h2>
@@ -1577,7 +1688,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="rma-build-record-link-heading">
+    <section id="rma-build-record-link" class="detail-panel detail-section" aria-labelledby="rma-build-record-link-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="rma-build-record-link-heading">Build Record link</h2>
@@ -1639,6 +1750,7 @@ else
     private UpdateRmaIntakeRequest intakeModel = new();
     private UpdateRmaFaultDetailsRequest faultDetailsModel = new();
     private UpdateRmaRepairDetailsRequest repairDetailsModel = new();
+    private UpdateRmaWarrantyCommercialRequest warrantyCommercialModel = new();
     private UpdateRmaWorkflowRequest workflowModel = new();
     private UpdateRmaShippingRequest shippingModel = new();
     private UpdateRmaCustomerSummaryRequest customerSummaryModel = new();
@@ -1665,6 +1777,7 @@ else
     private readonly List<string> intakeErrors = [];
     private readonly List<string> faultDetailErrors = [];
     private readonly List<string> repairDetailErrors = [];
+    private readonly List<string> warrantyCommercialErrors = [];
     private readonly List<string> workflowErrors = [];
     private readonly List<string> shippingErrors = [];
     private readonly List<string> customerSummaryErrors = [];
@@ -1680,6 +1793,7 @@ else
     private bool isEditingIntake;
     private bool isEditingFaultDetails;
     private bool isEditingRepairDetails;
+    private bool isEditingWarrantyCommercial;
     private bool isEditingWorkflow;
     private bool isEditingShipping;
     private bool isEditingCustomerSummary;
@@ -1689,6 +1803,7 @@ else
     private bool isSavingIntake;
     private bool isSavingFaultDetails;
     private bool isSavingRepairDetails;
+    private bool isSavingWarrantyCommercial;
     private bool isSavingWorkflow;
     private bool isSavingShipping;
     private bool isSavingCustomerSummary;
@@ -1713,6 +1828,7 @@ else
     private static readonly string[] CommunicationMethods = ["Email", "Phone", "Teams", "Freshdesk", "On site", "Other"];
     private static readonly string[] AttachmentTypes = ["Photo", "Screenshot", "Test result", "Courier document", "Customer email", "Approval", "Other"];
     private string PageTitleText => rmaRecord is null ? "RMA Record" : rmaRecord.RmaNumber;
+    private string RecordSectionLink(string sectionId) => $"/rmas/{RmaRecordId}#{sectionId}";
     private string SupportTicketLabel => supportTicketLabel;
     private string? OpenSupportTicketUrl => rmaRecord is null
         ? null
@@ -1982,6 +2098,52 @@ else
         workflowErrors.Clear();
         statusMessage = null;
         isEditingWorkflow = true;
+    }
+
+    private void StartEditingWarrantyCommercial()
+    {
+        if (rmaRecord is null)
+        {
+            return;
+        }
+
+        warrantyCommercialModel = new UpdateRmaWarrantyCommercialRequest
+        {
+            WarrantyStatus = rmaRecord.WarrantyStatus,
+            WarrantyExpiryDate = rmaRecord.WarrantyExpiryDate,
+            ChargeableRepair = rmaRecord.ChargeableRepair,
+            CustomerApprovalRequired = rmaRecord.CustomerApprovalRequired,
+            CustomerApprovalReceived = rmaRecord.CustomerApprovalReceived,
+            CustomerApprovalDate = rmaRecord.CustomerApprovalDate,
+            QuoteNumber = rmaRecord.QuoteNumber,
+            PurchaseOrderNumber = rmaRecord.PurchaseOrderNumber,
+            RepairInvoiceNumber = rmaRecord.RepairInvoiceNumber,
+            EstimatedRepairCost = rmaRecord.EstimatedRepairCost,
+            ActualRepairCost = rmaRecord.ActualRepairCost
+        };
+
+        warrantyCommercialErrors.Clear();
+        statusMessage = null;
+        isEditingWarrantyCommercial = true;
+    }
+
+    private async Task SaveWarrantyCommercialAsync()
+    {
+        isSavingWarrantyCommercial = true;
+        await ExecuteSaveAsync(
+            async () => await RmaRecordService.UpdateWarrantyCommercialAsync(RmaRecordId, warrantyCommercialModel, await GetCurrentUserNameAsync()),
+            warrantyCommercialErrors,
+            "Warranty and commercial details were saved.",
+            () => isEditingWarrantyCommercial = false,
+            value => value.Succeeded,
+            value => value.Errors);
+        isSavingWarrantyCommercial = false;
+    }
+
+    private void CancelWarrantyCommercialEdit()
+    {
+        warrantyCommercialErrors.Clear();
+        isEditingWarrantyCommercial = false;
     }
 
     private async Task SaveWorkflowAsync()
@@ -2683,6 +2845,7 @@ else
     private static string Display(DateTimeOffset? value) => value?.ToLocalTime().ToString("d MMM yyyy HH:mm") ?? "Not recorded";
     private static string DisplayMetric(int? value) => value?.ToString() ?? "Not recorded";
     private static string DisplayPriority(RmaPriority? value) => value?.ToString() ?? "Not set";
+    private static string DisplayWarrantyStatus(RmaWarrantyStatus? value) => value is null ? "Not recorded" : FormatWarrantyStatus(value.Value);
     private static string DisplayOutcome(RmaOutcome? value) => value is null ? "Not recorded" : FormatOutcome(value.Value);
     private static string DisplayBool(bool? value) => value is null ? "Not recorded" : (value.Value ? "Yes" : "No");
     private static string DisplayYesNoUnknown(RmaYesNoUnknown? value) => value?.ToString() ?? "Not recorded";
@@ -2762,5 +2925,15 @@ else
         RmaStatus.CustomerFixed => "status-customer-fixed",
         RmaStatus.Closed => "status-closed",
         _ => string.Empty
+    };
+
+    private static string FormatWarrantyStatus(RmaWarrantyStatus status) => status switch
+    {
+        RmaWarrantyStatus.InWarranty => "In warranty",
+        RmaWarrantyStatus.OutOfWarranty => "Out of warranty",
+        RmaWarrantyStatus.ExtendedWarranty => "Extended warranty",
+        RmaWarrantyStatus.WarrantyUnknown => "Warranty unknown",
+        RmaWarrantyStatus.NotApplicable => "Not applicable",
+        _ => status.ToString()
     };
 }

@@ -56,6 +56,20 @@ else
         </div>
     </section>
 
+    <nav class="section-chip-nav" aria-label="Build Record detail sections">
+        <a class="section-chip" href="@RecordSectionLink("build-record-summary")">Summary</a>
+        <a class="section-chip" href="@RecordSectionLink("product-details")">Product</a>
+        <a class="section-chip" href="@RecordSectionLink("build-details")">Build</a>
+        <a class="section-chip" href="@RecordSectionLink("customer-shipping")">Customer</a>
+        <a class="section-chip" href="@RecordSectionLink("hardware-details")">Hardware</a>
+        <a class="section-chip" href="@RecordSectionLink("software-firmware")">Software</a>
+        <a class="section-chip" href="@RecordSectionLink("network")">Network</a>
+        <a class="section-chip" href="@RecordSectionLink("credentials-recovery")">Credentials</a>
+        <a class="section-chip" href="@RecordSectionLink("notes")">Notes</a>
+        <a class="section-chip" href="@RecordSectionLink("linked-rmas")">RMAs</a>
+        <a class="section-chip" href="@RecordSectionLink("history")">History</a>
+    </nav>
+
     @if (saveSucceeded)
     {
         <div class="status-message success" role="status">
@@ -76,7 +90,7 @@ else
         </div>
     }
 
-    <section class="detail-panel" aria-labelledby="build-record-summary-heading">
+    <section id="build-record-summary" class="detail-panel" aria-labelledby="build-record-summary-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="build-record-summary-heading">Summary</h2>
@@ -128,7 +142,7 @@ else
         </dl>
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="product-details-heading">
+    <section id="product-details" class="detail-panel detail-section" aria-labelledby="product-details-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="product-details-heading">Product Details</h2>
@@ -228,7 +242,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="build-details-heading">
+    <section id="build-details" class="detail-panel detail-section" aria-labelledby="build-details-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="build-details-heading">Build Details</h2>
@@ -358,7 +372,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="customer-shipping-heading">
+    <section id="customer-shipping" class="detail-panel detail-section" aria-labelledby="customer-shipping-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="customer-shipping-heading">Customer &amp; Shipping</h2>
@@ -458,7 +472,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="hardware-details-heading">
+    <section id="hardware-details" class="detail-panel detail-section" aria-labelledby="hardware-details-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="hardware-details-heading">Hardware</h2>
@@ -561,7 +575,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="software-firmware-heading">
+    <section id="software-firmware" class="detail-panel detail-section" aria-labelledby="software-firmware-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="software-firmware-heading">Software &amp; Firmware</h2>
@@ -673,7 +687,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="network-heading">
+    <section id="network" class="detail-panel detail-section" aria-labelledby="network-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="network-heading">Network</h2>
@@ -740,7 +754,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="credentials-recovery-heading">
+    <section id="credentials-recovery" class="detail-panel detail-section" aria-labelledby="credentials-recovery-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="credentials-recovery-heading">Credentials &amp; Recovery</h2>
@@ -843,7 +857,7 @@ else
         </dl>
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="notes-heading">
+    <section id="notes" class="detail-panel detail-section" aria-labelledby="notes-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="notes-heading">Notes</h2>
@@ -901,7 +915,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="linked-rmas-heading">
+    <section id="linked-rmas" class="detail-panel detail-section" aria-labelledby="linked-rmas-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="linked-rmas-heading">Linked RMAs</h2>
@@ -950,7 +964,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="history-heading">
+    <section id="history" class="detail-panel detail-section" aria-labelledby="history-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="history-heading">History</h2>
@@ -1065,6 +1079,8 @@ else
     private string PageTitleText => buildRecord is null
         ? "Build Record"
         : $"{buildRecord.ProductName} - {buildRecord.SerialNumber}";
+
+    private string RecordSectionLink(string sectionId) => $"/build-records/{BuildRecordId}#{sectionId}";
 
     protected override async Task OnParametersSetAsync()
     {

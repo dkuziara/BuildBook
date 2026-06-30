@@ -141,6 +141,17 @@ public sealed class RmaRecordService(
                 rmaRecord.RepairActionTaken,
                 rmaRecord.RepairCompletedDate,
                 rmaRecord.RepairCompletedBy,
+                rmaRecord.WarrantyStatus,
+                rmaRecord.WarrantyExpiryDate,
+                rmaRecord.ChargeableRepair,
+                rmaRecord.CustomerApprovalRequired,
+                rmaRecord.CustomerApprovalReceived,
+                rmaRecord.CustomerApprovalDate,
+                rmaRecord.QuoteNumber,
+                rmaRecord.PurchaseOrderNumber,
+                rmaRecord.RepairInvoiceNumber,
+                rmaRecord.EstimatedRepairCost,
+                rmaRecord.ActualRepairCost,
                 rmaRecord.TestRequired,
                 rmaRecord.TestPlanUsed,
                 rmaRecord.TestResult,
@@ -1021,6 +1032,68 @@ public sealed class RmaRecordService(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return UpdateRmaRepairDetailsResult.Success();
+    }
+
+    public async Task<RmaOperationResult> UpdateWarrantyCommercialAsync(
+        int rmaRecordId,
+        UpdateRmaWarrantyCommercialRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(updatedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var rmaRecord = await dbContext.RmaRecords
+            .SingleOrDefaultAsync(record => record.Id == rmaRecordId && record.IsActive, cancellationToken);
+
+        if (rmaRecord is null)
+        {
+            return RmaOperationResult.Failure("RMA Record was not found.");
+        }
+
+        var quoteNumber = NormalizeOptionalValue(request.QuoteNumber);
+        var purchaseOrderNumber = NormalizeOptionalValue(request.PurchaseOrderNumber);
+        var repairInvoiceNumber = NormalizeOptionalValue(request.RepairInvoiceNumber);
+
+        var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
+            rmaRecord,
+            [
+                new RmaAuditChange("WarrantyStatus", FormatWarrantyStatus(rmaRecord.WarrantyStatus), FormatWarrantyStatus(request.WarrantyStatus)),
+                new RmaAuditChange("WarrantyExpiryDate", FormatDate(rmaRecord.WarrantyExpiryDate), FormatDate(request.WarrantyExpiryDate)),
+                new RmaAuditChange("ChargeableRepair", FormatBool(rmaRecord.ChargeableRepair), FormatBool(request.ChargeableRepair)),
+                new RmaAuditChange("CustomerApprovalRequired", FormatBool(rmaRecord.CustomerApprovalRequired), FormatBool(request.CustomerApprovalRequired)),
+                new RmaAuditChange("CustomerApprovalReceived", FormatBool(rmaRecord.CustomerApprovalReceived), FormatBool(request.CustomerApprovalReceived)),
+                new RmaAuditChange("CustomerApprovalDate", FormatDate(rmaRecord.CustomerApprovalDate), FormatDate(request.CustomerApprovalDate)),
+                new RmaAuditChange("QuoteNumber", rmaRecord.QuoteNumber, quoteNumber),
+                new RmaAuditChange("PurchaseOrderNumber", rmaRecord.PurchaseOrderNumber, purchaseOrderNumber),
+                new RmaAuditChange("RepairInvoiceNumber", rmaRecord.RepairInvoiceNumber, repairInvoiceNumber),
+                new RmaAuditChange("EstimatedRepairCost", FormatCurrency(rmaRecord.EstimatedRepairCost), FormatCurrency(request.EstimatedRepairCost)),
+                new RmaAuditChange("ActualRepairCost", FormatCurrency(rmaRecord.ActualRepairCost), FormatCurrency(request.ActualRepairCost))
+            ],
+            userName);
+
+        if (auditEntries.Count == 0)
+        {
+            return RmaOperationResult.Success();
+        }
+
+        rmaRecord.WarrantyStatus = request.WarrantyStatus;
+        rmaRecord.WarrantyExpiryDate = request.WarrantyExpiryDate;
+        rmaRecord.ChargeableRepair = request.ChargeableRepair;
+        rmaRecord.CustomerApprovalRequired = request.CustomerApprovalRequired;
+        rmaRecord.CustomerApprovalReceived = request.CustomerApprovalReceived;
+        rmaRecord.CustomerApprovalDate = request.CustomerApprovalDate;
+        rmaRecord.QuoteNumber = quoteNumber;
+        rmaRecord.PurchaseOrderNumber = purchaseOrderNumber;
+        rmaRecord.RepairInvoiceNumber = repairInvoiceNumber;
+        rmaRecord.EstimatedRepairCost = request.EstimatedRepairCost;
+        rmaRecord.ActualRepairCost = request.ActualRepairCost;
+        rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+        rmaRecord.LastUpdatedBy = userName;
+
+        await dbContext.RmaAudit.AddRangeAsync(auditEntries, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return RmaOperationResult.Success();
     }
 
     public async Task<UpdateRmaWorkflowResult> UpdateWorkflowAsync(
@@ -2348,6 +2421,11 @@ public sealed class RmaRecordService(
     }
 
     private static string? FormatPriority(RmaPriority? value)
+    {
+        return value?.ToString();
+    }
+
+    private static string? FormatWarrantyStatus(RmaWarrantyStatus? value)
     {
         return value?.ToString();
     }

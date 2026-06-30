@@ -84,6 +84,12 @@ public interface IRmaRecordService
         string updatedBy,
         CancellationToken cancellationToken = default);
 
+    Task<RmaOperationResult> UpdateWarrantyCommercialAsync(
+        int rmaRecordId,
+        UpdateRmaWarrantyCommercialRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
     Task<UpdateRmaWorkflowResult> UpdateWorkflowAsync(
         int rmaRecordId,
         UpdateRmaWorkflowRequest request,

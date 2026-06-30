@@ -561,6 +561,73 @@ public class RmaRecordServiceIntegrationTests
     }
 
     [Fact]
+    public async Task UpdateWarrantyCommercialAsync_PersistsCommercialFieldsAndAudit()
+    {
+        var options = DatabaseTestHelper.CreateSqlServerOptions("BuildBookRmaWarrantyCommercial");
+        await DatabaseTestHelper.InitializeDatabaseAsync(options);
+
+        try
+        {
+            int rmaRecordId;
+
+            await using (var setupContext = new BuildBookDbContext(options))
+            {
+                var rmaRecord = CreateRmaRecord("RMA-0001", "Device A", "SN-1000");
+                setupContext.RmaRecords.Add(rmaRecord);
+                await setupContext.SaveChangesAsync();
+                rmaRecordId = rmaRecord.Id;
+            }
+
+            var service = CreateService(options);
+
+            var result = await service.UpdateWarrantyCommercialAsync(
+                rmaRecordId,
+                new UpdateRmaWarrantyCommercialRequest
+                {
+                    WarrantyStatus = RmaWarrantyStatus.OutOfWarranty,
+                    WarrantyExpiryDate = new DateOnly(2026, 6, 15),
+                    ChargeableRepair = true,
+                    CustomerApprovalRequired = true,
+                    CustomerApprovalReceived = true,
+                    CustomerApprovalDate = new DateOnly(2026, 6, 20),
+                    QuoteNumber = "Q-100",
+                    PurchaseOrderNumber = "PO-200",
+                    RepairInvoiceNumber = "INV-300",
+                    EstimatedRepairCost = 125.50m,
+                    ActualRepairCost = 140.75m
+                },
+                "DOMAIN\\commercial");
+
+            Assert.True(result.Succeeded);
+
+            await using var verifyContext = new BuildBookDbContext(options);
+            var savedRecord = await verifyContext.RmaRecords.SingleAsync(record => record.Id == rmaRecordId);
+            var auditEntries = await verifyContext.RmaAudit
+                .Where(entry => entry.RmaRecordId == rmaRecordId)
+                .ToListAsync();
+
+            Assert.Equal(RmaWarrantyStatus.OutOfWarranty, savedRecord.WarrantyStatus);
+            Assert.Equal(new DateOnly(2026, 6, 15), savedRecord.WarrantyExpiryDate);
+            Assert.True(savedRecord.ChargeableRepair);
+            Assert.True(savedRecord.CustomerApprovalRequired);
+            Assert.True(savedRecord.CustomerApprovalReceived);
+            Assert.Equal(new DateOnly(2026, 6, 20), savedRecord.CustomerApprovalDate);
+            Assert.Equal("Q-100", savedRecord.QuoteNumber);
+            Assert.Equal("PO-200", savedRecord.PurchaseOrderNumber);
+            Assert.Equal("INV-300", savedRecord.RepairInvoiceNumber);
+            Assert.Equal(125.50m, savedRecord.EstimatedRepairCost);
+            Assert.Equal(140.75m, savedRecord.ActualRepairCost);
+            Assert.Contains(auditEntries, entry => entry.FieldChanged == "WarrantyStatus" && entry.NewValue == nameof(RmaWarrantyStatus.OutOfWarranty));
+            Assert.Contains(auditEntries, entry => entry.FieldChanged == "EstimatedRepairCost" && entry.NewValue == "125.50");
+            Assert.Contains(auditEntries, entry => entry.FieldChanged == "ActualRepairCost" && entry.NewValue == "140.75");
+        }
+        finally
+        {
+            await DatabaseTestHelper.DeleteDatabaseAsync(options);
+        }
+    }
+
+    [Fact]
     public async Task UpdateShippingAsync_AndUpdateCustomerSummaryAsync_PersistFeatureFields()
     {
         var options = DatabaseTestHelper.CreateSqlServerOptions("BuildBookRmaShippingSummary");

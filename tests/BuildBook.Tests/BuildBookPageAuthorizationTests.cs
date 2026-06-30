@@ -257,11 +257,14 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("IRmaStatusTransitionService", pageContent);
         Assert.Contains("AuthenticationStateProvider", pageContent);
         Assert.Contains("Summary", pageContent);
+        Assert.Contains("RecordSectionLink(\"rma-summary\")", pageContent);
+        Assert.Contains("RecordSectionLink(\"rma-build-record-link\")", pageContent);
         Assert.Contains("Workflow &amp; Assignment", pageContent);
         Assert.Contains("Status Workflow", pageContent);
         Assert.Contains("Status History", pageContent);
         Assert.Contains("Intake &amp; Customer", pageContent);
         Assert.Contains("Fault Details", pageContent);
+        Assert.Contains("Warranty &amp; Commercial", pageContent);
         Assert.Contains("Diagnosis &amp; Repair", pageContent);
         Assert.Contains("Parts Replaced", pageContent);
         Assert.Contains("Repair Checklist", pageContent);
@@ -300,6 +303,9 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("LoadRmaAsync", pageContent);
         Assert.Contains("GetStatusHistoryAsync", pageContent);
         Assert.Contains("Customer reference", pageContent);
+        Assert.Contains("FormName=\"edit-rma-warranty-commercial\"", pageContent);
+        Assert.Contains("Customer approval required", pageContent);
+        Assert.Contains("Estimated repair cost", pageContent);
         Assert.Contains("InputSelect id=\"edit-rma-customer\"", pageContent);
         Assert.Contains("Select customer", pageContent);
         Assert.Contains("selectedCustomerId", pageContent);
@@ -494,6 +500,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("FormName=\"edit-software-firmware\"", pageContent);
         Assert.Contains("FormName=\"edit-network-details\"", pageContent);
         Assert.Contains("FormName=\"edit-notes\"", pageContent);
+        Assert.Contains("RecordSectionLink(\"build-record-summary\")", pageContent);
+        Assert.Contains("RecordSectionLink(\"history\")", pageContent);
         Assert.Contains("Product Details", pageContent);
         Assert.Contains("Build Details", pageContent);
         Assert.Contains("Customer &amp; Shipping", pageContent);
