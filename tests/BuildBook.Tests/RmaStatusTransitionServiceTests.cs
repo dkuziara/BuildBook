@@ -65,6 +65,39 @@ public class RmaStatusTransitionServiceTests
     }
 
     [Fact]
+    public void Validate_AllowsValidClosedTransition()
+    {
+        var service = new RmaStatusTransitionService();
+
+        var result = service.Validate(
+            RmaStatus.Shipped,
+            new ChangeRmaStatusRequest
+            {
+                NewStatus = RmaStatus.Closed,
+                Outcome = RmaOutcome.RepairedAndReturned,
+                ClosureNotes = "Customer confirmed receipt."
+            });
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Fact]
+    public void Validate_RequiresReasonWhenCancellingWithoutReply()
+    {
+        var service = new RmaStatusTransitionService();
+
+        var result = service.Validate(
+            RmaStatus.WorkInProgress,
+            new ChangeRmaStatusRequest
+            {
+                NewStatus = RmaStatus.CancelledNoReply
+            });
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("explaining", string.Join(' ', result.Errors), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Validate_RejectsInvalidTransition()
     {
         var service = new RmaStatusTransitionService();

@@ -801,10 +801,22 @@ namespace BuildBook.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
 
+                    b.Property<string>("OriginalPlannerNotes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("OriginalPlannerTaskTitle")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
                     b.Property<DateOnly?>("OriginalOrderDate")
                         .HasColumnType("date");
 
                     b.Property<string>("OriginalOrderNumber")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("MigrationSource")
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
 

@@ -35,4 +35,10 @@ public sealed class UpdateRmaIntakeRequest
     public DateOnly? OriginalOrderDate { get; set; }
 
     public string? OriginalInvoiceNumber { get; set; }
+
+    public string? MigrationSource { get; set; }
+
+    public string? OriginalPlannerTaskTitle { get; set; }
+
+    public string? OriginalPlannerNotes { get; set; }
 }

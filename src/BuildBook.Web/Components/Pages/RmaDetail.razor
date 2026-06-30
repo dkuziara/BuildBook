@@ -43,9 +43,22 @@ else
             <p>@rmaRecord.ProductName - @rmaRecord.FaultSummary</p>
         </div>
         <div class="page-actions">
+            <a class="secondary-button" href="/rmas/board">Board view</a>
+            <a class="secondary-button" href="/rmas/reports?scope=record&value=@RmaRecordId#selected-rma-report-heading">Report slice</a>
             <a class="secondary-button" href="/rmas">Back to RMA Register</a>
         </div>
     </section>
+
+    <nav class="section-chip-nav" aria-label="RMA detail sections">
+        <a class="section-chip" href="#rma-summary-heading">Summary</a>
+        <a class="section-chip" href="#rma-metrics-summary-heading">Metrics</a>
+        <a class="section-chip" href="#rma-workflow-heading">Workflow</a>
+        <a class="section-chip" href="#rma-status-heading">Status</a>
+        <a class="section-chip" href="#rma-intake-heading">Intake</a>
+        <a class="section-chip" href="#rma-fault-details-heading">Fault</a>
+        <a class="section-chip" href="#rma-notes-heading">Notes</a>
+        <a class="section-chip" href="#rma-build-record-heading">Build Record</a>
+    </nav>
 
     @if (!string.IsNullOrWhiteSpace(statusMessage))
     {
@@ -528,6 +541,14 @@ else
                         <label for="edit-rma-original-invoice-number">Original invoice number</label>
                         <InputText id="edit-rma-original-invoice-number" class="text-input" @bind-Value="intakeModel.OriginalInvoiceNumber" />
                     </div>
+                    <div class="form-field">
+                        <label for="edit-rma-migration-source">Migration source</label>
+                        <InputText id="edit-rma-migration-source" class="text-input" @bind-Value="intakeModel.MigrationSource" />
+                    </div>
+                    <div class="form-field">
+                        <label for="edit-rma-original-planner-task-title">Original Planner task title</label>
+                        <InputText id="edit-rma-original-planner-task-title" class="text-input" @bind-Value="intakeModel.OriginalPlannerTaskTitle" />
+                    </div>
                 </div>
 
                 <div class="form-field form-field-wide">
@@ -538,6 +559,11 @@ else
                 <div class="form-field form-field-wide">
                     <label for="edit-rma-initial-fault-description">Initial fault description</label>
                     <InputTextArea id="edit-rma-initial-fault-description" class="text-input" @bind-Value="intakeModel.InitialFaultDescription" />
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-rma-original-planner-notes">Original Planner notes</label>
+                    <InputTextArea id="edit-rma-original-planner-notes" class="text-input" @bind-Value="intakeModel.OriginalPlannerNotes" />
                 </div>
 
                 <div class="form-actions">
@@ -562,6 +588,8 @@ else
                 <div><dt>Original order number</dt><dd>@Display(rmaRecord.OriginalOrderNumber)</dd></div>
                 <div><dt>Original order date</dt><dd>@Display(rmaRecord.OriginalOrderDate)</dd></div>
                 <div><dt>Original invoice number</dt><dd>@Display(rmaRecord.OriginalInvoiceNumber)</dd></div>
+                <div><dt>Migration source</dt><dd>@Display(rmaRecord.MigrationSource)</dd></div>
+                <div><dt>Original Planner task title</dt><dd>@Display(rmaRecord.OriginalPlannerTaskTitle)</dd></div>
                 <div><dt>Date item received</dt><dd>@Display(rmaRecord.DateItemReceived)</dd></div>
                 <div><dt>Received by</dt><dd>@Display(rmaRecord.ReceivedBy)</dd></div>
             </dl>
@@ -574,6 +602,11 @@ else
             <div class="detail-section">
                 <h3>Initial fault description</h3>
                 <p class="empty-state">@rmaRecord.InitialFaultDescription</p>
+            </div>
+
+            <div class="detail-section">
+                <h3>Original Planner notes</h3>
+                <p class="empty-state">@Display(rmaRecord.OriginalPlannerNotes)</p>
             </div>
         }
     </section>
@@ -1759,7 +1792,10 @@ else
             SupportTicketUrl = rmaRecord.SupportTicketUrl,
             OriginalOrderNumber = rmaRecord.OriginalOrderNumber,
             OriginalOrderDate = rmaRecord.OriginalOrderDate,
-            OriginalInvoiceNumber = rmaRecord.OriginalInvoiceNumber
+            OriginalInvoiceNumber = rmaRecord.OriginalInvoiceNumber,
+            MigrationSource = rmaRecord.MigrationSource,
+            OriginalPlannerTaskTitle = rmaRecord.OriginalPlannerTaskTitle,
+            OriginalPlannerNotes = rmaRecord.OriginalPlannerNotes
         };
 
         intakeErrors.Clear();

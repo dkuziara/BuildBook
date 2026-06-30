@@ -23,7 +23,12 @@
 </section>
 
 <section class="form-panel" aria-labelledby="add-rma-heading">
-    <h2 id="add-rma-heading">Required details</h2>
+    <div class="detail-panel-header">
+        <div>
+            <h2 id="add-rma-heading">Required details</h2>
+            <p>Capture the customer, device and fault summary first. Planner migration traceability can be added below when this record is being recreated from the old workflow.</p>
+        </div>
+    </div>
 
     @if (!string.IsNullOrWhiteSpace(prefillMessage))
     {
@@ -119,6 +124,32 @@
             <InputTextArea id="rma-fault-description" class="text-input" @bind-Value="model.InitialFaultDescription" />
             <ValidationMessage For="() => model.InitialFaultDescription" />
         </div>
+
+        <section class="detail-panel detail-section rma-migration-panel" aria-labelledby="rma-migration-heading">
+            <div class="detail-panel-header">
+                <div>
+                    <h2 id="rma-migration-heading">Planner Migration Traceability</h2>
+                    <p>Use these fields when manually recreating an active Planner item in BuildBook. Leave them blank for normal new RMAs.</p>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="rma-migration-source">Migration source</label>
+                    <InputText id="rma-migration-source" class="text-input" @bind-Value="model.MigrationSource" />
+                </div>
+
+                <div class="form-field">
+                    <label for="rma-planner-task-title">Original Planner task title</label>
+                    <InputText id="rma-planner-task-title" class="text-input" @bind-Value="model.OriginalPlannerTaskTitle" />
+                </div>
+            </div>
+
+            <div class="form-field form-field-wide">
+                <label for="rma-planner-notes">Original Planner notes</label>
+                <InputTextArea id="rma-planner-notes" class="text-input" @bind-Value="model.OriginalPlannerNotes" />
+            </div>
+        </section>
 
         <div class="detail-panel detail-section" aria-labelledby="rma-build-record-matches-heading">
             <div class="detail-panel-header">

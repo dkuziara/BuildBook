@@ -71,6 +71,9 @@ public sealed class RmaRecordService(
             SupportTicketUrl = NormalizeOptionalValue(request.SupportTicketUrl),
             OriginalOrderNumber = NormalizeOptionalValue(request.OriginalOrderNumber),
             OriginalInvoiceNumber = NormalizeOptionalValue(request.OriginalInvoiceNumber),
+            MigrationSource = NormalizeOptionalValue(request.MigrationSource),
+            OriginalPlannerTaskTitle = NormalizeOptionalValue(request.OriginalPlannerTaskTitle),
+            OriginalPlannerNotes = NormalizeOptionalValue(request.OriginalPlannerNotes),
             IsActive = true
         };
 
@@ -161,6 +164,9 @@ public sealed class RmaRecordService(
                 rmaRecord.OriginalOrderNumber,
                 rmaRecord.OriginalOrderDate,
                 rmaRecord.OriginalInvoiceNumber,
+                rmaRecord.MigrationSource,
+                rmaRecord.OriginalPlannerTaskTitle,
+                rmaRecord.OriginalPlannerNotes,
                 rmaRecord.ReturnMethod,
                 rmaRecord.Courier,
                 rmaRecord.TrackingNumber,
@@ -833,6 +839,9 @@ public sealed class RmaRecordService(
         var supportTicketUrl = NormalizeOptionalValue(request.SupportTicketUrl);
         var originalOrderNumber = NormalizeOptionalValue(request.OriginalOrderNumber);
         var originalInvoiceNumber = NormalizeOptionalValue(request.OriginalInvoiceNumber);
+        var migrationSource = NormalizeOptionalValue(request.MigrationSource);
+        var originalPlannerTaskTitle = NormalizeOptionalValue(request.OriginalPlannerTaskTitle);
+        var originalPlannerNotes = NormalizeOptionalValue(request.OriginalPlannerNotes);
 
         var auditEntries = rmaAuditService.CreateRecordUpdatedEntries(
             rmaRecord,
@@ -853,7 +862,10 @@ public sealed class RmaRecordService(
                 new RmaAuditChange("SupportTicketUrl", rmaRecord.SupportTicketUrl, supportTicketUrl),
                 new RmaAuditChange("OriginalOrderNumber", rmaRecord.OriginalOrderNumber, originalOrderNumber),
                 new RmaAuditChange("OriginalOrderDate", FormatDate(rmaRecord.OriginalOrderDate), FormatDate(request.OriginalOrderDate)),
-                new RmaAuditChange("OriginalInvoiceNumber", rmaRecord.OriginalInvoiceNumber, originalInvoiceNumber)
+                new RmaAuditChange("OriginalInvoiceNumber", rmaRecord.OriginalInvoiceNumber, originalInvoiceNumber),
+                new RmaAuditChange("MigrationSource", rmaRecord.MigrationSource, migrationSource),
+                new RmaAuditChange("OriginalPlannerTaskTitle", rmaRecord.OriginalPlannerTaskTitle, originalPlannerTaskTitle),
+                new RmaAuditChange("OriginalPlannerNotes", rmaRecord.OriginalPlannerNotes, originalPlannerNotes)
             ],
             userName);
 
@@ -880,6 +892,9 @@ public sealed class RmaRecordService(
         rmaRecord.OriginalOrderNumber = originalOrderNumber;
         rmaRecord.OriginalOrderDate = request.OriginalOrderDate;
         rmaRecord.OriginalInvoiceNumber = originalInvoiceNumber;
+        rmaRecord.MigrationSource = migrationSource;
+        rmaRecord.OriginalPlannerTaskTitle = originalPlannerTaskTitle;
+        rmaRecord.OriginalPlannerNotes = originalPlannerNotes;
         rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
         rmaRecord.LastUpdatedBy = userName;
 

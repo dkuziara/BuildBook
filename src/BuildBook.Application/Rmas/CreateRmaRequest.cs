@@ -34,5 +34,11 @@ public sealed class CreateRmaRequest
 
     public string? OriginalInvoiceNumber { get; set; }
 
+    public string? MigrationSource { get; set; }
+
+    public string? OriginalPlannerTaskTitle { get; set; }
+
+    public string? OriginalPlannerNotes { get; set; }
+
     public int? LinkedBuildRecordId { get; set; }
 }

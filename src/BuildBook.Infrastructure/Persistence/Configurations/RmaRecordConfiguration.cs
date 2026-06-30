@@ -61,6 +61,15 @@ public sealed class RmaRecordConfiguration : IEntityTypeConfiguration<RmaRecord>
         builder.Property(rmaRecord => rmaRecord.OriginalInvoiceNumber)
             .HasMaxLength(128);
 
+        builder.Property(rmaRecord => rmaRecord.MigrationSource)
+            .HasMaxLength(128);
+
+        builder.Property(rmaRecord => rmaRecord.OriginalPlannerTaskTitle)
+            .HasMaxLength(256);
+
+        builder.Property(rmaRecord => rmaRecord.OriginalPlannerNotes)
+            .HasMaxLength(4000);
+
         builder.Property(rmaRecord => rmaRecord.FaultSummary)
             .HasMaxLength(256)
             .IsRequired();

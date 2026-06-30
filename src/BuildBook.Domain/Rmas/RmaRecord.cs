@@ -59,6 +59,12 @@ public sealed class RmaRecord
 
     public string? OriginalInvoiceNumber { get; set; }
 
+    public string? MigrationSource { get; set; }
+
+    public string? OriginalPlannerTaskTitle { get; set; }
+
+    public string? OriginalPlannerNotes { get; set; }
+
     public string FaultSummary { get; set; } = string.Empty;
 
     public string InitialFaultDescription { get; set; } = string.Empty;

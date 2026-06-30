@@ -72,6 +72,9 @@ public class RmaRecordServiceIntegrationTests
                     SupportTicketUrl = "  https://tickets.example.com/TCK-100  ",
                     OriginalOrderNumber = "  ORD-200  ",
                     OriginalInvoiceNumber = "  INV-300  ",
+                    MigrationSource = "  Planner manual recreation  ",
+                    OriginalPlannerTaskTitle = "  Acme return task  ",
+                    OriginalPlannerNotes = "  Planner notes for the original task.  ",
                     LinkedBuildRecordId = linkedBuildRecordId
                 },
                 " DOMAIN\\alice ");
@@ -101,6 +104,9 @@ public class RmaRecordServiceIntegrationTests
             Assert.Equal("SN-1000", rmaRecord.SerialNumber);
             Assert.Equal("Does not boot", rmaRecord.FaultSummary);
             Assert.Equal("Device powers on and hangs at splash screen.", rmaRecord.InitialFaultDescription);
+            Assert.Equal("Planner manual recreation", rmaRecord.MigrationSource);
+            Assert.Equal("Acme return task", rmaRecord.OriginalPlannerTaskTitle);
+            Assert.Equal("Planner notes for the original task.", rmaRecord.OriginalPlannerNotes);
             Assert.Equal("DOMAIN\\alice", rmaRecord.CreatedBy);
             Assert.Equal(RmaChecklistTemplate.DefaultItems.Length, checklistItems.Count);
             Assert.Equal(RmaChecklistTemplate.DefaultItems[0], checklistItems[0].Text);
@@ -244,7 +250,10 @@ public class RmaRecordServiceIntegrationTests
                     SupportTicketUrl = "https://tickets.example.com/NEW-TICKET",
                     OriginalOrderNumber = "ORD-500",
                     OriginalOrderDate = new DateOnly(2026, 6, 20),
-                    OriginalInvoiceNumber = "INV-600"
+                    OriginalInvoiceNumber = "INV-600",
+                    MigrationSource = "Planner board",
+                    OriginalPlannerTaskTitle = "Old Planner card",
+                    OriginalPlannerNotes = "Copied from Planner during migration."
                 },
                 "DOMAIN\\editor");
 
@@ -265,10 +274,52 @@ public class RmaRecordServiceIntegrationTests
             Assert.Equal("Updated fault", savedRmaRecord.FaultSummary);
             Assert.Equal("Updated initial description", savedRmaRecord.InitialFaultDescription);
             Assert.Equal("Engineer notes added", savedRmaRecord.FaultDescription);
+            Assert.Equal("Planner board", savedRmaRecord.MigrationSource);
+            Assert.Equal("Old Planner card", savedRmaRecord.OriginalPlannerTaskTitle);
+            Assert.Equal("Copied from Planner during migration.", savedRmaRecord.OriginalPlannerNotes);
             Assert.Equal("DOMAIN\\editor", savedRmaRecord.LastUpdatedBy);
             Assert.Contains(auditEntries, entry => entry.FieldChanged == "Customer" && entry.NewValue == "New Customer");
             Assert.Contains(auditEntries, entry => entry.FieldChanged == "SupportTicketNumber" && entry.NewValue == "NEW-TICKET");
             Assert.Contains(auditEntries, entry => entry.FieldChanged == "OriginalOrderDate" && entry.NewValue == "2026-06-20");
+            Assert.Contains(auditEntries, entry => entry.FieldChanged == "MigrationSource" && entry.NewValue == "Planner board");
+            Assert.Contains(auditEntries, entry => entry.FieldChanged == "OriginalPlannerTaskTitle" && entry.NewValue == "Old Planner card");
+        }
+        finally
+        {
+            await DatabaseTestHelper.DeleteDatabaseAsync(options);
+        }
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ReturnsPlannerMigrationTraceabilityFields()
+    {
+        var options = DatabaseTestHelper.CreateSqlServerOptions("BuildBookRmaPlannerTraceability");
+        await DatabaseTestHelper.InitializeDatabaseAsync(options);
+
+        try
+        {
+            int rmaRecordId;
+
+            await using (var setupContext = new BuildBookDbContext(options))
+            {
+                var rmaRecord = CreateRmaRecord("RMA-0001", "Device A", "SN-1000");
+                rmaRecord.MigrationSource = "Planner manual migration";
+                rmaRecord.OriginalPlannerTaskTitle = "Planner issue 14";
+                rmaRecord.OriginalPlannerNotes = "Original notes from the Planner card.";
+
+                setupContext.RmaRecords.Add(rmaRecord);
+                await setupContext.SaveChangesAsync();
+                rmaRecordId = rmaRecord.Id;
+            }
+
+            var service = CreateService(options);
+
+            var detail = await service.GetByIdAsync(rmaRecordId);
+
+            Assert.NotNull(detail);
+            Assert.Equal("Planner manual migration", detail!.MigrationSource);
+            Assert.Equal("Planner issue 14", detail.OriginalPlannerTaskTitle);
+            Assert.Equal("Original notes from the Planner card.", detail.OriginalPlannerNotes);
         }
         finally
         {

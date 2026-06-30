@@ -474,6 +474,32 @@ a.secondary-button[aria-disabled="true"] {
     margin: 0;
 }
 
+.section-chip-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+
+.section-chip {
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--color-border-soft);
+    border-radius: 999px;
+    color: var(--color-text-default);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    padding: 0.4rem 0.8rem;
+    text-decoration: none;
+    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.section-chip:hover {
+    background: var(--color-brand-100);
+    border-color: #b8cae0;
+    color: var(--color-text-strong);
+    transform: translateY(-1px);
+}
+
 .recent-record-list {
     display: grid;
     gap: var(--space-3);
@@ -839,6 +865,11 @@ a.secondary-button[aria-disabled="true"] {
 
 .compact-filter-panel .form-actions {
     margin-top: var(--space-3);
+}
+
+.compact-callout-panel .summary-list > div,
+.rma-migration-panel {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(253, 247, 241, 0.98));
 }
 
 .mapping-table {
