@@ -1,6 +1,7 @@
 @page "/rmas/new"
 @rendermode InteractiveServer
 
+@using BuildBook.Application.BuildRecords
 @using BuildBook.Application.Settings
 @using BuildBook.Domain.Rmas
 
@@ -8,6 +9,7 @@
 
 @inject IRmaRecordService RmaRecordService
 @inject ISystemSettingsService SystemSettingsService
+@inject ICustomerOptionsReader CustomerOptionsReader
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
@@ -58,8 +60,14 @@
 
         <div class="form-grid">
             <div class="form-field">
-                <label for="rma-customer-name">Customer</label>
-                <InputText id="rma-customer-name" class="text-input" @bind-Value="model.CustomerName" @bind-Value:after="RefreshSuggestionsAsync" />
+                <label for="rma-customer-id">Customer</label>
+                <InputSelect id="rma-customer-id" class="text-input" @bind-Value="selectedCustomerId" @bind-Value:after="HandleCustomerSelectionChangedAsync">
+                    <option value="">Select customer</option>
+                    @foreach (var customer in customerOptions)
+                    {
+                        <option value="@customer.Id">@customer.Name</option>
+                    }
+                </InputSelect>
                 <ValidationMessage For="() => model.CustomerName" />
             </div>
 
@@ -256,11 +264,13 @@
 
     private CreateRmaRequest model = new();
     private readonly List<string> serverErrors = [];
+    private IReadOnlyList<CustomerOption> customerOptions = [];
     private IReadOnlyList<RmaBuildRecordMatchSuggestion> buildRecordMatches = [];
     private RmaRepeatReturnSummary repeatReturnSummary = RmaRepeatReturnSummary.Empty;
     private bool isSaving;
     private bool isLoadingSuggestions;
     private bool isLoadingRepeatSummary;
+    private int? selectedCustomerId;
     private int? loadedPrefillBuildRecordId;
     private string? prefillMessage;
     private string supportTicketLabel = SupportTicketSettingsValidator.DefaultSupportTicketLabel;
@@ -269,6 +279,7 @@
     protected override async Task OnParametersSetAsync()
     {
         await LoadSupportTicketSettingsAsync();
+        await LoadCustomerOptionsAsync();
 
         if (PrefillBuildRecordId is not null && PrefillBuildRecordId != loadedPrefillBuildRecordId)
         {
@@ -297,6 +308,10 @@
 
         try
         {
+            model.CustomerName = customerOptions
+                .FirstOrDefault(customer => customer.Id == selectedCustomerId)?
+                .Name ?? string.Empty;
+
             var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             var userName = authenticationState.User.Identity?.Name ?? "Unknown";
             var result = await RmaRecordService.CreateAsync(model, userName);
@@ -318,6 +333,29 @@
         {
             isSaving = false;
         }
+    }
+
+    private async Task LoadCustomerOptionsAsync()
+    {
+        customerOptions = await CustomerOptionsReader.ListActiveAsync();
+
+        if (selectedCustomerId is not null && customerOptions.Any(customer => customer.Id == selectedCustomerId.Value))
+        {
+            return;
+        }
+
+        var matchedCustomer = customerOptions.FirstOrDefault(
+            customer => string.Equals(customer.Name, model.CustomerName, StringComparison.OrdinalIgnoreCase));
+        selectedCustomerId = matchedCustomer?.Id;
+    }
+
+    private async Task HandleCustomerSelectionChangedAsync()
+    {
+        model.CustomerName = customerOptions
+            .FirstOrDefault(customer => customer.Id == selectedCustomerId)?
+            .Name ?? string.Empty;
+
+        await RefreshSuggestionsAsync();
     }
 
     private async Task RefreshSuggestionsAsync()
@@ -370,6 +408,9 @@
         model.ProductName = prefill.ProductName;
         model.SerialNumber = prefill.SerialNumber;
         model.CustomerName = prefill.CustomerName ?? string.Empty;
+        selectedCustomerId = customerOptions
+            .FirstOrDefault(customer => string.Equals(customer.Name, model.CustomerName, StringComparison.OrdinalIgnoreCase))?
+            .Id;
         prefillMessage = $"Pre-filled from Build Record #{prefill.BuildRecordId}.";
         await RefreshSuggestionsAsync();
     }

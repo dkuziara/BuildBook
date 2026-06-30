@@ -2,6 +2,7 @@ using System.Data;
 using BuildBook.Application.Rmas;
 using BuildBook.Domain.Customers;
 using BuildBook.Domain.Rmas;
+using BuildBook.Infrastructure.Persistence.Customers;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence.Rmas;
@@ -48,6 +49,9 @@ public sealed class RmaRecordService(
             userName,
             linkedBuildRecord?.CustomerId,
             cancellationToken);
+        var contractPriority = CustomerContractRmaDefaults.GetPriority(customer.SupportContractStatus, customer.SupportContractLevel);
+        var contractWarrantyStatus = CustomerContractRmaDefaults.GetWarrantyStatus(customer.SupportContractStatus, customer.SupportContractLevel);
+        var contractWarrantyExpiryDate = CustomerContractRmaDefaults.GetWarrantyExpiryDate(customer.SupportContractStatus, customer.SupportContractEndDate);
         var now = DateTimeOffset.UtcNow;
         var rmaRecord = new RmaRecord
         {
@@ -59,6 +63,7 @@ public sealed class RmaRecordService(
             LastUpdatedAt = now,
             LastUpdatedBy = userName,
             Customer = customer,
+            Priority = contractPriority,
             ProductName = request.ProductName.Trim(),
             ProductCode = NormalizeOptionalValue(request.ProductCode),
             SerialNumber = NormalizeOptionalValue(request.SerialNumber),
@@ -73,6 +78,8 @@ public sealed class RmaRecordService(
             MigrationSource = NormalizeOptionalValue(request.MigrationSource),
             OriginalPlannerTaskTitle = NormalizeOptionalValue(request.OriginalPlannerTaskTitle),
             OriginalPlannerNotes = NormalizeOptionalValue(request.OriginalPlannerNotes),
+            WarrantyStatus = contractWarrantyStatus,
+            WarrantyExpiryDate = contractWarrantyExpiryDate,
             IsActive = true
         };
 
@@ -834,6 +841,9 @@ public sealed class RmaRecordService(
             userName,
             rmaRecord.CustomerId,
             cancellationToken);
+        var contractPriority = CustomerContractRmaDefaults.GetPriority(customer.SupportContractStatus, customer.SupportContractLevel);
+        var contractWarrantyStatus = CustomerContractRmaDefaults.GetWarrantyStatus(customer.SupportContractStatus, customer.SupportContractLevel);
+        var contractWarrantyExpiryDate = CustomerContractRmaDefaults.GetWarrantyExpiryDate(customer.SupportContractStatus, customer.SupportContractEndDate);
 
         var productName = request.ProductName.Trim();
         var productCode = NormalizeOptionalValue(request.ProductCode);
@@ -874,7 +884,10 @@ public sealed class RmaRecordService(
                 new RmaAuditChange("OriginalInvoiceNumber", rmaRecord.OriginalInvoiceNumber, originalInvoiceNumber),
                 new RmaAuditChange("MigrationSource", rmaRecord.MigrationSource, migrationSource),
                 new RmaAuditChange("OriginalPlannerTaskTitle", rmaRecord.OriginalPlannerTaskTitle, originalPlannerTaskTitle),
-                new RmaAuditChange("OriginalPlannerNotes", rmaRecord.OriginalPlannerNotes, originalPlannerNotes)
+                new RmaAuditChange("OriginalPlannerNotes", rmaRecord.OriginalPlannerNotes, originalPlannerNotes),
+                new RmaAuditChange("Priority", FormatPriority(rmaRecord.Priority), rmaRecord.Priority is null ? FormatPriority(contractPriority) : FormatPriority(rmaRecord.Priority)),
+                new RmaAuditChange("WarrantyStatus", FormatWarrantyStatus(rmaRecord.WarrantyStatus), rmaRecord.WarrantyStatus is null ? FormatWarrantyStatus(contractWarrantyStatus) : FormatWarrantyStatus(rmaRecord.WarrantyStatus)),
+                new RmaAuditChange("WarrantyExpiryDate", FormatDate(rmaRecord.WarrantyExpiryDate), rmaRecord.WarrantyExpiryDate is null ? FormatDate(contractWarrantyExpiryDate) : FormatDate(rmaRecord.WarrantyExpiryDate))
             ],
             userName);
 
@@ -903,6 +916,9 @@ public sealed class RmaRecordService(
         rmaRecord.MigrationSource = migrationSource;
         rmaRecord.OriginalPlannerTaskTitle = originalPlannerTaskTitle;
         rmaRecord.OriginalPlannerNotes = originalPlannerNotes;
+        rmaRecord.Priority ??= contractPriority;
+        rmaRecord.WarrantyStatus ??= contractWarrantyStatus;
+        rmaRecord.WarrantyExpiryDate ??= contractWarrantyExpiryDate;
         rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
         rmaRecord.LastUpdatedBy = userName;
 
@@ -2251,6 +2267,7 @@ public sealed class RmaRecordService(
         if (preferredCustomerId is not null)
         {
             var preferredCustomer = await dbContext.Customers
+                .Include(customer => customer.SupportContractLevel)
                 .FirstOrDefaultAsync(
                     customer => customer.IsActive
                         && customer.Id == preferredCustomerId.Value
@@ -2266,6 +2283,7 @@ public sealed class RmaRecordService(
         // Some existing data contains duplicate active customers with the same name.
         // Prefer the earliest matching record instead of failing the whole save.
         var existingCustomer = await dbContext.Customers
+            .Include(customer => customer.SupportContractLevel)
             .Where(customer => customer.IsActive && customer.Name == normalizedCustomerName)
             .OrderBy(customer => customer.Id)
             .FirstOrDefaultAsync(cancellationToken);

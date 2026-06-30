@@ -212,10 +212,13 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("@rendermode InteractiveServer", pageContent);
         Assert.Contains("BuildBookRmaPolicies.CreateRmas", pageContent);
         Assert.Contains("IRmaRecordService", pageContent);
+        Assert.Contains("ICustomerOptionsReader", pageContent);
         Assert.Contains("AuthenticationStateProvider", pageContent);
         Assert.Contains("NavigationManager", pageContent);
         Assert.Contains("FormName=\"create-rma-record\"", pageContent);
         Assert.Contains("Customer", pageContent);
+        Assert.Contains("InputSelect id=\"rma-customer-id\"", pageContent);
+        Assert.Contains("Select customer", pageContent);
         Assert.Contains("Product name", pageContent);
         Assert.Contains("Product code", pageContent);
         Assert.Contains("Serial number", pageContent);
@@ -235,6 +238,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("GetCreatePrefillAsync", pageContent);
         Assert.Contains("Pre-filled from Build Record", pageContent);
         Assert.Contains("RefreshSuggestionsAsync", pageContent);
+        Assert.Contains("HandleCustomerSelectionChangedAsync", pageContent);
         Assert.Contains("SelectBuildRecordMatch", pageContent);
         Assert.Contains("Continue unlinked", pageContent);
         Assert.Contains("RmaRecordService.CreateAsync", pageContent);

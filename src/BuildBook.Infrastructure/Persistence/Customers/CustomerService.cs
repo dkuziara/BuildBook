@@ -1,4 +1,5 @@
 using BuildBook.Application.Customers;
+using BuildBook.Application.Rmas;
 using BuildBook.Domain.Customers;
 using BuildBook.Domain.Rmas;
 using Microsoft.EntityFrameworkCore;
@@ -6,7 +7,8 @@ using Microsoft.EntityFrameworkCore;
 namespace BuildBook.Infrastructure.Persistence.Customers;
 
 public sealed class CustomerService(
-    IDbContextFactory<BuildBookDbContext> dbContextFactory) : ICustomerService
+    IDbContextFactory<BuildBookDbContext> dbContextFactory,
+    IRmaAuditService rmaAuditService) : ICustomerService
 {
     public async Task<IReadOnlyList<CustomerListItem>> SearchAsync(
         CustomerListFilter filter,
@@ -240,6 +242,7 @@ public sealed class CustomerService(
             return CustomerSaveResult.Failure("Selected support contract level was not found.");
         }
 
+        var userName = NormalizeUserName(updatedBy);
         customer.Name = normalizedName;
         customer.AccountCode = NormalizeOptionalValue(request.AccountCode);
         customer.AddressLine1 = NormalizeOptionalValue(request.AddressLine1);
@@ -261,7 +264,13 @@ public sealed class CustomerService(
         customer.SupportNotes = NormalizeOptionalValue(request.SupportNotes);
         customer.IsActive = request.IsActive;
         customer.LastUpdatedAt = DateTimeOffset.UtcNow;
-        customer.LastUpdatedBy = NormalizeUserName(updatedBy);
+        customer.LastUpdatedBy = userName;
+
+        await ApplySupportContractDefaultsToLinkedRmasAsync(
+            dbContext,
+            customer,
+            userName,
+            cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -344,5 +353,62 @@ public sealed class CustomerService(
         return string.IsNullOrWhiteSpace(value)
             ? CustomerSupportContractStatuses.NoContract
             : value.Trim();
+    }
+
+    private async Task ApplySupportContractDefaultsToLinkedRmasAsync(
+        BuildBookDbContext dbContext,
+        Customer customer,
+        string userName,
+        CancellationToken cancellationToken)
+    {
+        var supportContractLevel = customer.SupportContractLevelId is null
+            ? null
+            : await dbContext.SupportContractLevels
+                .SingleOrDefaultAsync(level => level.Id == customer.SupportContractLevelId.Value, cancellationToken);
+
+        var contractPriority = CustomerContractRmaDefaults.GetPriority(customer.SupportContractStatus, supportContractLevel);
+        var contractWarrantyStatus = CustomerContractRmaDefaults.GetWarrantyStatus(customer.SupportContractStatus, supportContractLevel);
+        var contractWarrantyExpiryDate = CustomerContractRmaDefaults.GetWarrantyExpiryDate(customer.SupportContractStatus, customer.SupportContractEndDate);
+
+        if (contractPriority is null && contractWarrantyStatus is null && contractWarrantyExpiryDate is null)
+        {
+            return;
+        }
+
+        var linkedRmaRecords = await dbContext.RmaRecords
+            .Where(rmaRecord => rmaRecord.CustomerId == customer.Id && rmaRecord.IsActive)
+            .ToListAsync(cancellationToken);
+
+        foreach (var rmaRecord in linkedRmaRecords)
+        {
+            List<RmaAuditChange> changes = [];
+
+            if (rmaRecord.Priority is null && contractPriority is not null)
+            {
+                changes.Add(new RmaAuditChange("Priority", null, contractPriority.Value.ToString()));
+                rmaRecord.Priority = contractPriority;
+            }
+
+            if (rmaRecord.WarrantyStatus is null && contractWarrantyStatus is not null)
+            {
+                changes.Add(new RmaAuditChange("WarrantyStatus", null, contractWarrantyStatus.Value.ToString()));
+                rmaRecord.WarrantyStatus = contractWarrantyStatus;
+            }
+
+            if (rmaRecord.WarrantyExpiryDate is null && contractWarrantyExpiryDate is not null)
+            {
+                changes.Add(new RmaAuditChange("WarrantyExpiryDate", null, contractWarrantyExpiryDate.Value.ToString("yyyy-MM-dd")));
+                rmaRecord.WarrantyExpiryDate = contractWarrantyExpiryDate;
+            }
+
+            if (changes.Count == 0)
+            {
+                continue;
+            }
+
+            rmaRecord.LastUpdatedAt = DateTimeOffset.UtcNow;
+            rmaRecord.LastUpdatedBy = userName;
+            dbContext.RmaAudit.AddRange(rmaAuditService.CreateRecordUpdatedEntries(rmaRecord, changes, userName));
+        }
     }
 }
