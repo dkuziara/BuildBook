@@ -18,8 +18,42 @@ public sealed class DevelopmentDataSeeder(
         }
 
         var seedData = DevelopmentSeedData.Create();
+        var supportContractLevelsByName = await context.SupportContractLevels
+            .ToDictionaryAsync(level => level.Name, StringComparer.Ordinal, cancellationToken);
+
+        foreach (var customer in seedData.Customers)
+        {
+            if (customer.SupportContractLevel is null)
+            {
+                continue;
+            }
+
+            if (supportContractLevelsByName.TryGetValue(customer.SupportContractLevel.Name, out var existingLevel))
+            {
+                customer.SupportContractLevel = existingLevel;
+                customer.SupportContractLevelId = existingLevel.Id;
+            }
+        }
+
+        if (supportContractLevelsByName.Count == 0)
+        {
+            await context.SupportContractLevels.AddRangeAsync(seedData.SupportContractLevels, cancellationToken);
+        }
 
         await context.Customers.AddRangeAsync(seedData.Customers, cancellationToken);
+
+        var existingSettingKeys = await context.SystemSettings
+            .Select(setting => setting.Key)
+            .ToListAsync(cancellationToken);
+        var missingSettings = seedData.SystemSettings
+            .Where(setting => !existingSettingKeys.Contains(setting.Key, StringComparer.Ordinal))
+            .ToArray();
+
+        if (missingSettings.Length > 0)
+        {
+            await context.SystemSettings.AddRangeAsync(missingSettings, cancellationToken);
+        }
+
         await context.Imports.AddAsync(seedData.ImportBatch, cancellationToken);
         await context.BuildRecords.AddRangeAsync(seedData.BuildRecords, cancellationToken);
         await context.BuildRecordAudit.AddRangeAsync(seedData.AuditEntries, cancellationToken);
@@ -34,9 +68,10 @@ public sealed class DevelopmentDataSeeder(
         await context.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
-            "Development seed data added {BuildRecordCount} build records and {RmaRecordCount} RMA records for {CustomerCount} customers.",
+            "Development seed data added {BuildRecordCount} build records, {RmaRecordCount} RMA records, {CustomerCount} customers and {SupportContractLevelCount} support contract levels.",
             seedData.BuildRecords.Count,
             seedData.RmaRecords.Count,
-            seedData.Customers.Count);
+            seedData.Customers.Count,
+            seedData.SupportContractLevels.Count);
     }
 }

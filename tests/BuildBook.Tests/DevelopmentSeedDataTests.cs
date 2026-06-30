@@ -1,5 +1,7 @@
 using BuildBook.Domain.BuildRecords;
+using BuildBook.Domain.Customers;
 using BuildBook.Domain.Rmas;
+using BuildBook.Application.Settings;
 using BuildBook.Infrastructure.Persistence.SeedData;
 
 namespace BuildBook.Tests;
@@ -11,7 +13,9 @@ public class DevelopmentSeedDataTests
     {
         var seedData = DevelopmentSeedData.Create();
 
+        Assert.Equal(3, seedData.SupportContractLevels.Count);
         Assert.Equal(3, seedData.Customers.Count);
+        Assert.Single(seedData.SystemSettings, setting => setting.Key == SystemSettingKeys.SupportTicketUrlTemplate);
         Assert.Equal(3, seedData.BuildRecords.Count);
         Assert.All(seedData.BuildRecords, buildRecord =>
         {
@@ -31,6 +35,18 @@ public class DevelopmentSeedDataTests
         var seedData = DevelopmentSeedData.Create();
 
         Assert.All(seedData.BuildRecords, buildRecord => Assert.Empty(buildRecord.Secrets));
+    }
+
+    [Fact]
+    public void DevelopmentSeedDataIncludesEditableSupportContractExamples()
+    {
+        var seedData = DevelopmentSeedData.Create();
+
+        Assert.Contains(seedData.SupportContractLevels, level => level.Name == "Bronze");
+        Assert.Contains(seedData.SupportContractLevels, level => level.Name == "Silver");
+        Assert.Contains(seedData.SupportContractLevels, level => level.Name == "Gold");
+        Assert.Contains(seedData.Customers, customer => customer.SupportContractStatus == CustomerSupportContractStatuses.NoContract);
+        Assert.Contains(seedData.Customers, customer => customer.SupportContractLevel is not null);
     }
 
     [Fact]

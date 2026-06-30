@@ -1,6 +1,7 @@
 using BuildBook.Application.BuildRecords;
 using BuildBook.Application.Rmas;
 using BuildBook.Application.Security;
+using BuildBook.Application.Settings;
 using BuildBook.Infrastructure;
 using BuildBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -129,6 +130,26 @@ public class InfrastructureRegistrationTests
         Assert.Contains("BuildBook database does not exist yet. Creating database and applying", initializerContent);
         Assert.Contains("BuildBook database was created and initialized.", initializerContent);
         Assert.Contains("BuildBook database migration completed.", initializerContent);
+    }
+
+    [Fact]
+    public void DatabaseInitializerSeedsSupportContractLevelsAndSystemSettings()
+    {
+        var initializerPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Infrastructure",
+            "Persistence",
+            "BuildBookDatabaseInitializer.cs");
+        var initializerContent = File.ReadAllText(initializerPath);
+
+        Assert.Contains("EnsureSupportContractLevelsAsync", initializerContent);
+        Assert.Contains("EnsureSystemSettingsAsync", initializerContent);
+        Assert.Contains("\"Bronze\"", initializerContent);
+        Assert.Contains("\"Silver\"", initializerContent);
+        Assert.Contains("\"Gold\"", initializerContent);
+        Assert.Contains(SystemSettingKeys.SupportTicketUrlTemplate, initializerContent);
+        Assert.Contains(SystemSettingKeys.SupportTicketLabel, initializerContent);
     }
 
     private static IConfiguration CreateConfiguration(string? connectionString)

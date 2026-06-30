@@ -4,9 +4,9 @@ BuildBook is an internal ASP.NET Core Blazor Web App that replaces the Product S
 
 ## Core documentation
 
-- [Version 1 specification](docs/specs/BuildBook-Version-1-Specification.md)
-- [RMA module specification](docs/specs/BuildBook-RMA-Module-Specification.md)
-- [Customer & Support Contracts specification](docs/specs/BuildBook-Customer-Support-Contracts-Specification.md)
+- [BuildBook Version 1 Specification](docs/specs/BuildBook-Version-1-Specification.md)
+- [BuildBook RMA Module Specification](docs/specs/BuildBook-RMA-Module-Specification.md)
+- [BuildBook Customer & Support Contracts Specification](docs/specs/BuildBook-Customer-Support-Contracts-Specification.md)
 - [Backlog](docs/backlog/BuildBook-Backlog.md)
 
 ## Customer module scope

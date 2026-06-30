@@ -1,11 +1,14 @@
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
 using BuildBook.Domain.Rmas;
+using BuildBook.Domain.Settings;
 
 namespace BuildBook.Infrastructure.Persistence.SeedData;
 
 public sealed record DevelopmentSeedDataSet(
+    IReadOnlyCollection<SupportContractLevel> SupportContractLevels,
     IReadOnlyCollection<Customer> Customers,
+    IReadOnlyCollection<SystemSetting> SystemSettings,
     IReadOnlyCollection<BuildRecord> BuildRecords,
     ImportBatch ImportBatch,
     IReadOnlyCollection<BuildRecordAudit> AuditEntries,

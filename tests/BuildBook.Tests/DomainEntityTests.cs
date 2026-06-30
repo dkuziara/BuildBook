@@ -3,6 +3,7 @@ using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
 using BuildBook.Domain.Rmas;
 using BuildBook.Domain.Security;
+using BuildBook.Domain.Settings;
 using BuildBook.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -50,12 +51,14 @@ public class DomainEntityTests
 
         Assert.IsAssignableFrom<DbSet<BuildRecord>>(context.BuildRecords);
         Assert.IsAssignableFrom<DbSet<Customer>>(context.Customers);
+        Assert.IsAssignableFrom<DbSet<SupportContractLevel>>(context.SupportContractLevels);
         Assert.IsAssignableFrom<DbSet<BuildRecordSecret>>(context.BuildRecordSecrets);
         Assert.IsAssignableFrom<DbSet<BuildRecordAudit>>(context.BuildRecordAudit);
         Assert.IsAssignableFrom<DbSet<ImportBatch>>(context.Imports);
         Assert.IsAssignableFrom<DbSet<ApplicationUser>>(context.ApplicationUsers);
         Assert.IsAssignableFrom<DbSet<ApplicationRole>>(context.ApplicationRoles);
         Assert.IsAssignableFrom<DbSet<ApplicationUserRole>>(context.ApplicationUserRoles);
+        Assert.IsAssignableFrom<DbSet<SystemSetting>>(context.SystemSettings);
         Assert.IsAssignableFrom<DbSet<RmaRecord>>(context.RmaRecords);
         Assert.IsAssignableFrom<DbSet<RmaChecklistItem>>(context.RmaChecklistItems);
         Assert.IsAssignableFrom<DbSet<RmaNote>>(context.RmaNotes);
@@ -113,6 +116,68 @@ public class DomainEntityTests
             .ToArray();
 
         Assert.Contains(nameof(Customer.Name), indexedProperties);
+        Assert.Contains(nameof(Customer.SupportContractLevelId), indexedProperties);
+        Assert.Contains(nameof(Customer.SupportContractStatus), indexedProperties);
+        Assert.Contains(nameof(Customer.IsActive), indexedProperties);
+    }
+
+    [Fact]
+    public void CustomerSupportContractsModelIncludesExpectedFields()
+    {
+        var propertyNames = typeof(Customer)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(property => property.Name)
+            .ToArray();
+
+        Assert.Contains(nameof(Customer.AccountCode), propertyNames);
+        Assert.Contains(nameof(Customer.PrimaryContactName), propertyNames);
+        Assert.Contains(nameof(Customer.SupportContractLevelId), propertyNames);
+        Assert.Contains(nameof(Customer.SupportContractStatus), propertyNames);
+        Assert.Contains(nameof(Customer.SupportContractStartDate), propertyNames);
+        Assert.Contains(nameof(Customer.SupportContractEndDate), propertyNames);
+        Assert.Contains(nameof(Customer.SupportNotes), propertyNames);
+    }
+
+    [Fact]
+    public void SupportContractLevelsAndSystemSettingsModelsHaveLookupIndexes()
+    {
+        var options = new DbContextOptionsBuilder<BuildBookDbContext>()
+            .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=BuildBookContractIndexTest;Trusted_Connection=True;TrustServerCertificate=True")
+            .Options;
+
+        using var context = new BuildBookDbContext(options);
+        var supportContractLevel = context.Model.FindEntityType(typeof(SupportContractLevel));
+        var systemSetting = context.Model.FindEntityType(typeof(SystemSetting));
+
+        Assert.NotNull(supportContractLevel);
+        Assert.NotNull(systemSetting);
+
+        Assert.Contains(
+            supportContractLevel.GetIndexes().Where(index => index.IsUnique).Select(index => string.Join(",", index.Properties.Select(property => property.Name))),
+            index => index == nameof(SupportContractLevel.Name));
+        Assert.Contains(
+            systemSetting.GetIndexes().Where(index => index.IsUnique).Select(index => string.Join(",", index.Properties.Select(property => property.Name))),
+            index => index == nameof(SystemSetting.Key));
+    }
+
+    [Fact]
+    public void CustomerSupportContractStatusAndResponseTimeUnitsCoverSpecificationValues()
+    {
+        Assert.Equal(
+            [
+                "No Contract",
+                "Active",
+                "Expired",
+                "Pending Renewal",
+                "Suspended",
+                "Unknown"
+            ],
+            CustomerSupportContractStatuses.All);
+
+        Assert.Contains(nameof(SupportResponseTimeUnit.Hours), Enum.GetNames<SupportResponseTimeUnit>());
+        Assert.Contains(nameof(SupportResponseTimeUnit.WorkingHours), Enum.GetNames<SupportResponseTimeUnit>());
+        Assert.Contains(nameof(SupportResponseTimeUnit.Days), Enum.GetNames<SupportResponseTimeUnit>());
+        Assert.Contains(nameof(SupportResponseTimeUnit.WorkingDays), Enum.GetNames<SupportResponseTimeUnit>());
     }
 
     [Fact]

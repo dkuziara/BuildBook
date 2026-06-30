@@ -1,6 +1,8 @@
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
 using BuildBook.Domain.Rmas;
+using BuildBook.Domain.Settings;
+using BuildBook.Application.Settings;
 
 namespace BuildBook.Infrastructure.Persistence.SeedData;
 
@@ -10,11 +12,39 @@ public static class DevelopmentSeedData
 
     public static DevelopmentSeedDataSet Create()
     {
+        var supportContractLevels = CreateSupportContractLevels();
         var customers = new List<Customer>
         {
-            CreateCustomer("Demo Site Alpha"),
-            CreateCustomer("Demo Site Bravo"),
-            CreateCustomer("Internal Validation Lab")
+            CreateCustomer(
+                "Demo Site Alpha",
+                supportContractLevels[2],
+                CustomerSupportContractStatuses.Active,
+                "Alpha-001",
+                "Alex Carter"),
+            CreateCustomer(
+                "Demo Site Bravo",
+                supportContractLevels[1],
+                CustomerSupportContractStatuses.PendingRenewal,
+                "Bravo-002",
+                "Morgan Reed"),
+            CreateCustomer(
+                "Internal Validation Lab",
+                null,
+                CustomerSupportContractStatuses.NoContract,
+                "Lab-Internal",
+                "Development Team")
+        };
+
+        var systemSettings = new List<SystemSetting>
+        {
+            new()
+            {
+                Key = SystemSettingKeys.SupportTicketUrlTemplate,
+                Value = "https://charthousedatamanagement.freshdesk.com/a/tickets/{1}",
+                Description = "Template used to open the configured support site for a support ticket number.",
+                LastUpdatedAt = SeededAt,
+                LastUpdatedBy = "BuildBook development seed"
+            }
         };
 
         var importBatch = new ImportBatch
@@ -95,7 +125,9 @@ public static class DevelopmentSeedData
         var rmaAuditEntries = CreateRmaAuditEntries(rmaRecords);
 
         return new DevelopmentSeedDataSet(
+            supportContractLevels,
             customers,
+            systemSettings,
             records,
             importBatch,
             auditEntries,
@@ -109,11 +141,92 @@ public static class DevelopmentSeedData
             rmaAuditEntries);
     }
 
-    private static Customer CreateCustomer(string name)
+    private static List<SupportContractLevel> CreateSupportContractLevels()
+    {
+        return
+        [
+            CreateSupportContractLevel(
+                "Bronze",
+                "Basic support",
+                2,
+                SupportResponseTimeUnit.WorkingDays,
+                RmaPriority.Medium,
+                10,
+                1),
+            CreateSupportContractLevel(
+                "Silver",
+                "Standard support",
+                1,
+                SupportResponseTimeUnit.WorkingDays,
+                RmaPriority.Medium,
+                20,
+                2),
+            CreateSupportContractLevel(
+                "Gold",
+                "Priority support",
+                4,
+                SupportResponseTimeUnit.WorkingHours,
+                RmaPriority.High,
+                30,
+                3)
+        ];
+    }
+
+    private static SupportContractLevel CreateSupportContractLevel(
+        string name,
+        string description,
+        int responseTimeValue,
+        SupportResponseTimeUnit responseTimeUnit,
+        RmaPriority defaultRmaPriority,
+        int priorityWeight,
+        int displayOrder)
+    {
+        return new SupportContractLevel
+        {
+            Name = name,
+            Description = description,
+            TargetResponseTimeValue = responseTimeValue,
+            TargetResponseTimeUnit = responseTimeUnit,
+            DefaultRmaPriority = defaultRmaPriority,
+            RmaPriorityWeight = priorityWeight,
+            DisplayOrder = displayOrder,
+            IsActive = true,
+            CreatedAt = SeededAt,
+            CreatedBy = "BuildBook development seed",
+            LastUpdatedAt = SeededAt,
+            LastUpdatedBy = "BuildBook development seed"
+        };
+    }
+
+    private static Customer CreateCustomer(
+        string name,
+        SupportContractLevel? supportContractLevel,
+        string supportContractStatus,
+        string accountCode,
+        string primaryContactName)
     {
         return new Customer
         {
             Name = name,
+            AccountCode = accountCode,
+            AddressLine1 = $"{name} Campus",
+            TownCity = "Inverness",
+            CountyRegion = "Highland",
+            Postcode = "IV1 1AA",
+            Country = "United Kingdom",
+            MainPhone = "01463 000000",
+            MainEmail = $"support@{name.Replace(" ", string.Empty, StringComparison.Ordinal).ToLowerInvariant()}.example.test",
+            Website = $"https://{name.Replace(" ", string.Empty, StringComparison.Ordinal).ToLowerInvariant()}.example.test",
+            PrimaryContactName = primaryContactName,
+            PrimaryContactEmail = $"{primaryContactName.Replace(" ", ".", StringComparison.Ordinal).ToLowerInvariant()}@example.test",
+            PrimaryContactPhone = "01463 555555",
+            SupportContractLevel = supportContractLevel,
+            SupportContractStatus = supportContractStatus,
+            SupportContractStartDate = supportContractLevel is null ? null : new DateOnly(2026, 1, 1),
+            SupportContractEndDate = supportContractLevel is null ? null : new DateOnly(2026, 12, 31),
+            SupportNotes = supportContractLevel is null
+                ? "Internal development customer with no external support contract."
+                : $"{supportContractLevel.Name} support arrangement seeded for local testing.",
             CreatedAt = SeededAt,
             CreatedBy = "BuildBook development seed",
             LastUpdatedAt = SeededAt,

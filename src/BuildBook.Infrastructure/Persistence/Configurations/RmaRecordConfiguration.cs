@@ -157,7 +157,7 @@ public sealed class RmaRecordConfiguration : IEntityTypeConfiguration<RmaRecord>
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(rmaRecord => rmaRecord.Customer)
-            .WithMany()
+            .WithMany(customer => customer.RmaRecords)
             .HasForeignKey(rmaRecord => rmaRecord.CustomerId)
             .OnDelete(DeleteBehavior.SetNull);
 

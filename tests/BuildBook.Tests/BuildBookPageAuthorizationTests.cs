@@ -16,7 +16,7 @@ public class BuildBookPageAuthorizationTests
     [InlineData("CreateBuildRecord.razor", BuildBookPolicies.EditBuildRecords)]
     [InlineData("ImportSpreadsheet.razor", BuildBookPolicies.ImportSpreadsheet)]
     [InlineData("ImportHistory.razor", BuildBookPolicies.ImportSpreadsheet)]
-    [InlineData("Customers.razor", BuildBookPolicies.ViewBuildRecords)]
+    [InlineData("Customers.razor", BuildBookPolicies.ViewCustomers)]
     [InlineData("Reports.razor", BuildBookPolicies.ExportNonSensitiveData)]
     [InlineData("Admin.razor", BuildBookPolicies.ManageUsers)]
     public void PagesDeclareExpectedAuthorizationPolicy(string pageFileName, string expectedPolicy)
@@ -39,6 +39,7 @@ public class BuildBookPageAuthorizationTests
         var layoutContent = File.ReadAllText(layoutPath);
 
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ViewBuildRecords)}\"", layoutContent);
+        Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ViewCustomers)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ViewRmas)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ExportNonSensitiveData)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ManageUsers)}\"", layoutContent);
@@ -618,7 +619,7 @@ public class BuildBookPageAuthorizationTests
 
         Assert.Contains("@page \"/customers\"", pageContent);
         Assert.Contains("@rendermode InteractiveServer", pageContent);
-        Assert.Contains("BuildBookPolicies.ViewBuildRecords", pageContent);
+        Assert.Contains("BuildBookPolicies.ViewCustomers", pageContent);
         Assert.Contains("Customer &amp; Support Contracts", pageContent);
         Assert.Contains("shared customer records", pageContent);
         Assert.Contains("not a full CRM", pageContent);
@@ -666,6 +667,7 @@ public class BuildBookPageAuthorizationTests
         {
             BuildBookPolicies.ViewBuildRecords => nameof(BuildBookPolicies.ViewBuildRecords),
             BuildBookPolicies.EditBuildRecords => nameof(BuildBookPolicies.EditBuildRecords),
+            BuildBookPolicies.ViewCustomers => nameof(BuildBookPolicies.ViewCustomers),
             BuildBookPolicies.ImportSpreadsheet => nameof(BuildBookPolicies.ImportSpreadsheet),
             BuildBookPolicies.ExportNonSensitiveData => nameof(BuildBookPolicies.ExportNonSensitiveData),
             BuildBookPolicies.ManageUsers => nameof(BuildBookPolicies.ManageUsers),

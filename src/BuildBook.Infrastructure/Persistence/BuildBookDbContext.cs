@@ -2,6 +2,7 @@ using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
 using BuildBook.Domain.Rmas;
 using BuildBook.Domain.Security;
+using BuildBook.Domain.Settings;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence;
@@ -11,6 +12,8 @@ public sealed class BuildBookDbContext(DbContextOptions<BuildBookDbContext> opti
     public DbSet<BuildRecord> BuildRecords => Set<BuildRecord>();
 
     public DbSet<Customer> Customers => Set<Customer>();
+
+    public DbSet<SupportContractLevel> SupportContractLevels => Set<SupportContractLevel>();
 
     public DbSet<BuildRecordSecret> BuildRecordSecrets => Set<BuildRecordSecret>();
 
@@ -23,6 +26,8 @@ public sealed class BuildBookDbContext(DbContextOptions<BuildBookDbContext> opti
     public DbSet<ApplicationRole> ApplicationRoles => Set<ApplicationRole>();
 
     public DbSet<ApplicationUserRole> ApplicationUserRoles => Set<ApplicationUserRole>();
+
+    public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
 
     public DbSet<RmaRecord> RmaRecords => Set<RmaRecord>();
 

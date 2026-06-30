@@ -28,6 +28,40 @@ public static class AuthorizationServiceCollectionExtensions
                     BuildBookRoles.Administrator));
 
             options.AddPolicy(
+                BuildBookPolicies.ViewCustomers,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Viewer,
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookPolicies.AddCustomers,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookPolicies.EditCustomers,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookPolicies.ExportCustomers,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Viewer,
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookPolicies.ManageSupportContractLevels,
+                policy => policy.RequireRole(BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookPolicies.ManageSystemSettings,
+                policy => policy.RequireRole(BuildBookRoles.Administrator));
+
+            options.AddPolicy(
                 BuildBookPolicies.RevealSensitiveData,
                 policy => policy.RequireRole(
                     BuildBookRoles.SensitiveDataViewer,
