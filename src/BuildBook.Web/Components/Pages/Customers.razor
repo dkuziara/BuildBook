@@ -1,0 +1,51 @@
+@page "/customers"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.Security
+
+@attribute [Authorize(Policy = BuildBookPolicies.ViewBuildRecords)]
+
+<PageTitle>Customers</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">Customers</p>
+        <h1>Customer &amp; Support Contracts</h1>
+        <p>BuildBook will use this area for shared customer records, contact details, support contract information, linked Build Records and linked RMAs.</p>
+    </div>
+</section>
+
+<section class="detail-panel">
+    <div class="detail-panel-header">
+        <div>
+            <h2>Module foundation</h2>
+            <p>This module is being introduced in small, reviewable steps so existing BuildBook work can continue safely.</p>
+        </div>
+    </div>
+
+    <dl class="summary-list">
+        <div>
+            <dt>Module name</dt>
+            <dd>Customers</dd>
+        </div>
+        <div>
+            <dt>Feature scope</dt>
+            <dd>Customer master data for BuildBook, not a full CRM.</dd>
+        </div>
+        <div>
+            <dt>Planned focus</dt>
+            <dd>Shared customer records, support contracts, linked Build Records and linked RMAs.</dd>
+        </div>
+    </dl>
+</section>
+
+<section class="detail-panel detail-section">
+    <div class="detail-panel-header">
+        <div>
+            <h2>What comes next</h2>
+            <p>Later customer-module issues will add the data model, customer pages, support contract administration and controlled customer selection across Build Records and RMAs.</p>
+        </div>
+    </div>
+
+    <p class="empty-state">This placeholder page confirms the module name, navigation entry point and intended scope without introducing unfinished customer-management workflows yet.</p>
+</section>

@@ -16,6 +16,7 @@ public class BuildBookPageAuthorizationTests
     [InlineData("CreateBuildRecord.razor", BuildBookPolicies.EditBuildRecords)]
     [InlineData("ImportSpreadsheet.razor", BuildBookPolicies.ImportSpreadsheet)]
     [InlineData("ImportHistory.razor", BuildBookPolicies.ImportSpreadsheet)]
+    [InlineData("Customers.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("Reports.razor", BuildBookPolicies.ExportNonSensitiveData)]
     [InlineData("Admin.razor", BuildBookPolicies.ManageUsers)]
     public void PagesDeclareExpectedAuthorizationPolicy(string pageFileName, string expectedPolicy)
@@ -42,6 +43,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ExportNonSensitiveData)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ManageUsers)}\"", layoutContent);
         Assert.Contains("RMAs", layoutContent);
+        Assert.Contains("Customers", layoutContent);
         Assert.Contains("Signed in as", layoutContent);
         Assert.Contains("Windows Authentication", layoutContent);
         Assert.Contains("Local development authentication bypass", layoutContent);
@@ -607,6 +609,22 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Open Upload Screen", pageContent);
         Assert.Contains("/imports", pageContent);
         Assert.Contains("View Import History", pageContent);
+    }
+
+    [Fact]
+    public void CustomersPageDefinesPlaceholderScopeAndNaming()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("Customers.razor"));
+
+        Assert.Contains("@page \"/customers\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookPolicies.ViewBuildRecords", pageContent);
+        Assert.Contains("Customer &amp; Support Contracts", pageContent);
+        Assert.Contains("shared customer records", pageContent);
+        Assert.Contains("not a full CRM", pageContent);
+        Assert.Contains("linked Build Records", pageContent);
+        Assert.Contains("linked RMAs", pageContent);
+        Assert.Contains("placeholder page", pageContent);
     }
 
     [Fact]

@@ -38,6 +38,11 @@
                         <NavLink href="/rmas">RMAs</NavLink>
                     </Authorized>
                 </AuthorizeView>
+                <AuthorizeView Policy="@BuildBookPolicies.ViewBuildRecords">
+                    <Authorized>
+                        <NavLink href="/customers">Customers</NavLink>
+                    </Authorized>
+                </AuthorizeView>
                 <AuthorizeView Policy="@BuildBookPolicies.ExportNonSensitiveData">
                     <Authorized>
                         <NavLink href="/reports">Reports</NavLink>
