@@ -12,6 +12,10 @@ For RMA module work, also read:
 
 - docs/specs/BuildBook-RMA-Module-Specification.md
 
+For Customer & Support Contracts module work, also read:
+
+- docs/specs/BuildBook-Customer-Support-Contracts-Specification.md
+
 ## Technology
 
 Use:
