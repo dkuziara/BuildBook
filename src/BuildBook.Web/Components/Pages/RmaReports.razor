@@ -1,0 +1,946 @@
+@page "/rmas/reports"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.Rmas
+@using BuildBook.Domain.Rmas
+@using Microsoft.AspNetCore.Components
+
+@attribute [Authorize(Policy = BuildBookRmaPolicies.ExportRmaReports)]
+
+@inject IRmaReportReader RmaReportReader
+
+<PageTitle>RMA Reports</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">RMAs</p>
+        <h1>RMA Reports</h1>
+        <p>Review operational workload, repeat returns, failure trends, commercial exposure and repair durations without exposing Build Record secrets.</p>
+    </div>
+    <div class="page-actions">
+        <a class="secondary-button" href="/rmas">Back to RMA Register</a>
+        <a class="secondary-button" href="@CurrentExcelExportUrl">Export Excel</a>
+        <a class="primary-button" href="@CurrentCsvExportUrl">Export CSV</a>
+    </div>
+</section>
+
+@if (isLoading)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading RMA reports...</p>
+    </section>
+}
+else if (!string.IsNullOrWhiteSpace(loadError))
+{
+    <section class="status-message error" role="alert">
+        <p>@loadError</p>
+    </section>
+}
+else
+{
+    <section class="detail-panel" aria-labelledby="rma-operational-reports-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-operational-reports-heading">Operational reports</h2>
+                <p>Quick views for open workload, overdue items, due dates and shipping handoff.</p>
+            </div>
+        </div>
+
+        <div class="dashboard-card-grid">
+            @foreach (var card in operationalCards)
+            {
+                <article class="dashboard-card">
+                    <p class="dashboard-card-label">@card.Label</p>
+                    <p class="dashboard-card-value">@card.Count</p>
+                    <p><a class="table-link" href="@ReportLink(card.Scope)">Show RMAs</a></p>
+                </article>
+            }
+        </div>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-customer-product-reports-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-customer-product-reports-heading">Customer and product reports</h2>
+                <p>See which customers, products and serial numbers are driving the most RMA activity.</p>
+            </div>
+        </div>
+
+        <div class="home-activity-grid">
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>By customer</h3>
+                        <p>Top customers by RMA count.</p>
+                    </div>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Customer</th>
+                                <th scope="col">RMAs</th>
+                                <th scope="col">Open</th>
+                                <th scope="col">Review</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in customerRows)
+                            {
+                                <tr>
+                                    <td>@row.Label</td>
+                                    <td>@row.Count</td>
+                                    <td>@row.OpenCount</td>
+                                    <td><a class="table-link" href="@ReportLink(RmaReportScope.Customer, row.FilterValue)">Show RMAs</a></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>By product</h3>
+                        <p>Products with the highest RMA volume.</p>
+                    </div>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Product</th>
+                                <th scope="col">RMAs</th>
+                                <th scope="col">Open</th>
+                                <th scope="col">Review</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in productRows)
+                            {
+                                <tr>
+                                    <td>@row.Label</td>
+                                    <td>@row.Count</td>
+                                    <td>@row.OpenCount</td>
+                                    <td><a class="table-link" href="@ReportLink(RmaReportScope.Product, row.FilterValue)">Show RMAs</a></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div class="home-activity-grid detail-section">
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>Repeat-return serial numbers</h3>
+                        <p>Devices that have already been back before.</p>
+                    </div>
+                </div>
+
+                @if (repeatSerialRows.Count == 0)
+                {
+                    <div class="placeholder-panel">
+                        <p>No repeat-return serial numbers were found.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Serial number</th>
+                                    <th scope="col">RMAs</th>
+                                    <th scope="col">Customers</th>
+                                    <th scope="col">Review</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in repeatSerialRows)
+                                {
+                                    <tr>
+                                        <td>@row.Label</td>
+                                        <td>@row.Count</td>
+                                        <td>@row.SecondaryLabel</td>
+                                        <td><a class="table-link" href="@ReportLink(RmaReportScope.SerialNumber, row.FilterValue)">Show RMAs</a></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>Customer devices with multiple RMAs</h3>
+                        <p>Grouped by customer and serial number.</p>
+                    </div>
+                </div>
+
+                @if (customerDeviceRows.Count == 0)
+                {
+                    <div class="placeholder-panel">
+                        <p>No customer devices with multiple RMAs were found.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Customer</th>
+                                    <th scope="col">Serial number</th>
+                                    <th scope="col">Product</th>
+                                    <th scope="col">RMAs</th>
+                                    <th scope="col">Review</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in customerDeviceRows)
+                                {
+                                    <tr>
+                                        <td>@row.Label</td>
+                                        <td>@row.SecondaryLabel</td>
+                                        <td>@row.TertiaryLabel</td>
+                                        <td>@row.Count</td>
+                                        <td><a class="table-link" href="@ReportLink(RmaReportScope.SerialNumber, row.FilterValue)">Show RMAs</a></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        </div>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-failure-reports-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-failure-reports-heading">Fault and root cause reports</h2>
+                <p>Use structured failure data instead of reading back through notes.</p>
+            </div>
+        </div>
+
+        <div class="home-activity-grid">
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>By fault category</h3>
+                        <p>Grouped from structured fault records.</p>
+                    </div>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Fault category</th>
+                                <th scope="col">RMAs</th>
+                                <th scope="col">Review</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in faultRows)
+                            {
+                                <tr>
+                                    <td>@row.Label</td>
+                                    <td>@row.Count</td>
+                                    <td><a class="table-link" href="@ReportLink(RmaReportScope.FaultCategory, row.FilterValue)">Show RMAs</a></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>By root cause category</h3>
+                        <p>Grouped from structured repair conclusions.</p>
+                    </div>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Root cause</th>
+                                <th scope="col">RMAs</th>
+                                <th scope="col">Review</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in rootCauseRows)
+                            {
+                                <tr>
+                                    <td>@row.Label</td>
+                                    <td>@row.Count</td>
+                                    <td><a class="table-link" href="@ReportLink(RmaReportScope.RootCauseCategory, row.FilterValue)">Show RMAs</a></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <section class="table-panel detail-section">
+            <div class="table-panel-heading">
+                <div>
+                    <h3>Product and fault combinations</h3>
+                    <p>Spot products that keep returning with the same problem type.</p>
+                </div>
+            </div>
+
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Product</th>
+                            <th scope="col">Fault category</th>
+                            <th scope="col">RMAs</th>
+                            <th scope="col">Review</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in productFaultRows)
+                        {
+                            <tr>
+                                <td>@row.Label</td>
+                                <td>@row.SecondaryLabel</td>
+                                <td>@row.Count</td>
+                                <td><a class="table-link" href="@ReportLink(RmaReportScope.ProductFaultCombination, row.FilterValue)">Show RMAs</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-commercial-reports-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-commercial-reports-heading">Warranty and commercial reports</h2>
+                <p>Review chargeable work, warranty exposure, approval blockers and repair costs without digging through notes.</p>
+            </div>
+        </div>
+
+        <div class="dashboard-card-grid">
+            @foreach (var card in commercialCards)
+            {
+                <article class="dashboard-card">
+                    <p class="dashboard-card-label">@card.Label</p>
+                    <p class="dashboard-card-value">@card.Count</p>
+                    <p><a class="table-link" href="@ReportLink(card.Scope)">@card.LinkLabel</a></p>
+                </article>
+            }
+        </div>
+
+        <div class="home-activity-grid detail-section">
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>Repair costs by customer</h3>
+                        <p>Estimated and actual totals from structured commercial fields.</p>
+                    </div>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Customer</th>
+                                <th scope="col">RMAs</th>
+                                <th scope="col">Estimated</th>
+                                <th scope="col">Actual</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in customerCostRows)
+                            {
+                                <tr>
+                                    <td>@row.Label</td>
+                                    <td>@row.Count</td>
+                                    <td>@DisplayCurrency(row.EstimatedCost)</td>
+                                    <td>@DisplayCurrency(row.ActualCost)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>Repair costs by product</h3>
+                        <p>Where repair spend is accumulating.</p>
+                    </div>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Product</th>
+                                <th scope="col">RMAs</th>
+                                <th scope="col">Estimated</th>
+                                <th scope="col">Actual</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in productCostRows)
+                            {
+                                <tr>
+                                    <td>@row.Label</td>
+                                    <td>@row.Count</td>
+                                    <td>@DisplayCurrency(row.EstimatedCost)</td>
+                                    <td>@DisplayCurrency(row.ActualCost)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-metrics-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-metrics-heading">RMA metrics</h2>
+                <p>Useful operational durations for open work, hold time and shipping turnaround.</p>
+            </div>
+        </div>
+
+        <div class="dashboard-card-grid">
+            <article class="dashboard-card">
+                <p class="dashboard-card-label">Average days open</p>
+                <p class="dashboard-card-value">@averageDaysOpen</p>
+            </article>
+            <article class="dashboard-card">
+                <p class="dashboard-card-label">Average days in current status</p>
+                <p class="dashboard-card-value">@averageDaysInCurrentStatus</p>
+            </article>
+            <article class="dashboard-card">
+                <p class="dashboard-card-label">Average days on hold</p>
+                <p class="dashboard-card-value">@averageDaysOnHold</p>
+            </article>
+            <article class="dashboard-card">
+                <p class="dashboard-card-label">Average repair days</p>
+                <p class="dashboard-card-value">@averageRepairDays</p>
+            </article>
+            <article class="dashboard-card">
+                <p class="dashboard-card-label">Average ready-to-ship to shipped</p>
+                <p class="dashboard-card-value">@averageReadyToShipToShippedDays</p>
+            </article>
+        </div>
+
+        <section class="table-panel detail-section">
+            <div class="table-panel-heading">
+                <div>
+                    <h3>Longest-open RMAs</h3>
+                    <p>Items that may need escalation or review.</p>
+                </div>
+            </div>
+
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">RMA number</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Customer</th>
+                            <th scope="col">Days open</th>
+                            <th scope="col">Days in current status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in longestOpenRows)
+                        {
+                            <tr>
+                                <td><a class="table-link" href="@($"/rmas/{row.Id}")">@row.RmaNumber</a></td>
+                                <td>@FormatStatus(row.Status)</td>
+                                <td>@Display(row.CustomerName)</td>
+                                <td>@row.DaysOpen</td>
+                                <td>@row.DaysInCurrentStatus</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </section>
+
+    @if (selectedRows.Count > 0 || selectedScope is not null)
+    {
+        <section id="selected-rma-report-section" class="table-panel detail-section report-scroll-target" aria-labelledby="selected-rma-report-heading">
+            <div class="table-panel-heading">
+                <div>
+                    <h2 id="selected-rma-report-heading" class="report-scroll-heading">@selectedReportTitle</h2>
+                    <p>@selectedRows.Count matching RMAs</p>
+                </div>
+                <div class="page-actions">
+                    <a class="secondary-button" href="@CurrentExcelExportUrl">Export Excel</a>
+                    <a class="secondary-button" href="@CurrentCsvExportUrl">Export CSV</a>
+                    <a class="secondary-button" href="/rmas/reports">Clear</a>
+                </div>
+            </div>
+
+            @if (selectedRows.Count == 0)
+            {
+                <div class="placeholder-panel">
+                    <p>No RMAs match this report.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">RMA number</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Customer</th>
+                                <th scope="col">Product</th>
+                                <th scope="col">Serial number</th>
+                                <th scope="col">Fault summary</th>
+                                <th scope="col">Due date</th>
+                                <th scope="col">Actual repair cost</th>
+                                <th scope="col">Days open</th>
+                                <th scope="col">Days in current status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in selectedRows)
+                            {
+                                <tr>
+                                    <td><a class="table-link" href="@($"/rmas/{row.Id}")">@row.RmaNumber</a></td>
+                                    <td>@FormatStatus(row.Status)</td>
+                                    <td>@Display(row.CustomerName)</td>
+                                    <td>@row.ProductName</td>
+                                    <td>@Display(row.SerialNumber)</td>
+                                    <td>@row.FaultSummary</td>
+                                    <td>@Display(row.DueDate)</td>
+                                    <td>@DisplayCurrency(row.ActualRepairCost)</td>
+                                    <td>@row.DaysOpen</td>
+                                    <td>@row.DaysInCurrentStatus</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "scope")]
+    public string? ReportScopeQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "value")]
+    public string? ReportValueQuery { get; set; }
+
+    private IReadOnlyList<RmaReportRow> reportRows = [];
+    private IReadOnlyList<RmaReportRow> selectedRows = [];
+    private IReadOnlyList<SummaryRow> customerRows = [];
+    private IReadOnlyList<SummaryRow> productRows = [];
+    private IReadOnlyList<SummaryRow> faultRows = [];
+    private IReadOnlyList<SummaryRow> rootCauseRows = [];
+    private IReadOnlyList<SummaryRow> productFaultRows = [];
+    private IReadOnlyList<SummaryRow> repeatSerialRows = [];
+    private IReadOnlyList<SummaryRow> customerDeviceRows = [];
+    private IReadOnlyList<CostRow> customerCostRows = [];
+    private IReadOnlyList<CostRow> productCostRows = [];
+    private IReadOnlyList<RmaReportRow> longestOpenRows = [];
+    private IReadOnlyList<ScopeCard> operationalCards = [];
+    private IReadOnlyList<ScopeCard> commercialCards = [];
+    private RmaReportScope? selectedScope;
+    private string? selectedValue;
+    private string selectedReportTitle = "Selected report";
+    private bool isLoading = true;
+    private string? loadError;
+    private int averageDaysOpen;
+    private int averageDaysInCurrentStatus;
+    private int averageDaysOnHold;
+    private int averageRepairDays;
+    private int averageReadyToShipToShippedDays;
+
+    private string CurrentCsvExportUrl => ExportUrl("csv");
+    private string CurrentExcelExportUrl => ExportUrl("xlsx");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReportsAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        selectedScope = Enum.TryParse<RmaReportScope>(ReportScopeQuery, ignoreCase: true, out var scope)
+            ? scope
+            : null;
+        selectedValue = string.IsNullOrWhiteSpace(ReportValueQuery) ? null : ReportValueQuery.Trim();
+        ApplySelectedReport();
+    }
+
+    private async Task LoadReportsAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        try
+        {
+            reportRows = await RmaReportReader.ListAsync();
+            BuildSummaries();
+            ApplySelectedReport();
+        }
+        catch
+        {
+            loadError = "The RMA reports could not be loaded. Refresh the page and try again.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void BuildSummaries()
+    {
+        operationalCards =
+        [
+            CreateScopeCard("Open RMAs", RmaReportScope.OperationalOpen),
+            CreateScopeCard("Overdue RMAs", RmaReportScope.OperationalOverdue),
+            CreateScopeCard("Due this week", RmaReportScope.OperationalDueThisWeek),
+            CreateScopeCard("Waiting for customer", RmaReportScope.OperationalWaitingForCustomer),
+            CreateScopeCard("Waiting for parts", RmaReportScope.OperationalWaitingForParts),
+            CreateScopeCard("Ready to ship", RmaReportScope.OperationalReadyToShip),
+            CreateScopeCard("Shipped not closed", RmaReportScope.OperationalShippedNotClosed)
+        ];
+
+        commercialCards =
+        [
+            CreateScopeCard("Chargeable repairs", RmaReportScope.ChargeableRepairs, "Review RMAs"),
+            CreateScopeCard("Out of warranty", RmaReportScope.OutOfWarrantyRepairs, "Review RMAs"),
+            CreateScopeCard("Awaiting approval", RmaReportScope.AwaitingApproval, "Review RMAs"),
+            CreateScopeCard("Awaiting payment", RmaReportScope.AwaitingPayment, "Review RMAs")
+        ];
+
+        customerRows = reportRows
+            .GroupBy(row => Normalize(row.CustomerName) ?? "Not recorded")
+            .Select(group => new SummaryRow(
+                group.Key,
+                group.Key,
+                group.Count(),
+                group.Count(row => IsOperationallyOpen(row.Status))))
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToList();
+
+        productRows = reportRows
+            .GroupBy(row => row.ProductName)
+            .Select(group => new SummaryRow(
+                group.Key,
+                group.Key,
+                group.Count(),
+                group.Count(row => IsOperationallyOpen(row.Status))))
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToList();
+
+        repeatSerialRows = reportRows
+            .Where(row => !string.IsNullOrWhiteSpace(row.SerialNumber))
+            .GroupBy(row => Normalize(row.SerialNumber)!)
+            .Where(group => group.Count() > 1)
+            .Select(group => new SummaryRow(
+                group.Key,
+                group.Key,
+                group.Count(),
+                0,
+                string.Join(", ", group.Select(row => Display(row.CustomerName)).Distinct(StringComparer.OrdinalIgnoreCase).Take(3))))
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToList();
+
+        customerDeviceRows = reportRows
+            .Where(row => !string.IsNullOrWhiteSpace(row.SerialNumber))
+            .GroupBy(row => $"{Normalize(row.CustomerName) ?? "Not recorded"}||{Normalize(row.SerialNumber)!}")
+            .Where(group => group.Count() > 1)
+            .Select(group =>
+            {
+                var first = group.First();
+                return new SummaryRow(
+                    Normalize(first.CustomerName) ?? "Not recorded",
+                    Normalize(first.SerialNumber)!,
+                    group.Count(),
+                    0,
+                    Normalize(first.SerialNumber)!,
+                    first.ProductName);
+            })
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.SecondaryLabel, StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToList();
+
+        faultRows = reportRows
+            .GroupBy(row => row.FaultCategory?.ToString() ?? "Not recorded")
+            .Select(group => new SummaryRow(
+                group.Key,
+                group.Key,
+                group.Count(),
+                0))
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        rootCauseRows = reportRows
+            .GroupBy(row => row.RootCauseCategory?.ToString() ?? "Not recorded")
+            .Select(group => new SummaryRow(
+                group.Key,
+                group.Key,
+                group.Count(),
+                0))
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        productFaultRows = reportRows
+            .GroupBy(row => $"{row.ProductName}||{row.FaultCategory?.ToString() ?? "Not recorded"}")
+            .Select(group =>
+            {
+                var first = group.First();
+                return new SummaryRow(
+                    BuildProductFaultKey(first.ProductName, first.FaultCategory),
+                    first.ProductName,
+                    group.Count(),
+                    0,
+                    first.FaultCategory is null ? "Not recorded" : FormatFaultCategory(first.FaultCategory.Value));
+            })
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToList();
+
+        customerCostRows = reportRows
+            .GroupBy(row => Normalize(row.CustomerName) ?? "Not recorded")
+            .Select(group => new CostRow(
+                group.Key,
+                group.Count(),
+                group.Sum(row => row.EstimatedRepairCost ?? 0m),
+                group.Sum(row => row.ActualRepairCost ?? 0m)))
+            .OrderByDescending(row => row.ActualCost)
+            .ThenByDescending(row => row.EstimatedCost)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToList();
+
+        productCostRows = reportRows
+            .GroupBy(row => row.ProductName)
+            .Select(group => new CostRow(
+                group.Key,
+                group.Count(),
+                group.Sum(row => row.EstimatedRepairCost ?? 0m),
+                group.Sum(row => row.ActualRepairCost ?? 0m)))
+            .OrderByDescending(row => row.ActualCost)
+            .ThenByDescending(row => row.EstimatedCost)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToList();
+
+        longestOpenRows = reportRows
+            .Where(row => IsOperationallyOpen(row.Status))
+            .OrderByDescending(row => row.DaysOpen)
+            .ThenByDescending(row => row.DaysInCurrentStatus)
+            .Take(10)
+            .ToList();
+
+        averageDaysOpen = Average(reportRows.Select(row => row.DaysOpen));
+        averageDaysInCurrentStatus = Average(reportRows.Select(row => row.DaysInCurrentStatus));
+        averageDaysOnHold = Average(reportRows.Select(row => row.DaysOnHold));
+        averageRepairDays = Average(reportRows.Where(row => row.RepairDays is not null).Select(row => row.RepairDays!.Value));
+        averageReadyToShipToShippedDays = Average(reportRows.Where(row => row.ReadyToShipToShippedDays is not null).Select(row => row.ReadyToShipToShippedDays!.Value));
+    }
+
+    private void ApplySelectedReport()
+    {
+        if (selectedScope is null)
+        {
+            selectedRows = [];
+            selectedReportTitle = "Selected report";
+            return;
+        }
+
+        selectedRows = ApplyScopeFilter(reportRows, selectedScope.Value, selectedValue);
+        selectedReportTitle = BuildReportTitle(selectedScope.Value, selectedValue);
+    }
+
+    private ScopeCard CreateScopeCard(string label, RmaReportScope scope, string linkLabel = "Show RMAs")
+    {
+        return new ScopeCard(label, scope, ApplyScopeFilter(reportRows, scope, null).Count, linkLabel);
+    }
+
+    private IReadOnlyList<RmaReportRow> ApplyScopeFilter(
+        IReadOnlyList<RmaReportRow> rows,
+        RmaReportScope scope,
+        string? value)
+    {
+        return rows.Where(row => MatchesScope(row, scope, value)).ToList();
+    }
+
+    private bool MatchesScope(RmaReportRow row, RmaReportScope scope, string? value)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var normalizedValue = Normalize(value);
+
+        return scope switch
+        {
+            RmaReportScope.OperationalOpen => IsOperationallyOpen(row.Status),
+            RmaReportScope.OperationalOverdue => IsOperationallyOpen(row.Status) && row.DueDate is not null && row.DueDate < today,
+            RmaReportScope.OperationalDueThisWeek => IsOperationallyOpen(row.Status) && row.DueDate is not null && row.DueDate >= today && row.DueDate <= today.AddDays(7),
+            RmaReportScope.OperationalWaitingForCustomer => row.Status == RmaStatus.OnHold && string.Equals(row.OnHoldReason, RmaOnHoldReasons.WaitingForCustomer, StringComparison.OrdinalIgnoreCase),
+            RmaReportScope.OperationalWaitingForParts => row.Status == RmaStatus.OnHold && string.Equals(row.OnHoldReason, RmaOnHoldReasons.WaitingForParts, StringComparison.OrdinalIgnoreCase),
+            RmaReportScope.OperationalReadyToShip => row.Status == RmaStatus.ReadyToShip,
+            RmaReportScope.OperationalShippedNotClosed => row.Status == RmaStatus.Shipped,
+            RmaReportScope.Customer => string.Equals(Normalize(row.CustomerName), normalizedValue, StringComparison.OrdinalIgnoreCase),
+            RmaReportScope.Product => string.Equals(Normalize(row.ProductName), normalizedValue, StringComparison.OrdinalIgnoreCase),
+            RmaReportScope.SerialNumber => string.Equals(Normalize(row.SerialNumber), normalizedValue, StringComparison.OrdinalIgnoreCase),
+            RmaReportScope.RepeatReturns => row.PreviousRmaCount > 0,
+            RmaReportScope.FaultCategory => string.Equals(row.FaultCategory?.ToString(), normalizedValue, StringComparison.OrdinalIgnoreCase),
+            RmaReportScope.RootCauseCategory => string.Equals(row.RootCauseCategory?.ToString(), normalizedValue, StringComparison.OrdinalIgnoreCase),
+            RmaReportScope.ProductFaultCombination => string.Equals(BuildProductFaultKey(row.ProductName, row.FaultCategory), normalizedValue, StringComparison.OrdinalIgnoreCase),
+            RmaReportScope.ChargeableRepairs => row.ChargeableRepair == true,
+            RmaReportScope.OutOfWarrantyRepairs => row.WarrantyStatus == RmaWarrantyStatus.OutOfWarranty,
+            RmaReportScope.AwaitingApproval => row.CustomerApprovalRequired == true && row.CustomerApprovalReceived != true,
+            RmaReportScope.AwaitingPayment => row.ChargeableRepair == true && row.CustomerApprovalReceived == true && string.IsNullOrWhiteSpace(row.PurchaseOrderNumber) && string.IsNullOrWhiteSpace(row.RepairInvoiceNumber),
+            _ => true
+        };
+    }
+
+    private string BuildReportTitle(RmaReportScope scope, string? value)
+    {
+        return scope switch
+        {
+            RmaReportScope.OperationalOpen => "Open RMAs",
+            RmaReportScope.OperationalOverdue => "Overdue RMAs",
+            RmaReportScope.OperationalDueThisWeek => "RMAs due this week",
+            RmaReportScope.OperationalWaitingForCustomer => "RMAs waiting for customer",
+            RmaReportScope.OperationalWaitingForParts => "RMAs waiting for parts",
+            RmaReportScope.OperationalReadyToShip => "Ready to ship RMAs",
+            RmaReportScope.OperationalShippedNotClosed => "Shipped but not closed RMAs",
+            RmaReportScope.Customer => $"RMAs for customer: {value}",
+            RmaReportScope.Product => $"RMAs for product: {value}",
+            RmaReportScope.SerialNumber => $"RMAs for serial number: {value}",
+            RmaReportScope.RepeatReturns => "Repeat-return RMAs",
+            RmaReportScope.FaultCategory => $"RMAs for fault category: {value}",
+            RmaReportScope.RootCauseCategory => $"RMAs for root cause category: {value}",
+            RmaReportScope.ProductFaultCombination => $"RMAs for product/fault combination: {FormatProductFaultTitle(value)}",
+            RmaReportScope.ChargeableRepairs => "Chargeable repairs",
+            RmaReportScope.OutOfWarrantyRepairs => "Out-of-warranty repairs",
+            RmaReportScope.AwaitingApproval => "Repairs awaiting approval",
+            RmaReportScope.AwaitingPayment => "Repairs awaiting payment",
+            _ => "Selected report"
+        };
+    }
+
+    private string ReportLink(RmaReportScope scope, string? value = null)
+    {
+        var query = $"scope={Uri.EscapeDataString(scope.ToString())}";
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            query += $"&value={Uri.EscapeDataString(value)}";
+        }
+
+        return $"/rmas/reports?{query}#selected-rma-report-heading";
+    }
+
+    private string ExportUrl(string format)
+    {
+        var path = format == "xlsx"
+            ? "/rmas/reports/export.xlsx"
+            : "/rmas/reports/export.csv";
+
+        if (selectedScope is null)
+        {
+            return path;
+        }
+
+        var query = $"scope={Uri.EscapeDataString(selectedScope.Value.ToString())}";
+        if (!string.IsNullOrWhiteSpace(selectedValue))
+        {
+            query += $"&value={Uri.EscapeDataString(selectedValue)}";
+        }
+
+        return $"{path}?{query}";
+    }
+
+    private static int Average(IEnumerable<int> values)
+    {
+        var array = values.ToArray();
+        return array.Length == 0 ? 0 : (int)Math.Round(array.Average(), MidpointRounding.AwayFromZero);
+    }
+
+    private static bool IsOperationallyOpen(RmaStatus status)
+    {
+        return status != RmaStatus.Closed
+            && status != RmaStatus.CancelledNoReply
+            && status != RmaStatus.CustomerFixed;
+    }
+
+    private static string FormatProductFaultTitle(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Not recorded";
+        }
+
+        var parts = value.Split("||", StringSplitOptions.None);
+        return parts.Length == 2 ? $"{parts[0]} / {parts[1]}" : value;
+    }
+
+    private static string BuildProductFaultKey(string productName, RmaFaultCategory? faultCategory)
+    {
+        return $"{Normalize(productName)}||{faultCategory?.ToString() ?? "Not recorded"}";
+    }
+
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    private static string Display(DateOnly? value) => value?.ToString("d MMM yyyy") ?? "Not recorded";
+    private static string DisplayCurrency(decimal? value) => value is null ? "Not recorded" : value.Value.ToString("0.00");
+
+    private static string FormatStatus(RmaStatus status) => status switch
+    {
+        RmaStatus.BookedIn => "Booked In",
+        RmaStatus.WorkInProgress => "Work In Progress",
+        RmaStatus.ReadyToShip => "Ready To Ship",
+        RmaStatus.CancelledNoReply => "Cancelled / No Reply",
+        RmaStatus.CustomerFixed => "Customer Fixed",
+        _ => status.ToString()
+    };
+
+    private static string FormatFaultCategory(RmaFaultCategory category) => category switch
+    {
+        RmaFaultCategory.DiskStorageIssue => "Disk / storage issue",
+        RmaFaultCategory.UserCustomerSetupIssue => "User / customer setup issue",
+        _ => category.ToString()
+    };
+
+    private sealed record ScopeCard(string Label, RmaReportScope Scope, int Count, string LinkLabel);
+    private sealed record SummaryRow(string FilterValue, string Label, int Count, int OpenCount, string? SecondaryLabel = null, string? TertiaryLabel = null);
+    private sealed record CostRow(string Label, int Count, decimal EstimatedCost, decimal ActualCost);
+}

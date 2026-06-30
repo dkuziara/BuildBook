@@ -77,6 +77,9 @@ public static class DependencyInjection
         services.AddScoped<IRmaNumberGenerator, RmaNumberGenerator>();
         services.AddScoped<IRmaStatusTransitionService, RmaStatusTransitionService>();
         services.AddScoped<IRmaRecordService, RmaRecordService>();
+        services.AddScoped<IRmaReportReader, RmaReportReader>();
+        services.AddScoped<IRmaReportCsvExporter, RmaReportCsvExporter>();
+        services.AddScoped<IRmaReportExcelExporter, RmaReportExcelExporter>();
         services.AddSingleton<IRecentlyViewedBuildRecordTracker, RecentlyViewedBuildRecordTracker>();
 
         return services;

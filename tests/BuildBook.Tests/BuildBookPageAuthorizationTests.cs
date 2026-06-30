@@ -11,6 +11,7 @@ public class BuildBookPageAuthorizationTests
     [InlineData("Rmas.razor", BuildBookRmaPolicies.ViewRmas)]
     [InlineData("RmaBoard.razor", BuildBookRmaPolicies.ViewRmas)]
     [InlineData("RmaDetail.razor", BuildBookRmaPolicies.ViewRmas)]
+    [InlineData("RmaReports.razor", BuildBookRmaPolicies.ExportRmaReports)]
     [InlineData("CreateRma.razor", BuildBookRmaPolicies.CreateRmas)]
     [InlineData("CreateBuildRecord.razor", BuildBookPolicies.EditBuildRecords)]
     [InlineData("ImportSpreadsheet.razor", BuildBookPolicies.ImportSpreadsheet)]
@@ -159,6 +160,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("BuildBookRmaPolicies.ViewRmas", pageContent);
         Assert.Contains("BuildBookRmaPolicies.CreateRmas", pageContent);
         Assert.Contains("RMA Register", pageContent);
+        Assert.Contains("Reports", pageContent);
+        Assert.Contains("/rmas/reports", pageContent);
         Assert.Contains("Board view", pageContent);
         Assert.Contains("/rmas/board", pageContent);
         Assert.Contains("RMA dashboard summary", pageContent);
@@ -254,6 +257,12 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Testing and QA", pageContent);
         Assert.Contains("Build Record link", pageContent);
         Assert.Contains("Repeat Return History", pageContent);
+        Assert.Contains("RMA Metrics", pageContent);
+        Assert.Contains("IRmaReportReader", pageContent);
+        Assert.Contains("GetMetricsAsync", pageContent);
+        Assert.Contains("Days open", pageContent);
+        Assert.Contains("Days in current status", pageContent);
+        Assert.Contains("Days on hold", pageContent);
         Assert.Contains("GetRepeatReturnSummaryAsync", pageContent);
         Assert.Contains("FormName=\"edit-rma-intake\"", pageContent);
         Assert.Contains("FormName=\"edit-rma-fault-details\"", pageContent);
@@ -310,6 +319,38 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Overdue", pageContent);
         Assert.Contains("board-warning-list", pageContent);
         Assert.Contains("/rmas/{card.Id}", pageContent);
+    }
+
+    [Fact]
+    public void RmaReportsPageDefinesExpectedReportsMetricsAndExports()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("RmaReports.razor"));
+
+        Assert.Contains("@page \"/rmas/reports\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookRmaPolicies.ExportRmaReports", pageContent);
+        Assert.Contains("IRmaReportReader", pageContent);
+        Assert.Contains("RMA Reports", pageContent);
+        Assert.Contains("Operational reports", pageContent);
+        Assert.Contains("Customer and product reports", pageContent);
+        Assert.Contains("Repeat-return serial numbers", pageContent);
+        Assert.Contains("Customer devices with multiple RMAs", pageContent);
+        Assert.Contains("Fault and root cause reports", pageContent);
+        Assert.Contains("Product and fault combinations", pageContent);
+        Assert.Contains("Warranty and commercial reports", pageContent);
+        Assert.Contains("RMA metrics", pageContent);
+        Assert.Contains("Average days open", pageContent);
+        Assert.Contains("ExportUrl(\"csv\")", pageContent);
+        Assert.Contains("ExportUrl(\"xlsx\")", pageContent);
+        Assert.Contains("ReportScopeQuery", pageContent);
+        Assert.Contains("ReportValueQuery", pageContent);
+        Assert.Contains("ApplySelectedReport", pageContent);
+        Assert.Contains("BuildSummaries", pageContent);
+        Assert.Contains("LoadReportsAsync", pageContent);
+        Assert.Contains("scope=", pageContent);
+        Assert.Contains("#selected-rma-report-heading", pageContent);
+        Assert.DoesNotContain("Password", pageContent);
+        Assert.DoesNotContain("BitLocker", pageContent);
     }
 
     [Fact]
@@ -612,6 +653,7 @@ public class BuildBookPageAuthorizationTests
             BuildBookPolicies.ManageUsers => nameof(BuildBookPolicies.ManageUsers),
             BuildBookRmaPolicies.ViewRmas => nameof(BuildBookRmaPolicies.ViewRmas),
             BuildBookRmaPolicies.CreateRmas => nameof(BuildBookRmaPolicies.CreateRmas),
+            BuildBookRmaPolicies.ExportRmaReports => nameof(BuildBookRmaPolicies.ExportRmaReports),
             _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, "No constant-name assertion is configured for this policy.")
         };
     }
@@ -622,6 +664,7 @@ public class BuildBookPageAuthorizationTests
         {
             BuildBookRmaPolicies.ViewRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ViewRmas)}",
             BuildBookRmaPolicies.CreateRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.CreateRmas)}",
+            BuildBookRmaPolicies.ExportRmaReports => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ExportRmaReports)}",
             _ => $"BuildBookPolicies.{GetPolicyConstantName(policy)}"
         };
     }

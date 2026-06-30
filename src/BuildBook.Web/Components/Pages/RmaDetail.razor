@@ -8,6 +8,7 @@
 @attribute [Authorize(Policy = BuildBookRmaPolicies.ViewRmas)]
 
 @inject IRmaRecordService RmaRecordService
+@inject IRmaReportReader RmaReportReader
 @inject IRmaStatusTransitionService RmaStatusTransitionService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
@@ -111,6 +112,31 @@ else
                 <dd>@Display(rmaRecord.LastUpdatedAt)</dd>
             </div>
         </dl>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="rma-metrics-summary-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="rma-metrics-summary-heading">RMA Metrics</h2>
+                <p>Operational durations for this RMA record.</p>
+            </div>
+        </div>
+
+        @if (rmaMetrics is null)
+        {
+            <p class="empty-state">Metrics are not available for this RMA yet.</p>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div><dt>Days open</dt><dd>@rmaMetrics.DaysOpen</dd></div>
+                <div><dt>Days in current status</dt><dd>@rmaMetrics.DaysInCurrentStatus</dd></div>
+                <div><dt>Days on hold</dt><dd>@rmaMetrics.DaysOnHold</dd></div>
+                <div><dt>Repair time</dt><dd>@DisplayMetric(rmaMetrics.RepairDays)</dd></div>
+                <div><dt>Ready To Ship to Shipped</dt><dd>@DisplayMetric(rmaMetrics.ReadyToShipToShippedDays)</dd></div>
+                <div><dt>Current status since</dt><dd>@Display(rmaMetrics.CurrentStatusSince)</dd></div>
+            </dl>
+        }
     </section>
 
     <section class="detail-panel detail-section" aria-labelledby="rma-repeat-history-heading">
@@ -1583,6 +1609,7 @@ else
     private IReadOnlyList<RmaStatusHistoryEntry> statusHistoryEntries = [];
     private IReadOnlyList<RmaChecklistItemModel> checklistItems = [];
     private IReadOnlyList<RmaPartModel> parts = [];
+    private RmaDurationMetrics? rmaMetrics;
     private RmaRepeatReturnSummary repeatReturnSummary = RmaRepeatReturnSummary.Empty;
     private IReadOnlyList<RmaNoteModel> notes = [];
     private IReadOnlyList<RmaCommunicationModel> communications = [];
@@ -1652,6 +1679,7 @@ else
     {
         isLoading = true;
         rmaRecord = await RmaRecordService.GetByIdAsync(RmaRecordId);
+        rmaMetrics = await RmaReportReader.GetMetricsAsync(RmaRecordId);
 
         if (rmaRecord is not null)
         {
@@ -1672,6 +1700,7 @@ else
         else
         {
             buildRecordSuggestions = [];
+            rmaMetrics = null;
             repeatReturnSummary = RmaRepeatReturnSummary.Empty;
             statusHistoryEntries = [];
             checklistItems = [];
@@ -2561,6 +2590,7 @@ else
     private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
     private static string Display(DateOnly? value) => value?.ToString("d MMM yyyy") ?? "Not recorded";
     private static string Display(DateTimeOffset? value) => value?.ToLocalTime().ToString("d MMM yyyy HH:mm") ?? "Not recorded";
+    private static string DisplayMetric(int? value) => value?.ToString() ?? "Not recorded";
     private static string DisplayPriority(RmaPriority? value) => value?.ToString() ?? "Not set";
     private static string DisplayOutcome(RmaOutcome? value) => value is null ? "Not recorded" : FormatOutcome(value.Value);
     private static string DisplayBool(bool? value) => value is null ? "Not recorded" : (value.Value ? "Yes" : "No");

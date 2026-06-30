@@ -108,6 +108,34 @@ app.MapGet(
                 fileName);
         })
     .RequireAuthorization(BuildBookPolicies.ExportNonSensitiveData);
+app.MapGet(
+        "/rmas/reports/export.csv",
+        async (HttpRequest request, IRmaReportCsvExporter rmaReportCsvExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateRmaReportFilter(request);
+            var csv = await rmaReportCsvExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"rma-report-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.csv";
+
+            return Results.File(
+                Encoding.UTF8.GetBytes(csv),
+                "text/csv; charset=utf-8",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookRmaPolicies.ExportRmaReports);
+app.MapGet(
+        "/rmas/reports/export.xlsx",
+        async (HttpRequest request, IRmaReportExcelExporter rmaReportExcelExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateRmaReportFilter(request);
+            var workbook = await rmaReportExcelExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"rma-report-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.xlsx";
+
+            return Results.File(
+                workbook,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookRmaPolicies.ExportRmaReports);
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
@@ -174,6 +202,27 @@ static BuildRegisterFilter CreateBuildRegisterFilter(HttpRequest request)
     if (bool.TryParse(ReadString(query, "sortDescending"), out var sortDescending))
     {
         filter.SortDescending = sortDescending;
+    }
+
+    return filter;
+}
+
+static RmaReportFilter CreateRmaReportFilter(HttpRequest request)
+{
+    var scopeValue = ReadString(request.Query, "scope");
+    var value = ReadString(request.Query, "value");
+    var filter = new RmaReportFilter
+    {
+        Value = value
+    };
+
+    if (Enum.TryParse<RmaReportScope>(scopeValue, ignoreCase: true, out var scope))
+    {
+        filter = new RmaReportFilter
+        {
+            Scope = scope,
+            Value = value
+        };
     }
 
     return filter;

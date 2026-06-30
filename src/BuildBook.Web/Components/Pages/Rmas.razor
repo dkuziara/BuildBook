@@ -16,12 +16,14 @@
     <AuthorizeView Policy="@BuildBookRmaPolicies.CreateRmas">
         <Authorized>
             <div class="page-actions">
+                <a class="secondary-button" href="/rmas/reports">Reports</a>
                 <a class="secondary-button" href="/rmas/board">Board view</a>
                 <a class="primary-button" href="/rmas/new">Add RMA</a>
             </div>
         </Authorized>
         <NotAuthorized>
             <div class="page-actions">
+                <a class="secondary-button" href="/rmas/reports">Reports</a>
                 <a class="secondary-button" href="/rmas/board">Board view</a>
             </div>
         </NotAuthorized>

@@ -1,4 +1,5 @@
 using BuildBook.Application.BuildRecords;
+using BuildBook.Application.Rmas;
 using BuildBook.Application.Security;
 using BuildBook.Infrastructure;
 using BuildBook.Infrastructure.Persistence;
@@ -46,6 +47,9 @@ public class InfrastructureRegistrationTests
         var networkNotesUpdater = provider.GetRequiredService<INetworkNotesUpdater>();
         var applicationUserManagementService = provider.GetRequiredService<IApplicationUserManagementService>();
         var buildBookRoleResolver = provider.GetRequiredService<IBuildBookRoleResolver>();
+        var rmaReportReader = provider.GetRequiredService<IRmaReportReader>();
+        var rmaReportCsvExporter = provider.GetRequiredService<IRmaReportCsvExporter>();
+        var rmaReportExcelExporter = provider.GetRequiredService<IRmaReportExcelExporter>();
         var recentlyViewedTracker = provider.GetRequiredService<IRecentlyViewedBuildRecordTracker>();
 
         Assert.NotNull(factory);
@@ -72,6 +76,9 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(networkNotesUpdater);
         Assert.NotNull(applicationUserManagementService);
         Assert.NotNull(buildBookRoleResolver);
+        Assert.NotNull(rmaReportReader);
+        Assert.NotNull(rmaReportCsvExporter);
+        Assert.NotNull(rmaReportExcelExporter);
         Assert.NotNull(recentlyViewedTracker);
     }
 
