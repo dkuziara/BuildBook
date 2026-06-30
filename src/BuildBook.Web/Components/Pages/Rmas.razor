@@ -33,30 +33,12 @@
 @if (dashboardSummary is not null)
 {
     <section class="dashboard-card-grid" aria-label="RMA dashboard summary">
-        <article class="dashboard-card">
-            <p class="dashboard-card-label">Open RMAs</p>
-            <p class="dashboard-card-value">@dashboardSummary.OpenCount</p>
-        </article>
-        <article class="dashboard-card">
-            <p class="dashboard-card-label">Overdue</p>
-            <p class="dashboard-card-value">@dashboardSummary.OverdueCount</p>
-        </article>
-        <article class="dashboard-card">
-            <p class="dashboard-card-label">Waiting for customer</p>
-            <p class="dashboard-card-value">@dashboardSummary.WaitingForCustomerCount</p>
-        </article>
-        <article class="dashboard-card">
-            <p class="dashboard-card-label">Waiting for parts</p>
-            <p class="dashboard-card-value">@dashboardSummary.WaitingForPartsCount</p>
-        </article>
-        <article class="dashboard-card">
-            <p class="dashboard-card-label">Ready to ship</p>
-            <p class="dashboard-card-value">@dashboardSummary.ReadyToShipCount</p>
-        </article>
-        <article class="dashboard-card">
-            <p class="dashboard-card-label">Shipped not closed</p>
-            <p class="dashboard-card-value">@dashboardSummary.ShippedNotClosedCount</p>
-        </article>
+        <DashboardSummaryCard Label="Open RMAs" Value="@dashboardSummary.OpenCount" LinkHref="@DashboardReportLink(RmaReportScope.OperationalOpen)" LinkLabel="Show RMAs" />
+        <DashboardSummaryCard Label="Overdue" Value="@dashboardSummary.OverdueCount" LinkHref="@DashboardReportLink(RmaReportScope.OperationalOverdue)" LinkLabel="Show RMAs" />
+        <DashboardSummaryCard Label="Waiting for customer" Value="@dashboardSummary.WaitingForCustomerCount" LinkHref="@DashboardReportLink(RmaReportScope.OperationalWaitingForCustomer)" LinkLabel="Show RMAs" />
+        <DashboardSummaryCard Label="Waiting for parts" Value="@dashboardSummary.WaitingForPartsCount" LinkHref="@DashboardReportLink(RmaReportScope.OperationalWaitingForParts)" LinkLabel="Show RMAs" />
+        <DashboardSummaryCard Label="Ready to ship" Value="@dashboardSummary.ReadyToShipCount" LinkHref="@DashboardReportLink(RmaReportScope.OperationalReadyToShip)" LinkLabel="Show RMAs" />
+        <DashboardSummaryCard Label="Shipped not closed" Value="@dashboardSummary.ShippedNotClosedCount" LinkHref="@DashboardReportLink(RmaReportScope.OperationalShippedNotClosed)" LinkLabel="Show RMAs" />
     </section>
 }
 
@@ -319,5 +301,10 @@ else
             RmaStatus.CustomerFixed => "Customer Fixed",
             _ => status.ToString()
         };
+    }
+
+    private static string DashboardReportLink(RmaReportScope scope)
+    {
+        return $"/rmas/reports?scope={Uri.EscapeDataString(scope.ToString())}#selected-rma-report-heading";
     }
 }

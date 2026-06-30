@@ -49,11 +49,7 @@ else
         <div class="dashboard-card-grid">
             @foreach (var card in operationalCards)
             {
-                <article class="dashboard-card">
-                    <p class="dashboard-card-label">@card.Label</p>
-                    <p class="dashboard-card-value">@card.Count</p>
-                    <p><a class="table-link" href="@ReportLink(card.Scope)">Show RMAs</a></p>
-                </article>
+                <DashboardSummaryCard Label="@card.Label" Value="@card.Count" LinkHref="@ReportLink(card.Scope)" LinkLabel="Show RMAs" />
             }
         </div>
     </section>
@@ -340,11 +336,7 @@ else
         <div class="dashboard-card-grid">
             @foreach (var card in commercialCards)
             {
-                <article class="dashboard-card">
-                    <p class="dashboard-card-label">@card.Label</p>
-                    <p class="dashboard-card-value">@card.Count</p>
-                    <p><a class="table-link" href="@ReportLink(card.Scope)">@card.LinkLabel</a></p>
-                </article>
+                <DashboardSummaryCard Label="@card.Label" Value="@card.Count" LinkHref="@ReportLink(card.Scope)" LinkLabel="@card.LinkLabel" />
             }
         </div>
 
@@ -426,26 +418,11 @@ else
         </div>
 
         <div class="dashboard-card-grid">
-            <article class="dashboard-card">
-                <p class="dashboard-card-label">Average days open</p>
-                <p class="dashboard-card-value">@averageDaysOpen</p>
-            </article>
-            <article class="dashboard-card">
-                <p class="dashboard-card-label">Average days in current status</p>
-                <p class="dashboard-card-value">@averageDaysInCurrentStatus</p>
-            </article>
-            <article class="dashboard-card">
-                <p class="dashboard-card-label">Average days on hold</p>
-                <p class="dashboard-card-value">@averageDaysOnHold</p>
-            </article>
-            <article class="dashboard-card">
-                <p class="dashboard-card-label">Average repair days</p>
-                <p class="dashboard-card-value">@averageRepairDays</p>
-            </article>
-            <article class="dashboard-card">
-                <p class="dashboard-card-label">Average ready-to-ship to shipped</p>
-                <p class="dashboard-card-value">@averageReadyToShipToShippedDays</p>
-            </article>
+            <DashboardSummaryCard Label="Average days open" Value="@averageDaysOpen" />
+            <DashboardSummaryCard Label="Average days in current status" Value="@averageDaysInCurrentStatus" />
+            <DashboardSummaryCard Label="Average days on hold" Value="@averageDaysOnHold" />
+            <DashboardSummaryCard Label="Average repair days" Value="@averageRepairDays" />
+            <DashboardSummaryCard Label="Average ready-to-ship to shipped" Value="@averageReadyToShipToShippedDays" />
         </div>
 
         <section class="table-panel detail-section">

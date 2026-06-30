@@ -1,0 +1,45 @@
+<article class="dashboard-card dashboard-card-stack">
+    <p class="dashboard-card-label">@Label</p>
+
+    <div class="dashboard-card-body">
+        @if (Value is not null)
+        {
+            <p class="dashboard-card-value">@Value</p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(ValueCaption))
+        {
+            <p class="dashboard-card-caption">@ValueCaption</p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Body))
+        {
+            <p class="dashboard-card-caption">@Body</p>
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(LinkHref) && !string.IsNullOrWhiteSpace(LinkLabel))
+    {
+        <p class="dashboard-card-link"><a class="table-link" href="@LinkHref">@LinkLabel</a></p>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public object? Value { get; set; }
+
+    [Parameter]
+    public string? ValueCaption { get; set; }
+
+    [Parameter]
+    public string? Body { get; set; }
+
+    [Parameter]
+    public string? LinkHref { get; set; }
+
+    [Parameter]
+    public string? LinkLabel { get; set; }
+}

@@ -20,6 +20,7 @@ public class BuildBookPageAuthorizationTests
     [InlineData("CustomerDetail.razor", BuildBookPolicies.ViewCustomers)]
     [InlineData("CreateCustomer.razor", BuildBookPolicies.AddCustomers)]
     [InlineData("EditCustomer.razor", BuildBookPolicies.EditCustomers)]
+    [InlineData("CustomerReports.razor", BuildBookPolicies.ExportCustomers)]
     [InlineData("Reports.razor", BuildBookPolicies.ExportNonSensitiveData)]
     [InlineData("Admin.razor", BuildBookPolicies.ManageUsers)]
     [InlineData("SupportContractLevels.razor", BuildBookPolicies.ManageSupportContractLevels)]
@@ -46,7 +47,6 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ViewBuildRecords)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ViewCustomers)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ViewRmas)}\"", layoutContent);
-        Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ExportNonSensitiveData)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ManageUsers)}\"", layoutContent);
         Assert.Contains("RMAs", layoutContent);
         Assert.Contains("Customers", layoutContent);
@@ -178,6 +178,13 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Waiting for parts", pageContent);
         Assert.Contains("Ready to ship", pageContent);
         Assert.Contains("Shipped not closed", pageContent);
+        Assert.Contains("Show RMAs", pageContent);
+        Assert.Contains("DashboardReportLink(RmaReportScope.OperationalOpen)", pageContent);
+        Assert.Contains("DashboardReportLink(RmaReportScope.OperationalOverdue)", pageContent);
+        Assert.Contains("DashboardReportLink(RmaReportScope.OperationalWaitingForCustomer)", pageContent);
+        Assert.Contains("DashboardReportLink(RmaReportScope.OperationalWaitingForParts)", pageContent);
+        Assert.Contains("DashboardReportLink(RmaReportScope.OperationalReadyToShip)", pageContent);
+        Assert.Contains("DashboardReportLink(RmaReportScope.OperationalShippedNotClosed)", pageContent);
         Assert.Contains("FormName=\"rma-register-filters\"", pageContent);
         Assert.Contains("Apply filters", pageContent);
         Assert.Contains("Clear filters", pageContent);
@@ -378,11 +385,35 @@ public class BuildBookPageAuthorizationTests
     }
 
     [Fact]
+    public void DashboardSummaryCardDefinesSharedCardLayout()
+    {
+        var componentPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Web",
+            "Components",
+            "DashboardSummaryCard.razor");
+        var componentContent = File.ReadAllText(componentPath);
+
+        Assert.Contains("dashboard-card dashboard-card-stack", componentContent);
+        Assert.Contains("dashboard-card-label", componentContent);
+        Assert.Contains("dashboard-card-value", componentContent);
+        Assert.Contains("dashboard-card-link", componentContent);
+        Assert.Contains("LinkHref", componentContent);
+        Assert.Contains("LinkLabel", componentContent);
+        Assert.Contains("ValueCaption", componentContent);
+        Assert.Contains("Body", componentContent);
+        Assert.Contains("EditorRequired", componentContent);
+    }
+
+    [Fact]
     public void BuildRegisterPageDefinesExpectedTable()
     {
         var pageContent = File.ReadAllText(GetPagePath("BuildRegister.razor"));
 
         Assert.Contains("IBuildRegisterReader", pageContent);
+        Assert.Contains("Reports", pageContent);
+        Assert.Contains("href=\"/reports\"", pageContent);
         Assert.Contains("FormName=\"build-register-filters\"", pageContent);
         Assert.Contains("Apply filters", pageContent);
         Assert.Contains("Clear filters", pageContent);
@@ -422,8 +453,11 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("IBuildRegisterReader", pageContent);
         Assert.Contains("ICustomerOptionsReader", pageContent);
         Assert.Contains("IMissingDataReportReader", pageContent);
-        Assert.Contains("Export current Build Register results to CSV or Excel", pageContent);
-        Assert.Contains("Current search results", pageContent);
+        Assert.Contains("Export the currently selected report", pageContent);
+        Assert.Contains("Export CSV", pageContent);
+        Assert.Contains("Export Excel", pageContent);
+        Assert.Contains("CurrentCsvExportUrl", pageContent);
+        Assert.Contains("CurrentExcelExportUrl", pageContent);
         Assert.Contains("Devices by customer", pageContent);
         Assert.Contains("Missing data reports", pageContent);
         Assert.Contains("Missing customer", pageContent);
@@ -449,12 +483,17 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Windows versions", pageContent);
         Assert.Contains("BuildVersionReportRows", pageContent);
         Assert.Contains("BuildVersionReportLink", pageContent);
+        Assert.Contains("BuildExportUrl", pageContent);
+        Assert.Contains("/reports/build-register.{format}", pageContent);
+        Assert.Contains("/reports/missing-data.{format}", pageContent);
+        Assert.Contains("customerId=", pageContent);
         Assert.Contains("The version reports could not be loaded. Refresh the page and try again.", pageContent);
         Assert.Contains("BuildVersionReportLink(\"radSightVersion\"", pageContent);
         Assert.Contains("BuildVersionReportLink(\"windowsVersion\"", pageContent);
         Assert.Contains("Open matching records", pageContent);
         Assert.Contains("No RadSight versions have been recorded yet.", pageContent);
         Assert.Contains("No Windows versions have been recorded yet.", pageContent);
+        Assert.DoesNotContain("Open Build Register", pageContent);
         Assert.Contains("InputSelect", pageContent);
         Assert.Contains("Select customer", pageContent);
         Assert.Contains("Show report", pageContent);
@@ -654,6 +693,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("ISupportContractLevelService", pageContent);
         Assert.Contains("FormName=\"customers-filters\"", pageContent);
         Assert.Contains("Support contract levels", pageContent);
+        Assert.Contains("/customers/reports", pageContent);
+        Assert.Contains("Reports", pageContent);
         Assert.Contains("/customers/new", pageContent);
         Assert.Contains("Customer name", pageContent);
         Assert.Contains("Support contract level", pageContent);
@@ -678,7 +719,34 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("History", pageContent);
         Assert.Contains("/build-records/{buildRecord.Id}", pageContent);
         Assert.Contains("/rmas/{rmaRecord.Id}", pageContent);
+        Assert.Contains("/customers/reports", pageContent);
         Assert.Contains("/customers/{customer.Id}/edit", pageContent);
+    }
+
+    [Fact]
+    public void CustomerReportsPageDefinesExpectedReportsAndExports()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("CustomerReports.razor"));
+
+        Assert.Contains("@page \"/customers/reports\"", pageContent);
+        Assert.Contains("BuildBookPolicies.ExportCustomers", pageContent);
+        Assert.Contains("ICustomerReportReader", pageContent);
+        Assert.Contains("Customer Reports", pageContent);
+        Assert.Contains("Export CSV", pageContent);
+        Assert.Contains("Export Excel", pageContent);
+        Assert.Contains("Customers by contract level", pageContent);
+        Assert.Contains("Expiring in 30 days", pageContent);
+        Assert.Contains("Open RMAs by contract level", pageContent);
+        Assert.Contains("Overdue RMAs by contract level", pageContent);
+        Assert.Contains("RMAs with no Support Ticket No.", pageContent);
+        Assert.Contains("Priority mismatch", pageContent);
+        Assert.Contains("Support Ticket No.", pageContent);
+        Assert.Contains("CurrentCsvExportUrl", pageContent);
+        Assert.Contains("CurrentExcelExportUrl", pageContent);
+        Assert.Contains("ReportLink(CustomerReportScope.PriorityMismatch)", pageContent);
+        Assert.Contains("ReportLink(CustomerReportScope.MissingSupportTicketNumber)", pageContent);
+        Assert.DoesNotContain("Password", pageContent);
+        Assert.DoesNotContain("BitLocker", pageContent);
     }
 
     [Fact]
@@ -790,6 +858,7 @@ public class BuildBookPageAuthorizationTests
             BuildBookPolicies.ViewCustomers => nameof(BuildBookPolicies.ViewCustomers),
             BuildBookPolicies.AddCustomers => nameof(BuildBookPolicies.AddCustomers),
             BuildBookPolicies.EditCustomers => nameof(BuildBookPolicies.EditCustomers),
+            BuildBookPolicies.ExportCustomers => nameof(BuildBookPolicies.ExportCustomers),
             BuildBookPolicies.ImportSpreadsheet => nameof(BuildBookPolicies.ImportSpreadsheet),
             BuildBookPolicies.ExportNonSensitiveData => nameof(BuildBookPolicies.ExportNonSensitiveData),
             BuildBookPolicies.ManageUsers => nameof(BuildBookPolicies.ManageUsers),

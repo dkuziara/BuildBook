@@ -64,6 +64,8 @@ public static class DependencyInjection
         services.AddScoped<IBuildRegisterExcelExporter, BuildRegisterExcelExporter>();
         services.AddScoped<IBuildRegisterReader, BuildRegisterReader>();
         services.AddScoped<IMissingDataReportReader, MissingDataReportReader>();
+        services.AddScoped<IMissingDataReportCsvExporter, MissingDataReportCsvExporter>();
+        services.AddScoped<IMissingDataReportExcelExporter, MissingDataReportExcelExporter>();
         services.AddScoped<IBuildRecordSearchService, BuildRecordSearchService>();
         services.AddScoped<IBuildRecordDetailReader, BuildRecordDetailReader>();
         services.AddScoped<ISpreadsheetImportMappingService, SpreadsheetImportMappingService>();
@@ -71,6 +73,9 @@ public static class DependencyInjection
         services.AddScoped<IBuildDetailsUpdater, BuildDetailsUpdater>();
         services.AddScoped<ICustomerOptionsReader, CustomerOptionsReader>();
         services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<ICustomerReportReader, CustomerReportReader>();
+        services.AddScoped<ICustomerReportCsvExporter, CustomerReportCsvExporter>();
+        services.AddScoped<ICustomerReportExcelExporter, CustomerReportExcelExporter>();
         services.AddScoped<ICustomerShippingUpdater, CustomerShippingUpdater>();
         services.AddScoped<ISupportContractLevelService, SupportContractLevelService>();
         services.AddScoped<IHardwareDetailsUpdater, HardwareDetailsUpdater>();

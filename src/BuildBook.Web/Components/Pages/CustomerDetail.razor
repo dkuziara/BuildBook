@@ -27,6 +27,11 @@ else
             <p>Customer master data, support contract context and linked BuildBook activity.</p>
         </div>
         <div class="page-actions">
+            <AuthorizeView Policy="@BuildBookPolicies.ExportCustomers">
+                <Authorized>
+                    <a class="secondary-button" href="/customers/reports">Reports</a>
+                </Authorized>
+            </AuthorizeView>
             <AuthorizeView Policy="@BuildBookPolicies.EditCustomers">
                 <Authorized>
                     <a class="primary-button" href="@($"/customers/{customer.Id}/edit")">Edit customer</a>

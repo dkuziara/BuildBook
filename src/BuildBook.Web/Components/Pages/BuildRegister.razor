@@ -13,13 +13,18 @@
         <h1>Build Register</h1>
         <p>Open Build Records and review key product, customer, software and shipping details.</p>
     </div>
-    <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
-        <Authorized>
-            <div class="page-actions">
+    <div class="page-actions">
+        <AuthorizeView Policy="@BuildBookPolicies.ExportNonSensitiveData">
+            <Authorized>
+                <a class="secondary-button" href="/reports">Reports</a>
+            </Authorized>
+        </AuthorizeView>
+        <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+            <Authorized>
                 <a class="primary-button" href="/build-records/new">Add Build Record</a>
-            </div>
-        </Authorized>
-    </AuthorizeView>
+            </Authorized>
+        </AuthorizeView>
+    </div>
 </section>
 
 <section class="filter-panel compact-filter-panel" aria-labelledby="build-register-filters-heading">

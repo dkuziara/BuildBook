@@ -457,6 +457,19 @@ a.secondary-button[aria-disabled="true"] {
     padding: var(--space-3);
 }
 
+.dashboard-card-stack {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    text-align: center;
+}
+
+.dashboard-card-body {
+    align-content: center;
+    display: grid;
+    gap: var(--space-1);
+    min-height: 0;
+}
+
 .dashboard-card-label {
     color: var(--color-text-muted);
     font-size: var(--font-size-xs);
@@ -471,6 +484,17 @@ a.secondary-button[aria-disabled="true"] {
     font-size: 1.8rem;
     font-weight: 700;
     line-height: 1;
+    margin: 0;
+}
+
+.dashboard-card-caption {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    line-height: 1.35;
+    margin: 0;
+}
+
+.dashboard-card-link {
     margin: 0;
 }
 

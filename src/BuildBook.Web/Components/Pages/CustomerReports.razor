@@ -1,0 +1,587 @@
+@page "/customers/reports"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.Customers
+@using BuildBook.Domain.Customers
+@using BuildBook.Domain.Rmas
+@using Microsoft.AspNetCore.Components
+
+@attribute [Authorize(Policy = BuildBookPolicies.ExportCustomers)]
+
+@inject ICustomerReportReader CustomerReportReader
+
+<PageTitle>Customer Reports</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">Customers</p>
+        <h1>Customer Reports</h1>
+        <p>Review contract coverage, customer support workload and data-quality gaps without exposing Build Record secrets.</p>
+    </div>
+    <div class="page-actions">
+        <a class="secondary-button" href="/customers">Back to Customers</a>
+        <a class="secondary-button" href="@CurrentExcelExportUrl">Export Excel</a>
+        <a class="primary-button" href="@CurrentCsvExportUrl">Export CSV</a>
+    </div>
+</section>
+
+@if (isLoading)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading customer reports...</p>
+    </section>
+}
+else if (!string.IsNullOrWhiteSpace(loadError))
+{
+    <section class="status-message error" role="alert">
+        <p>@loadError</p>
+    </section>
+}
+else
+{
+    <section class="detail-panel" aria-labelledby="customer-contract-reports-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="customer-contract-reports-heading">Contract coverage</h2>
+                <p>Track contract mix, customers with no contract and accounts that need renewal attention.</p>
+            </div>
+        </div>
+
+        <div class="home-activity-grid">
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>Customers by contract level</h3>
+                        <p>Active customer records grouped by editable contract level.</p>
+                    </div>
+                </div>
+
+                @if (customersByContractLevel.Count == 0)
+                {
+                    <div class="placeholder-panel">
+                        <p>No contract levels have been assigned yet.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Contract level</th>
+                                    <th scope="col">Customers</th>
+                                    <th scope="col">Open RMAs</th>
+                                    <th scope="col">Review</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in customersByContractLevel)
+                                {
+                                    <tr>
+                                        <td>@row.Label</td>
+                                        <td>@row.Count</td>
+                                        <td>@row.SecondaryCount</td>
+                                        <td><a class="table-link" href="@ReportLink(CustomerReportScope.CustomersByContractLevel, row.FilterValue)">Show customers</a></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>Renewal watch</h3>
+                        <p>Customers with no contract, expired contracts and contracts nearing their end date.</p>
+                    </div>
+                </div>
+
+                <div class="dashboard-card-grid">
+                    <DashboardSummaryCard Label="No contract" Value="@customersWithNoContract.Count" LinkHref="@ReportLink(CustomerReportScope.CustomersWithNoContract)" LinkLabel="Show customers" />
+                    <DashboardSummaryCard Label="Expired" Value="@expiredCustomers.Count" LinkHref="@ReportLink(CustomerReportScope.ExpiredContracts)" LinkLabel="Show customers" />
+                    <DashboardSummaryCard Label="Expiring in 30 days" Value="@ExpiringCustomers(30).Count" LinkHref='@ReportLink(CustomerReportScope.ContractsExpiringWithinDays, "30")' LinkLabel="Show customers" />
+                    <DashboardSummaryCard Label="Expiring in 60 days" Value="@ExpiringCustomers(60).Count" LinkHref='@ReportLink(CustomerReportScope.ContractsExpiringWithinDays, "60")' LinkLabel="Show customers" />
+                    <DashboardSummaryCard Label="Expiring in 90 days" Value="@ExpiringCustomers(90).Count" LinkHref='@ReportLink(CustomerReportScope.ContractsExpiringWithinDays, "90")' LinkLabel="Show customers" />
+                </div>
+            </section>
+        </div>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="customer-workload-reports-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="customer-workload-reports-heading">Support workload</h2>
+                <p>See which contract levels are generating active work and which open RMAs are already overdue.</p>
+            </div>
+        </div>
+
+        <div class="home-activity-grid">
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>Open RMAs by contract level</h3>
+                        <p>Operationally open RMAs grouped by contract level.</p>
+                    </div>
+                </div>
+
+                @if (openRmasByContractLevel.Count == 0)
+                {
+                    <div class="placeholder-panel">
+                        <p>No open RMAs are linked to customers yet.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Contract level</th>
+                                    <th scope="col">Open RMAs</th>
+                                    <th scope="col">Overdue</th>
+                                    <th scope="col">Review</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in openRmasByContractLevel)
+                                {
+                                    <tr>
+                                        <td>@row.Label</td>
+                                        <td>@row.Count</td>
+                                        <td>@row.SecondaryCount</td>
+                                        <td><a class="table-link" href="@ReportLink(CustomerReportScope.OpenRmasByContractLevel, row.FilterValue)">Show RMAs</a></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>Overdue RMAs by contract level</h3>
+                        <p>Open customer-linked RMAs whose due date has already passed.</p>
+                    </div>
+                </div>
+
+                @if (overdueRmasByContractLevel.Count == 0)
+                {
+                    <div class="placeholder-panel">
+                        <p>No overdue customer-linked RMAs were found.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Contract level</th>
+                                    <th scope="col">Overdue RMAs</th>
+                                    <th scope="col">Review</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in overdueRmasByContractLevel)
+                                {
+                                    <tr>
+                                        <td>@row.Label</td>
+                                        <td>@row.Count</td>
+                                        <td><a class="table-link" href="@ReportLink(CustomerReportScope.OverdueRmasByContractLevel, row.FilterValue)">Show RMAs</a></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        </div>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="customer-data-quality-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="customer-data-quality-heading">Data quality and priority guidance</h2>
+                <p>Find missing support ticket numbers and RMAs whose selected priority is lower than the customer contract suggests.</p>
+            </div>
+        </div>
+
+        <div class="dashboard-card-grid">
+            <DashboardSummaryCard Label="RMAs with no Support Ticket No." Value="@rmasMissingSupportTicket.Count" LinkHref="@ReportLink(CustomerReportScope.MissingSupportTicketNumber)" LinkLabel="Show RMAs" />
+            <DashboardSummaryCard Label="Priority mismatch" Value="@priorityMismatchRmas.Count" LinkHref="@ReportLink(CustomerReportScope.PriorityMismatch)" LinkLabel="Show RMAs" />
+        </div>
+    </section>
+
+    @if (selectedScope is not null)
+    {
+        <section id="selected-customer-report-section" class="table-panel compact-table-panel detail-section report-scroll-target" aria-labelledby="selected-customer-report-heading">
+            <div class="table-panel-heading">
+                <div>
+                    <h2 id="selected-customer-report-heading" class="report-scroll-heading">@selectedReportTitle</h2>
+                    <p>@SelectedCountLabel</p>
+                </div>
+                <a class="secondary-button" href="/customers/reports">Clear</a>
+            </div>
+
+            @if (ShowsCustomerTable)
+            {
+                @if (selectedCustomerRows.Count == 0)
+                {
+                    <div class="placeholder-panel">
+                        <p>No customers match this report.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Customer</th>
+                                    <th scope="col">Primary contact</th>
+                                    <th scope="col">Email</th>
+                                    <th scope="col">Support contract level</th>
+                                    <th scope="col">Support contract status</th>
+                                    <th scope="col">Contract end date</th>
+                                    <th scope="col">Open RMAs</th>
+                                    <th scope="col">Last updated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in selectedCustomerRows)
+                                {
+                                    <tr>
+                                        <td><a class="table-link" href="@($"/customers/{row.CustomerId}")">@row.CustomerName</a></td>
+                                        <td>@Display(row.PrimaryContactName)</td>
+                                        <td>@Display(row.MainEmail)</td>
+                                        <td>@Display(row.SupportContractLevelName)</td>
+                                        <td>@row.SupportContractStatus</td>
+                                        <td>@Display(row.SupportContractEndDate)</td>
+                                        <td>@row.OpenRmaCount</td>
+                                        <td>@row.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+            else if (selectedRmaRows.Count == 0)
+            {
+                <div class="placeholder-panel">
+                    <p>No RMAs match this report.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">RMA number</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Customer</th>
+                                <th scope="col">Contract level</th>
+                                <th scope="col">Selected priority</th>
+                                <th scope="col">Suggested priority</th>
+                                <th scope="col">@SupportTicketHeader</th>
+                                <th scope="col">Due date</th>
+                                <th scope="col">Last updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in selectedRmaRows)
+                            {
+                                <tr>
+                                    <td><a class="table-link" href="@($"/rmas/{row.RmaId}")">@row.RmaNumber</a></td>
+                                    <td>@FormatStatus(row.Status)</td>
+                                    <td>@row.CustomerName</td>
+                                    <td>@Display(row.SupportContractLevelName)</td>
+                                    <td>@DisplayPriority(row.Priority)</td>
+                                    <td>@DisplayPriority(row.SuggestedPriority)</td>
+                                    <td>@Display(row.SupportTicketNumber)</td>
+                                    <td>@Display(row.DueDate)</td>
+                                    <td>@row.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "scope")]
+    public string? ScopeQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "value")]
+    public string? ValueQuery { get; set; }
+
+    private IReadOnlyList<CustomerContractReportRow> customerRows = [];
+    private IReadOnlyList<CustomerSupportRmaReportRow> rmaRows = [];
+    private IReadOnlyList<SummaryRow> customersByContractLevel = [];
+    private IReadOnlyList<SummaryRow> openRmasByContractLevel = [];
+    private IReadOnlyList<SummaryRow> overdueRmasByContractLevel = [];
+    private IReadOnlyList<CustomerContractReportRow> customersWithNoContract = [];
+    private IReadOnlyList<CustomerContractReportRow> expiredCustomers = [];
+    private IReadOnlyList<CustomerSupportRmaReportRow> rmasMissingSupportTicket = [];
+    private IReadOnlyList<CustomerSupportRmaReportRow> priorityMismatchRmas = [];
+    private IReadOnlyList<CustomerContractReportRow> selectedCustomerRows = [];
+    private IReadOnlyList<CustomerSupportRmaReportRow> selectedRmaRows = [];
+    private CustomerReportScope? selectedScope;
+    private string? selectedValue;
+    private string selectedReportTitle = "Selected report";
+    private bool isLoading = true;
+    private string? loadError;
+
+    private string CurrentCsvExportUrl => ExportUrl("csv");
+    private string CurrentExcelExportUrl => ExportUrl("xlsx");
+    private bool ShowsCustomerTable => selectedScope is null || UsesCustomerRows(selectedScope.Value);
+    private string SupportTicketHeader => "Support Ticket No.";
+    private string SelectedCountLabel => ShowsCustomerTable
+        ? $"{selectedCustomerRows.Count} matching customers"
+        : $"{selectedRmaRows.Count} matching RMAs";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReportsAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        selectedScope = Enum.TryParse<CustomerReportScope>(ScopeQuery, ignoreCase: true, out var scope)
+            ? scope
+            : null;
+        selectedValue = string.IsNullOrWhiteSpace(ValueQuery) ? null : ValueQuery.Trim();
+        ApplySelectedReport();
+    }
+
+    private async Task LoadReportsAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        try
+        {
+            customerRows = await CustomerReportReader.ListCustomersAsync();
+            rmaRows = await CustomerReportReader.ListRmasAsync();
+            BuildSummaries();
+            ApplySelectedReport();
+        }
+        catch
+        {
+            loadError = "The customer reports could not be loaded. Refresh the page and try again.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void BuildSummaries()
+    {
+        customersByContractLevel = customerRows
+            .GroupBy(row => Normalize(row.SupportContractLevelName) ?? "No contract level")
+            .Select(group => new SummaryRow(
+                group.Key,
+                group.Key,
+                group.Count(),
+                group.Sum(row => row.OpenRmaCount)))
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        customersWithNoContract = customerRows
+            .Where(row => string.Equals(row.SupportContractStatus, CustomerSupportContractStatuses.NoContract, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(row => row.CustomerName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        expiredCustomers = customerRows
+            .Where(row => IsExpired(row))
+            .OrderBy(row => row.SupportContractEndDate)
+            .ThenBy(row => row.CustomerName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        openRmasByContractLevel = rmaRows
+            .Where(row => row.IsOpen)
+            .GroupBy(row => Normalize(row.SupportContractLevelName) ?? "No contract level")
+            .Select(group => new SummaryRow(
+                group.Key,
+                group.Key,
+                group.Count(),
+                group.Count(row => row.IsOverdue)))
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        overdueRmasByContractLevel = rmaRows
+            .Where(row => row.IsOverdue)
+            .GroupBy(row => Normalize(row.SupportContractLevelName) ?? "No contract level")
+            .Select(group => new SummaryRow(
+                group.Key,
+                group.Key,
+                group.Count()))
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        rmasMissingSupportTicket = rmaRows
+            .Where(row => string.IsNullOrWhiteSpace(row.SupportTicketNumber))
+            .OrderByDescending(row => row.LastUpdatedAt)
+            .ThenBy(row => row.RmaNumber, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        priorityMismatchRmas = rmaRows
+            .Where(row => row.HasPriorityMismatch)
+            .OrderByDescending(row => row.IsOverdue)
+            .ThenBy(row => row.DueDate)
+            .ThenBy(row => row.RmaNumber, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private IReadOnlyList<CustomerContractReportRow> ExpiringCustomers(int days)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        return customerRows
+            .Where(row =>
+                row.SupportContractEndDate != null
+                && row.SupportContractEndDate >= today
+                && row.SupportContractEndDate <= today.AddDays(days)
+                && !string.Equals(row.SupportContractStatus, CustomerSupportContractStatuses.NoContract, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(row => row.SupportContractEndDate)
+            .ThenBy(row => row.CustomerName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private void ApplySelectedReport()
+    {
+        selectedCustomerRows = [];
+        selectedRmaRows = [];
+        selectedReportTitle = "Selected report";
+
+        if (selectedScope is null)
+        {
+            return;
+        }
+
+        switch (selectedScope.Value)
+        {
+            case CustomerReportScope.CustomersByContractLevel:
+                selectedCustomerRows = customerRows
+                    .Where(row => string.Equals(Normalize(row.SupportContractLevelName), Normalize(selectedValue), StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                selectedReportTitle = $"Customers with contract level: {selectedValue}";
+                break;
+            case CustomerReportScope.CustomersWithNoContract:
+                selectedCustomerRows = customersWithNoContract;
+                selectedReportTitle = "Customers with no contract";
+                break;
+            case CustomerReportScope.ExpiredContracts:
+                selectedCustomerRows = expiredCustomers;
+                selectedReportTitle = "Customers with expired contracts";
+                break;
+            case CustomerReportScope.ContractsExpiringWithinDays:
+                var days = int.TryParse(selectedValue, out var parsedDays) ? parsedDays : 30;
+                selectedCustomerRows = ExpiringCustomers(days);
+                selectedReportTitle = $"Customers with contracts expiring in {days} days";
+                break;
+            case CustomerReportScope.OpenRmasByContractLevel:
+                selectedRmaRows = rmaRows
+                    .Where(row =>
+                        row.IsOpen
+                        && string.Equals(Normalize(row.SupportContractLevelName), Normalize(selectedValue), StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                selectedReportTitle = $"Open RMAs for contract level: {selectedValue}";
+                break;
+            case CustomerReportScope.OverdueRmasByContractLevel:
+                selectedRmaRows = rmaRows
+                    .Where(row =>
+                        row.IsOverdue
+                        && string.Equals(Normalize(row.SupportContractLevelName), Normalize(selectedValue), StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                selectedReportTitle = $"Overdue RMAs for contract level: {selectedValue}";
+                break;
+            case CustomerReportScope.PriorityMismatch:
+                selectedRmaRows = priorityMismatchRmas;
+                selectedReportTitle = "RMAs with contract-priority mismatch";
+                break;
+            case CustomerReportScope.MissingSupportTicketNumber:
+                selectedRmaRows = rmasMissingSupportTicket;
+                selectedReportTitle = "RMAs with no Support Ticket No.";
+                break;
+        }
+    }
+
+    private string ReportLink(CustomerReportScope scope, string? value = null)
+    {
+        var query = $"scope={Uri.EscapeDataString(scope.ToString())}";
+
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            query += $"&value={Uri.EscapeDataString(value)}";
+        }
+
+        return $"/customers/reports?{query}#selected-customer-report-heading";
+    }
+
+    private string ExportUrl(string format)
+    {
+        var path = format == "xlsx"
+            ? "/customers/reports/export.xlsx"
+            : "/customers/reports/export.csv";
+
+        if (selectedScope is null)
+        {
+            return path;
+        }
+
+        var query = $"scope={Uri.EscapeDataString(selectedScope.Value.ToString())}";
+
+        if (!string.IsNullOrWhiteSpace(selectedValue))
+        {
+            query += $"&value={Uri.EscapeDataString(selectedValue)}";
+        }
+
+        return $"{path}?{query}";
+    }
+
+    private static bool UsesCustomerRows(CustomerReportScope scope)
+    {
+        return scope == CustomerReportScope.CustomersByContractLevel
+            || scope == CustomerReportScope.CustomersWithNoContract
+            || scope == CustomerReportScope.ExpiredContracts
+            || scope == CustomerReportScope.ContractsExpiringWithinDays;
+    }
+
+    private static bool IsExpired(CustomerContractReportRow row)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        return string.Equals(row.SupportContractStatus, CustomerSupportContractStatuses.Expired, StringComparison.OrdinalIgnoreCase)
+            || (row.SupportContractEndDate != null
+                && row.SupportContractEndDate < today
+                && !string.Equals(row.SupportContractStatus, CustomerSupportContractStatuses.NoContract, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    private static string Display(DateOnly? value) => value?.ToString("d MMM yyyy") ?? "Not recorded";
+    private static string DisplayPriority(RmaPriority? value) => value?.ToString() ?? "Not recorded";
+
+    private static string FormatStatus(RmaStatus status) => status switch
+    {
+        RmaStatus.BookedIn => "Booked In",
+        RmaStatus.WorkInProgress => "Work In Progress",
+        RmaStatus.ReadyToShip => "Ready To Ship",
+        RmaStatus.CancelledNoReply => "Cancelled / No Reply",
+        RmaStatus.CustomerFixed => "Customer Fixed",
+        _ => status.ToString()
+    };
+
+    private sealed record SummaryRow(string FilterValue, string Label, int Count, int SecondaryCount = 0);
+}

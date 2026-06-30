@@ -3,6 +3,7 @@
 
 @attribute [Authorize(Policy = BuildBookPolicies.ExportNonSensitiveData)]
 
+@using BuildBook.Application.BuildRecords
 @using Microsoft.AspNetCore.Components
 
 @inject IBuildRegisterReader BuildRegisterReader
@@ -15,20 +16,11 @@
     <div class="page-heading-copy">
         <p class="eyebrow">Reports</p>
         <h1>Reports</h1>
-        <p>Export current Build Register results to CSV or Excel, and review non-sensitive customer, software version and missing-data reports.</p>
+        <p>Export the currently selected report, or all active Build Register rows when no specific report is selected.</p>
     </div>
-</section>
-
-<section class="detail-panel" aria-labelledby="reports-export-heading">
-        <div class="detail-panel-header">
-            <div>
-                <h2 id="reports-export-heading">Current search results</h2>
-                <p>Use the Build Register when you need to export the current filtered result set.</p>
-            </div>
-        </div>
-
-    <div class="detail-actions">
-        <a class="primary-button" href="/build-register">Open Build Register</a>
+    <div class="page-actions">
+        <a class="secondary-button" href="@CurrentExcelExportUrl">Export Excel</a>
+        <a class="primary-button" href="@CurrentCsvExportUrl">Export CSV</a>
     </div>
 </section>
 
@@ -160,52 +152,32 @@
     }
     else
     {
-        <div class="home-activity-grid">
-            <section class="table-panel" aria-labelledby="missing-customer-heading">
-                <div class="table-panel-heading">
-                    <div>
-                        <h3 id="missing-customer-heading">Missing customer</h3>
-                        <p>@missingCustomerRecords.Count active Build Records</p>
-                    </div>
-                    <a class="secondary-button" aria-disabled="@(missingCustomerRecords.Count == 0)" href="@MissingDataReportLink(MissingDataReportType.Customer)">
-                        Show missing records
-                    </a>
-                </div>
-            </section>
+        <div class="dashboard-card-grid">
+            <DashboardSummaryCard
+                Label="Missing customer"
+                Value="@missingCustomerRecords.Count"
+                ValueCaption="active Build Records"
+                LinkHref="@MissingDataReportLink(MissingDataReportType.Customer)"
+                LinkLabel="Show missing records" />
 
-            <section class="table-panel" aria-labelledby="missing-qa-heading">
-                <div class="table-panel-heading">
-                    <div>
-                        <h3 id="missing-qa-heading">Missing QA number</h3>
-                        <p>Not yet available</p>
-                    </div>
-                </div>
-                <p>QA number reporting will be available once the field is added to Build Records.</p>
-            </section>
+            <DashboardSummaryCard
+                Label="Missing QA number"
+                Value="@("Not yet available")"
+                Body="QA number reporting will be available once the field is added to Build Records." />
 
-            <section class="table-panel" aria-labelledby="missing-recovery-heading">
-                <div class="table-panel-heading">
-                    <div>
-                        <h3 id="missing-recovery-heading">Missing recovery key</h3>
-                        <p>@missingRecoveryRecords.Count active Build Records</p>
-                    </div>
-                    <a class="secondary-button" aria-disabled="@(missingRecoveryRecords.Count == 0)" href="@MissingDataReportLink(MissingDataReportType.RecoveryData)">
-                        Show missing records
-                    </a>
-                </div>
-            </section>
+            <DashboardSummaryCard
+                Label="Missing recovery key"
+                Value="@missingRecoveryRecords.Count"
+                ValueCaption="active Build Records"
+                LinkHref="@MissingDataReportLink(MissingDataReportType.RecoveryData)"
+                LinkLabel="Show missing records" />
 
-            <section class="table-panel" aria-labelledby="missing-shipped-date-heading">
-                <div class="table-panel-heading">
-                    <div>
-                        <h3 id="missing-shipped-date-heading">Missing shipped date</h3>
-                        <p>@missingShippedDateRecords.Count active Build Records</p>
-                    </div>
-                    <a class="secondary-button" aria-disabled="@(missingShippedDateRecords.Count == 0)" href="@MissingDataReportLink(MissingDataReportType.DateShipped)">
-                        Show missing records
-                    </a>
-                </div>
-            </section>
+            <DashboardSummaryCard
+                Label="Missing shipped date"
+                Value="@missingShippedDateRecords.Count"
+                ValueCaption="active Build Records"
+                LinkHref="@MissingDataReportLink(MissingDataReportType.DateShipped)"
+                LinkLabel="Show missing records" />
         </div>
 
         @if (selectedMissingDataReport is not null)
@@ -428,6 +400,8 @@
         MissingDataReportType.DateShipped => missingShippedDateRecords,
         _ => []
     };
+    private string CurrentCsvExportUrl => BuildExportUrl();
+    private string CurrentExcelExportUrl => BuildExportUrl("xlsx");
     private string selectedMissingDataReportTitle => selectedMissingDataReport switch
     {
         MissingDataReportType.Customer => "Build Records missing customer",
@@ -575,6 +549,21 @@
         return $"/build-register?{Uri.EscapeDataString(filterKey)}={Uri.EscapeDataString(filterValue)}";
     }
 
+    private string BuildExportUrl(string format = "csv")
+    {
+        if (selectedMissingDataReport is not null)
+        {
+            return $"/reports/missing-data.{format}?missingData={Uri.EscapeDataString(selectedMissingDataReport.Value.ToString())}";
+        }
+
+        if (selectedCustomerId is not null && selectedCustomer is not null)
+        {
+            return $"/reports/build-register.{format}?customerId={Uri.EscapeDataString(selectedCustomerId.Value.ToString())}";
+        }
+
+        return $"/reports/build-register.{format}";
+    }
+
     private static string MissingDataReportLink(MissingDataReportType reportType)
     {
         return $"/reports?missingData={Uri.EscapeDataString(reportType.ToString())}#missing-data-records-heading";
@@ -590,12 +579,5 @@
     private sealed record VersionReportRow(string? FilterValue, string Label, int Count)
     {
         public bool HasFilterValue => !string.IsNullOrWhiteSpace(FilterValue);
-    }
-
-    private enum MissingDataReportType
-    {
-        Customer,
-        RecoveryData,
-        DateShipped
     }
 }

@@ -43,11 +43,6 @@
                         <NavLink href="/customers">Customers</NavLink>
                     </Authorized>
                 </AuthorizeView>
-                <AuthorizeView Policy="@BuildBookPolicies.ExportNonSensitiveData">
-                    <Authorized>
-                        <NavLink href="/reports">Reports</NavLink>
-                    </Authorized>
-                </AuthorizeView>
                 <AuthorizeView Policy="@BuildBookPolicies.ManageUsers">
                     <Authorized>
                         <NavLink href="/admin">Admin</NavLink>

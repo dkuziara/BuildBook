@@ -18,6 +18,11 @@
         <p>Use shared customer records to keep Build Records, RMAs and support contract information consistent across BuildBook.</p>
     </div>
     <div class="page-actions">
+        <AuthorizeView Policy="@BuildBookPolicies.ExportCustomers">
+            <Authorized>
+                <a class="secondary-button" href="/customers/reports">Reports</a>
+            </Authorized>
+        </AuthorizeView>
         <AuthorizeView Policy="@BuildBookPolicies.ManageSupportContractLevels">
             <Authorized>
                 <a class="secondary-button" href="/admin/support-contract-levels">Support contract levels</a>

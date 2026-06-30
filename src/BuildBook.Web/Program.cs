@@ -1,5 +1,6 @@
 using System.Text;
 using BuildBook.Application.BuildRecords;
+using BuildBook.Application.Customers;
 using BuildBook.Application.Rmas;
 using BuildBook.Application.Security;
 using BuildBook.Infrastructure;
@@ -95,6 +96,25 @@ app.MapGet(
         })
     .RequireAuthorization(BuildBookPolicies.ExportNonSensitiveData);
 app.MapGet(
+        "/reports/missing-data.csv",
+        async (HttpRequest request, IMissingDataReportCsvExporter missingDataReportCsvExporter, CancellationToken cancellationToken) =>
+        {
+            var reportType = ParseMissingDataReportType(ReadString(request.Query, "missingData"));
+            if (reportType is null)
+            {
+                return Results.BadRequest();
+            }
+
+            var csv = await missingDataReportCsvExporter.ExportAsync(reportType.Value, cancellationToken);
+            var fileName = $"build-report-{reportType.Value}-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.csv";
+
+            return Results.File(
+                Encoding.UTF8.GetBytes(csv),
+                "text/csv; charset=utf-8",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookPolicies.ExportNonSensitiveData);
+app.MapGet(
         "/reports/build-register.xlsx",
         async (HttpRequest request, IBuildRegisterExcelExporter buildRegisterExcelExporter, CancellationToken cancellationToken) =>
         {
@@ -108,6 +128,53 @@ app.MapGet(
                 fileName);
         })
     .RequireAuthorization(BuildBookPolicies.ExportNonSensitiveData);
+app.MapGet(
+        "/reports/missing-data.xlsx",
+        async (HttpRequest request, IMissingDataReportExcelExporter missingDataReportExcelExporter, CancellationToken cancellationToken) =>
+        {
+            var reportType = ParseMissingDataReportType(ReadString(request.Query, "missingData"));
+            if (reportType is null)
+            {
+                return Results.BadRequest();
+            }
+
+            var workbook = await missingDataReportExcelExporter.ExportAsync(reportType.Value, cancellationToken);
+            var fileName = $"build-report-{reportType.Value}-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.xlsx";
+
+            return Results.File(
+                workbook,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookPolicies.ExportNonSensitiveData);
+app.MapGet(
+        "/customers/reports/export.csv",
+        async (HttpRequest request, ICustomerReportCsvExporter customerReportCsvExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateCustomerReportFilter(request);
+            var csv = await customerReportCsvExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"customer-report-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.csv";
+
+            return Results.File(
+                Encoding.UTF8.GetBytes(csv),
+                "text/csv; charset=utf-8",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookPolicies.ExportCustomers);
+app.MapGet(
+        "/customers/reports/export.xlsx",
+        async (HttpRequest request, ICustomerReportExcelExporter customerReportExcelExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateCustomerReportFilter(request);
+            var workbook = await customerReportExcelExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"customer-report-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.xlsx";
+
+            return Results.File(
+                workbook,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookPolicies.ExportCustomers);
 app.MapGet(
         "/rmas/reports/export.csv",
         async (HttpRequest request, IRmaReportCsvExporter rmaReportCsvExporter, CancellationToken cancellationToken) =>
@@ -184,6 +251,11 @@ static BuildRegisterFilter CreateBuildRegisterFilter(HttpRequest request)
     var query = request.Query;
     var filter = new BuildRegisterFilter();
 
+    if (int.TryParse(ReadString(query, "customerId"), out var customerId))
+    {
+        filter.CustomerId = customerId;
+    }
+
     filter.Customer = ReadString(query, "customer");
     filter.ProductCode = ReadString(query, "productCode");
     filter.RadSightVersion = ReadString(query, "radSightVersion");
@@ -228,9 +300,37 @@ static RmaReportFilter CreateRmaReportFilter(HttpRequest request)
     return filter;
 }
 
+static CustomerReportFilter CreateCustomerReportFilter(HttpRequest request)
+{
+    var scopeValue = ReadString(request.Query, "scope");
+    var value = ReadString(request.Query, "value");
+    var filter = new CustomerReportFilter
+    {
+        Value = value
+    };
+
+    if (Enum.TryParse<CustomerReportScope>(scopeValue, ignoreCase: true, out var scope))
+    {
+        filter = new CustomerReportFilter
+        {
+            Scope = scope,
+            Value = value
+        };
+    }
+
+    return filter;
+}
+
 static string? ReadString(IQueryCollection query, string key)
 {
     return query.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
         ? value.ToString()
+        : null;
+}
+
+static MissingDataReportType? ParseMissingDataReportType(string? value)
+{
+    return Enum.TryParse<MissingDataReportType>(value, ignoreCase: true, out var reportType)
+        ? reportType
         : null;
 }

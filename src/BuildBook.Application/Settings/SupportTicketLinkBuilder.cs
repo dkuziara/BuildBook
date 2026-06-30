@@ -34,7 +34,7 @@ public static class SupportTicketLinkBuilder
         return Uri.TryCreate(url, UriKind.Absolute, out var finalUri)
             && (string.Equals(finalUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(finalUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
-            ? finalUri.ToString()
+            ? url
             : null;
     }
 }
