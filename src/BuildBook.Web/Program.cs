@@ -3,6 +3,7 @@ using BuildBook.Application.BuildRecords;
 using BuildBook.Application.Customers;
 using BuildBook.Application.Rmas;
 using BuildBook.Application.Security;
+using BuildBook.Domain.Rmas;
 using BuildBook.Infrastructure;
 using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.SeedData;
@@ -148,6 +149,34 @@ app.MapGet(
         })
     .RequireAuthorization(BuildBookPolicies.ExportNonSensitiveData);
 app.MapGet(
+        "/customers/export.csv",
+        async (HttpRequest request, ICustomerListCsvExporter customerListCsvExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateCustomerListFilter(request);
+            var csv = await customerListCsvExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"customers-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.csv";
+
+            return Results.File(
+                Encoding.UTF8.GetBytes(csv),
+                "text/csv; charset=utf-8",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookPolicies.ExportCustomers);
+app.MapGet(
+        "/customers/export.xlsx",
+        async (HttpRequest request, ICustomerListExcelExporter customerListExcelExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateCustomerListFilter(request);
+            var workbook = await customerListExcelExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"customers-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.xlsx";
+
+            return Results.File(
+                workbook,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookPolicies.ExportCustomers);
+app.MapGet(
         "/customers/reports/export.csv",
         async (HttpRequest request, ICustomerReportCsvExporter customerReportCsvExporter, CancellationToken cancellationToken) =>
         {
@@ -175,6 +204,34 @@ app.MapGet(
                 fileName);
         })
     .RequireAuthorization(BuildBookPolicies.ExportCustomers);
+app.MapGet(
+        "/rmas/export.csv",
+        async (HttpRequest request, IRmaRegisterCsvExporter rmaRegisterCsvExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateRmaRegisterFilter(request);
+            var csv = await rmaRegisterCsvExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"rma-register-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.csv";
+
+            return Results.File(
+                Encoding.UTF8.GetBytes(csv),
+                "text/csv; charset=utf-8",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookRmaPolicies.ExportRmaReports);
+app.MapGet(
+        "/rmas/export.xlsx",
+        async (HttpRequest request, IRmaRegisterExcelExporter rmaRegisterExcelExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateRmaRegisterFilter(request);
+            var workbook = await rmaRegisterExcelExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"rma-register-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.xlsx";
+
+            return Results.File(
+                workbook,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookRmaPolicies.ExportRmaReports);
 app.MapGet(
         "/rmas/reports/export.csv",
         async (HttpRequest request, IRmaReportCsvExporter rmaReportCsvExporter, CancellationToken cancellationToken) =>
@@ -300,6 +357,51 @@ static RmaReportFilter CreateRmaReportFilter(HttpRequest request)
     return filter;
 }
 
+static RmaRegisterFilter CreateRmaRegisterFilter(HttpRequest request)
+{
+    var query = request.Query;
+    var filter = new RmaRegisterFilter
+    {
+        Search = ReadString(query, "search"),
+        Customer = ReadString(query, "customer"),
+        Product = ReadString(query, "product"),
+        SerialNumber = ReadString(query, "serialNumber"),
+        AssignedTo = ReadString(query, "assignedTo")
+    };
+
+    if (Enum.TryParse<RmaStatus>(ReadString(query, "status"), ignoreCase: true, out var status))
+    {
+        filter.Status = status;
+    }
+
+    if (Enum.TryParse<RmaPriority>(ReadString(query, "priority"), ignoreCase: true, out var priority))
+    {
+        filter.Priority = priority;
+    }
+
+    if (DateOnly.TryParse(ReadString(query, "dueDate"), out var dueDate))
+    {
+        filter.DueDate = dueDate;
+    }
+
+    if (bool.TryParse(ReadString(query, "hasLinkedBuildRecord"), out var hasLinkedBuildRecord))
+    {
+        filter.HasLinkedBuildRecord = hasLinkedBuildRecord;
+    }
+
+    if (Enum.TryParse<RmaRegisterSortColumn>(ReadString(query, "sortBy"), ignoreCase: true, out var sortBy))
+    {
+        filter.SortBy = sortBy;
+    }
+
+    if (bool.TryParse(ReadString(query, "sortDescending"), out var sortDescending))
+    {
+        filter.SortDescending = sortDescending;
+    }
+
+    return filter;
+}
+
 static CustomerReportFilter CreateCustomerReportFilter(HttpRequest request)
 {
     var scopeValue = ReadString(request.Query, "scope");
@@ -316,6 +418,38 @@ static CustomerReportFilter CreateCustomerReportFilter(HttpRequest request)
             Scope = scope,
             Value = value
         };
+    }
+
+    return filter;
+}
+
+static CustomerListFilter CreateCustomerListFilter(HttpRequest request)
+{
+    var query = request.Query;
+    var filter = new CustomerListFilter
+    {
+        Search = ReadString(query, "search"),
+        SupportContractStatus = ReadString(query, "supportContractStatus")
+    };
+
+    if (int.TryParse(ReadString(query, "supportContractLevelId"), out var supportContractLevelId))
+    {
+        filter.SupportContractLevelId = supportContractLevelId;
+    }
+
+    if (bool.TryParse(ReadString(query, "isActive"), out var isActive))
+    {
+        filter.IsActive = isActive;
+    }
+
+    if (Enum.TryParse<CustomerSortColumn>(ReadString(query, "sortBy"), ignoreCase: true, out var sortBy))
+    {
+        filter.SortBy = sortBy;
+    }
+
+    if (bool.TryParse(ReadString(query, "sortDescending"), out var sortDescending))
+    {
+        filter.SortDescending = sortDescending;
     }
 
     return filter;

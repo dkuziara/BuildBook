@@ -419,8 +419,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Clear filters", pageContent);
         Assert.Contains("canClearFilters", pageContent);
         Assert.Contains("BuildBookPolicies.ExportNonSensitiveData", pageContent);
-        Assert.Contains("Export current results to CSV", pageContent);
-        Assert.Contains("Export current results to Excel", pageContent);
+        Assert.Contains("Export CSV", pageContent);
+        Assert.Contains("Export Excel", pageContent);
         Assert.Contains("/reports/build-register.{format}", pageContent);
         Assert.Contains("BuildRegisterCsvDownloadUrl", pageContent);
         Assert.Contains("BuildRegisterExcelDownloadUrl", pageContent);
@@ -653,13 +653,13 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("AuthenticationStateProvider", pageContent);
         Assert.Contains("Users &amp; Roles", pageContent);
         Assert.Contains("Windows Authentication identifies each person.", pageContent);
-        Assert.Contains("BuildBook has no separate login form.", pageContent);
         Assert.Contains("Bootstrap administrators", pageContent);
         Assert.Contains("Add Windows user", pageContent);
         Assert.Contains("Windows username", pageContent);
         Assert.Contains("Display name", pageContent);
         Assert.Contains("Email address", pageContent);
         Assert.Contains("Managed users", pageContent);
+        Assert.Contains("Bootstrap administrator", pageContent);
         Assert.Contains("Active user", pageContent);
         Assert.Contains("BuildBookRoles.All", pageContent);
         Assert.Contains("Edit user", pageContent);
@@ -793,6 +793,9 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("AuthenticationStateProvider", pageContent);
         Assert.Contains("Add support contract level", pageContent);
         Assert.Contains("Current support contract levels", pageContent);
+        Assert.Contains("showAddLevelForm", pageContent);
+        Assert.Contains("ToggleAddLevelForm", pageContent);
+        Assert.Contains("HideAddLevelForm", pageContent);
         Assert.Contains("FormName=\"create-support-contract-level\"", pageContent);
         Assert.Contains("edit-support-contract-level-", pageContent);
         Assert.Contains("Default RMA priority", pageContent);

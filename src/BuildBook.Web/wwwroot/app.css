@@ -321,8 +321,10 @@ input[type="file"]:focus {
 .action-link {
     align-items: center;
     border-radius: var(--radius-sm);
+    box-sizing: border-box;
     cursor: pointer;
     display: inline-flex;
+    height: var(--button-height);
     font-size: 0.96rem;
     font-weight: 600;
     gap: var(--space-2);
@@ -374,6 +376,7 @@ input[type="file"]:focus {
 }
 
 .button-small {
+    height: var(--button-height-sm);
     min-height: var(--button-height-sm);
     padding: 0.38rem 0.72rem;
 }
@@ -853,8 +856,42 @@ a.secondary-button[aria-disabled="true"] {
     padding: 0.4rem 0.75rem;
 }
 
+.managed-users-table .table-action-column {
+    text-align: right;
+    white-space: nowrap;
+    width: 1%;
+}
+
+.table-meta-text {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    margin-top: 0.15rem;
+}
+
 .compact-panel-title {
     margin-bottom: var(--space-2);
+}
+
+.register-toolbar-heading {
+    align-items: flex-start;
+    gap: var(--space-3);
+}
+
+.register-toolbar-actions {
+    justify-content: flex-end;
+}
+
+.register-filters-block {
+    border-bottom: 1px solid var(--color-border-soft);
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-4);
+}
+
+.register-filters-block h3 {
+    color: var(--color-text-strong);
+    font-size: var(--font-size-h3);
+    font-weight: 700;
+    margin: 0 0 var(--space-1);
 }
 
 .compact-actions {
@@ -865,22 +902,16 @@ a.secondary-button[aria-disabled="true"] {
     align-items: center;
 }
 
-.register-actions .action-link {
-    background: var(--color-surface-panel);
-    border: 1px solid var(--color-border-strong);
-    color: var(--color-text-default);
-    padding: 0.38rem 0.72rem;
-}
-
-.register-actions .action-link:hover {
-    background: var(--color-brand-100);
-    border-color: #b8cae0;
-    color: var(--color-text-strong);
-}
-
 .table-panel.compact-table-panel .table-panel-heading,
 .filter-panel.compact-filter-panel h2 {
     margin-bottom: var(--space-3);
+}
+
+.table-panel-placeholder {
+    box-shadow: none;
+    margin-top: var(--space-2);
+    padding-left: 0;
+    padding-right: 0;
 }
 
 .compact-filter-panel .filter-grid {
@@ -1011,6 +1042,11 @@ a.secondary-button[aria-disabled="true"] {
     .user-management-card-header {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .register-toolbar-actions {
+        justify-content: flex-start;
+        width: 100%;
     }
 
     .mapping-table-header {

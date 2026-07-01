@@ -73,6 +73,9 @@ public static class DependencyInjection
         services.AddScoped<IBuildDetailsUpdater, BuildDetailsUpdater>();
         services.AddScoped<ICustomerOptionsReader, CustomerOptionsReader>();
         services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<ICustomerListReader, CustomerService>();
+        services.AddScoped<ICustomerListCsvExporter, CustomerListCsvExporter>();
+        services.AddScoped<ICustomerListExcelExporter, CustomerListExcelExporter>();
         services.AddScoped<ICustomerReportReader, CustomerReportReader>();
         services.AddScoped<ICustomerReportCsvExporter, CustomerReportCsvExporter>();
         services.AddScoped<ICustomerReportExcelExporter, CustomerReportExcelExporter>();
@@ -89,6 +92,9 @@ public static class DependencyInjection
         services.AddScoped<IRmaNumberGenerator, RmaNumberGenerator>();
         services.AddScoped<IRmaStatusTransitionService, RmaStatusTransitionService>();
         services.AddScoped<IRmaRecordService, RmaRecordService>();
+        services.AddScoped<IRmaRegisterReader, RmaRecordService>();
+        services.AddScoped<IRmaRegisterCsvExporter, RmaRegisterCsvExporter>();
+        services.AddScoped<IRmaRegisterExcelExporter, RmaRegisterExcelExporter>();
         services.AddScoped<IRmaReportReader, RmaReportReader>();
         services.AddScoped<IRmaReportCsvExporter, RmaReportCsvExporter>();
         services.AddScoped<IRmaReportExcelExporter, RmaReportExcelExporter>();

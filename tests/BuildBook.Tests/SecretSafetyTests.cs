@@ -93,6 +93,24 @@ public class SecretSafetyTests
     }
 
     [Fact]
+    public void CustomerListExporterDoesNotReferenceSensitiveFields()
+    {
+        var exporterPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Infrastructure",
+            "Persistence",
+            "Customers",
+            "CustomerListCsvExporter.cs");
+        var exporterContent = File.ReadAllText(exporterPath);
+
+        Assert.DoesNotContain("Password", exporterContent);
+        Assert.DoesNotContain("BitLocker", exporterContent);
+        Assert.DoesNotContain("RecoveryKey", exporterContent);
+        Assert.DoesNotContain("BuildRecordSecret", exporterContent);
+    }
+
+    [Fact]
     public void RmaExcelExporterDoesNotReferenceSensitiveFields()
     {
         var exporterPath = Path.Combine(
@@ -102,6 +120,24 @@ public class SecretSafetyTests
             "Persistence",
             "Rmas",
             "RmaReportExcelExporter.cs");
+        var exporterContent = File.ReadAllText(exporterPath);
+
+        Assert.DoesNotContain("Password", exporterContent);
+        Assert.DoesNotContain("BitLocker", exporterContent);
+        Assert.DoesNotContain("RecoveryKey", exporterContent);
+        Assert.DoesNotContain("BuildRecordSecret", exporterContent);
+    }
+
+    [Fact]
+    public void RmaRegisterExporterDoesNotReferenceSensitiveFields()
+    {
+        var exporterPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Infrastructure",
+            "Persistence",
+            "Rmas",
+            "RmaRegisterCsvExporter.cs");
         var exporterContent = File.ReadAllText(exporterPath);
 
         Assert.DoesNotContain("Password", exporterContent);
@@ -132,6 +168,27 @@ public class SecretSafetyTests
     }
 
     [Fact]
+    public void CustomerListExportProjectionDoesNotReferenceSensitiveFields()
+    {
+        var projectionPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Infrastructure",
+            "Persistence",
+            "Customers",
+            "CustomerListExportProjection.cs");
+        var projectionContent = File.ReadAllText(projectionPath);
+
+        Assert.DoesNotContain("WindowsAdminPassword", projectionContent);
+        Assert.DoesNotContain("RadSightUserPassword", projectionContent);
+        Assert.DoesNotContain("KioskPassword", projectionContent);
+        Assert.DoesNotContain("WifiPassword", projectionContent);
+        Assert.DoesNotContain("RouterPassword", projectionContent);
+        Assert.DoesNotContain("BitLockerRecoveryKey", projectionContent);
+        Assert.DoesNotContain("BuildRecordSecret", projectionContent);
+    }
+
+    [Fact]
     public void RmaExportProjectionDoesNotReferenceSensitiveFields()
     {
         var projectionPath = Path.Combine(
@@ -141,6 +198,27 @@ public class SecretSafetyTests
             "Persistence",
             "Rmas",
             "RmaReportExportProjection.cs");
+        var projectionContent = File.ReadAllText(projectionPath);
+
+        Assert.DoesNotContain("WindowsAdminPassword", projectionContent);
+        Assert.DoesNotContain("RadSightUserPassword", projectionContent);
+        Assert.DoesNotContain("KioskPassword", projectionContent);
+        Assert.DoesNotContain("WifiPassword", projectionContent);
+        Assert.DoesNotContain("RouterPassword", projectionContent);
+        Assert.DoesNotContain("BitLockerRecoveryKey", projectionContent);
+        Assert.DoesNotContain("BuildRecordSecret", projectionContent);
+    }
+
+    [Fact]
+    public void RmaRegisterExportProjectionDoesNotReferenceSensitiveFields()
+    {
+        var projectionPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Infrastructure",
+            "Persistence",
+            "Rmas",
+            "RmaRegisterExportProjection.cs");
         var projectionContent = File.ReadAllText(projectionPath);
 
         Assert.DoesNotContain("WindowsAdminPassword", projectionContent);

@@ -28,6 +28,9 @@ else
             <p>Manage the editable contract levels used by the Customers module without hard-coding Bronze, Silver or Gold into the application logic.</p>
         </div>
         <div class="page-actions">
+            <button type="button" class="secondary-button" aria-controls="add-support-contract-level-panel" aria-expanded="@showAddLevelForm.ToString().ToLowerInvariant()" @onclick="ToggleAddLevelForm">
+                @(showAddLevelForm ? "Hide add support contract level" : "Add support contract level")
+            </button>
             <a class="secondary-button" href="/admin">Back to Admin</a>
         </div>
     </section>
@@ -39,23 +42,27 @@ else
         </div>
     }
 
-    <section class="form-panel" aria-labelledby="add-support-contract-level-heading">
-        <h2 id="add-support-contract-level-heading">Add support contract level</h2>
-        <p class="form-introduction">Create an editable contract level for Customers and future RMA priority guidance.</p>
+    @if (showAddLevelForm)
+    {
+        <section id="add-support-contract-level-panel" class="form-panel" aria-labelledby="add-support-contract-level-heading">
+            <h2 id="add-support-contract-level-heading">Add support contract level</h2>
+            <p class="form-introduction">Create an editable contract level for Customers and future RMA priority guidance.</p>
 
-        <EditForm Model="newLevel" OnValidSubmit="AddLevelAsync" FormName="create-support-contract-level">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
+            <EditForm Model="newLevel" OnValidSubmit="AddLevelAsync" FormName="create-support-contract-level">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
 
-            @RenderLevelFields(newLevel, "new")
+                @RenderLevelFields(newLevel, "new")
 
-            <div class="form-actions">
-                <button type="submit" class="primary-button" disabled="@isSavingNewLevel">
-                    @(isSavingNewLevel ? "Saving..." : "Add support contract level")
-                </button>
-            </div>
-        </EditForm>
-    </section>
+                <div class="form-actions">
+                    <button type="submit" class="secondary-button" disabled="@isSavingNewLevel">
+                        @(isSavingNewLevel ? "Saving..." : "Save support contract level")
+                    </button>
+                    <button type="button" class="secondary-button" disabled="@isSavingNewLevel" @onclick="HideAddLevelForm">Cancel</button>
+                </div>
+            </EditForm>
+        </section>
+    }
 
     <section class="detail-panel detail-section" aria-labelledby="support-contract-levels-heading">
         <div class="detail-panel-header">
@@ -153,6 +160,7 @@ else
     private List<EditableSupportContractLevelModel> editableLevels = [];
     private bool isLoading = true;
     private bool isSavingNewLevel;
+    private bool showAddLevelForm;
     private string? statusMessage;
     private bool statusIsError;
 
@@ -194,6 +202,7 @@ else
         }
 
         ResetNewLevel();
+        showAddLevelForm = false;
         statusMessage = "Support contract level added.";
         await LoadLevelsAsync();
     }
@@ -270,6 +279,27 @@ else
         newLevel.RmaPriorityWeight = 0;
         newLevel.DisplayOrder = 0;
         newLevel.IsActive = true;
+    }
+
+    private void ToggleAddLevelForm()
+    {
+        if (showAddLevelForm)
+        {
+            HideAddLevelForm();
+            return;
+        }
+
+        statusMessage = null;
+        statusIsError = false;
+        showAddLevelForm = true;
+    }
+
+    private void HideAddLevelForm()
+    {
+        ResetNewLevel();
+        statusMessage = null;
+        statusIsError = false;
+        showAddLevelForm = false;
     }
 
     private RenderFragment RenderLevelFields(EditableSupportContractLevelModel level, string idPrefix) => builder =>

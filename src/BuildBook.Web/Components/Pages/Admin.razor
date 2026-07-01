@@ -38,35 +38,7 @@ else
         </div>
     }
 
-    <section class="detail-panel" aria-labelledby="current-access-heading">
-        <div class="detail-panel-header">
-            <div>
-                <h2 id="current-access-heading">Current access</h2>
-                <p>BuildBook has no separate login form. The signed-in Windows username is matched to BuildBook roles.</p>
-            </div>
-        </div>
-
-        <dl class="summary-list">
-            <div>
-                <dt>Signed-in username</dt>
-                <dd>@currentUserName</dd>
-            </div>
-            <div>
-                <dt>Authentication mode</dt>
-                <dd>@authenticationMode</dd>
-            </div>
-            <div>
-                <dt>Bootstrap administrators</dt>
-                <dd>@bootstrapAdministrators.Count</dd>
-            </div>
-            <div>
-                <dt>Managed users</dt>
-                <dd>@editableUsers.Count</dd>
-            </div>
-        </dl>
-    </section>
-
-    <section class="detail-panel detail-section" aria-labelledby="bootstrap-administrators-heading">
+    <section class="detail-panel" aria-labelledby="bootstrap-administrators-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="bootstrap-administrators-heading">Bootstrap administrators</h2>
@@ -127,32 +99,53 @@ else
         }
         else
         {
-            @foreach (var user in editableUsers)
+            <div class="table-scroll">
+                <table class="data-table managed-users-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Windows username</th>
+                            <th scope="col">Display name</th>
+                            <th scope="col">Email address</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Roles</th>
+                            <th scope="col" class="table-action-column">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in editableUsers)
+                        {
+                            <tr>
+                                <td>
+                                    @user.WindowsUserName
+                                    @if (user.IsBootstrapAdministrator)
+                                    {
+                                        <div class="table-meta-text">Bootstrap administrator</div>
+                                    }
+                                </td>
+                                <td>@DisplayValue(user.DisplayName)</td>
+                                <td>@DisplayValue(user.EmailAddress)</td>
+                                <td>@(user.IsActive ? "Active" : "Inactive")</td>
+                                <td>@FormatRoles(user)</td>
+                                <td class="table-action-column">
+                                    <button type="button" class="subtle-button" @onclick="() => EditUser(user)">Edit user</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (editingUser is not null)
             {
-                <section class="user-management-card">
-                    <div class="user-management-card-header">
-                        <div>
-                            <h3>@user.WindowsUserName</h3>
-                            <p>@DescribeUser(user)</p>
-                        </div>
-                        <div class="user-management-card-actions">
-                            @if (user.IsBootstrapAdministrator)
-                            {
-                                <span class="validation-badge warning">Bootstrap administrator</span>
-                            }
+                <section class="form-panel detail-section" aria-labelledby="edit-user-heading">
+                    <h3 id="edit-user-heading">Edit user</h3>
+                    <p class="form-introduction">Update contact details, active status and assigned BuildBook roles for @editingUser.WindowsUserName.</p>
 
-                            @if (!user.IsEditing)
-                            {
-                                <button type="button" class="secondary-button" @onclick="() => EditUser(user)">Edit user</button>
-                            }
-                        </div>
-                    </div>
-
-                    @if (user.Errors.Count > 0)
+                    @if (editingUser.Errors.Count > 0)
                     {
                         <div class="status-message error" role="alert">
                             <ul>
-                                @foreach (var error in user.Errors)
+                                @foreach (var error in editingUser.Errors)
                                 {
                                     <li>@error</li>
                                 }
@@ -160,70 +153,46 @@ else
                         </div>
                     }
 
-                    @if (!user.IsEditing)
-                    {
-                        <dl class="summary-list user-summary-list">
-                            <div>
-                                <dt>Display name</dt>
-                                <dd>@DisplayValue(user.DisplayName)</dd>
-                            </div>
-                            <div>
-                                <dt>Email address</dt>
-                                <dd>@DisplayValue(user.EmailAddress)</dd>
-                            </div>
-                            <div>
-                                <dt>Status</dt>
-                                <dd>@(user.IsActive ? "Active" : "Inactive")</dd>
-                            </div>
-                            <div>
-                                <dt>Roles</dt>
-                                <dd>@FormatRoles(user)</dd>
-                            </div>
-                        </dl>
-                    }
-                    else
-                    {
-                        <div class="form-grid">
-                            <div class="form-field">
-                                <label for="@($"display-name-{user.Id}")">Display name</label>
-                                <InputText id="@($"display-name-{user.Id}")" class="text-input" @bind-Value="user.DisplayName" />
-                            </div>
-                            <div class="form-field">
-                                <label for="@($"email-address-{user.Id}")">Email address</label>
-                                <InputText id="@($"email-address-{user.Id}")" class="text-input" @bind-Value="user.EmailAddress" />
-                            </div>
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label for="@($"display-name-{editingUser.Id}")">Display name</label>
+                            <InputText id="@($"display-name-{editingUser.Id}")" class="text-input" @bind-Value="editingUser.DisplayName" />
                         </div>
-
-                        <div class="role-assignment-section">
-                            <label class="user-active-toggle" for="is-active-@user.Id">
-                                <input id="is-active-@user.Id"
-                                       type="checkbox"
-                                       checked="@user.IsActive"
-                                       disabled="@user.IsBootstrapAdministrator"
-                                       @onchange="args => user.IsActive = args.Value is true" />
-                                Active user
-                            </label>
-
-                            <div class="role-checkbox-grid">
-                                @foreach (var roleName in BuildBookRoles.All)
-                                {
-                                    <label class="role-checkbox" for="@($"role-{user.Id}-{SanitizeRoleName(roleName)}")">
-                                        <input id="@($"role-{user.Id}-{SanitizeRoleName(roleName)}")"
-                                               type="checkbox"
-                                               checked="@user.HasRole(roleName)"
-                                               disabled="@IsRoleLocked(user, roleName)"
-                                               @onchange="args => user.SetRole(roleName, args.Value is true)" />
-                                        @roleName
-                                    </label>
-                                }
-                            </div>
+                        <div class="form-field">
+                            <label for="@($"email-address-{editingUser.Id}")">Email address</label>
+                            <InputText id="@($"email-address-{editingUser.Id}")" class="text-input" @bind-Value="editingUser.EmailAddress" />
                         </div>
+                    </div>
 
-                        <div class="form-actions">
-                            <button type="button" class="primary-button" disabled="@user.IsSaving" @onclick="() => SaveUserAsync(user)">Save user</button>
-                            <button type="button" class="secondary-button" disabled="@user.IsSaving" @onclick="() => CancelEdit(user)">Cancel</button>
+                    <div class="role-assignment-section">
+                        <label class="user-active-toggle" for="is-active-@editingUser.Id">
+                            <input id="is-active-@editingUser.Id"
+                                   type="checkbox"
+                                   checked="@editingUser.IsActive"
+                                   disabled="@editingUser.IsBootstrapAdministrator"
+                                   @onchange="args => editingUser.IsActive = args.Value is true" />
+                            Active user
+                        </label>
+
+                        <div class="role-checkbox-grid">
+                            @foreach (var roleName in BuildBookRoles.All)
+                            {
+                                <label class="role-checkbox" for="@($"role-{editingUser.Id}-{SanitizeRoleName(roleName)}")">
+                                    <input id="@($"role-{editingUser.Id}-{SanitizeRoleName(roleName)}")"
+                                           type="checkbox"
+                                           checked="@editingUser.HasRole(roleName)"
+                                           disabled="@IsRoleLocked(editingUser, roleName)"
+                                           @onchange="args => editingUser.SetRole(roleName, args.Value is true)" />
+                                    @roleName
+                                </label>
+                            }
                         </div>
-                    }
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="secondary-button" disabled="@editingUser.IsSaving" @onclick="() => SaveUserAsync(editingUser)">Save user</button>
+                        <button type="button" class="secondary-button" disabled="@editingUser.IsSaving" @onclick="() => CancelEdit(editingUser)">Cancel</button>
+                    </div>
                 </section>
             }
         }
@@ -276,7 +245,6 @@ else
     private List<EditableUserModel> editableUsers = [];
     private List<string> bootstrapAdministrators = [];
     private string currentUserName = "Unknown";
-    private string authenticationMode = "Windows Authentication";
     private string? statusMessage;
     private bool statusIsError;
     private bool isLoading = true;
@@ -286,9 +254,6 @@ else
     {
         var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         currentUserName = authenticationState.User.Identity?.Name ?? "Unknown";
-        authenticationMode = authenticationState.User.Identity?.AuthenticationType == BuildBookAuthenticationSchemes.Development
-            ? "Local development authentication bypass"
-            : "Windows Authentication";
         bootstrapAdministrators = BuildBookOptions.Value.Authorization.BootstrapAdministrators
             .Where(userName => !string.IsNullOrWhiteSpace(userName))
             .Select(userName => userName.Trim())
@@ -383,6 +348,8 @@ else
         user.Errors.Clear();
     }
 
+    private EditableUserModel? editingUser => editableUsers.FirstOrDefault(user => user.IsEditing);
+
     private static bool IsRoleLocked(EditableUserModel user, string roleName)
     {
         return user.IsBootstrapAdministrator && roleName == BuildBookRoles.Administrator;
@@ -391,18 +358,6 @@ else
     private static string SanitizeRoleName(string roleName)
     {
         return roleName.Replace(" ", "-", StringComparison.Ordinal).ToLowerInvariant();
-    }
-
-    private static string DescribeUser(EditableUserModel user)
-    {
-        if (user.SelectedRoles.Count == 0)
-        {
-            return user.IsBootstrapAdministrator
-                ? "Administrator access is coming from bootstrap configuration."
-                : "No BuildBook roles assigned yet.";
-        }
-
-        return $"Assigned roles: {string.Join(", ", user.SelectedRoles.OrderBy(role => role, StringComparer.Ordinal))}.";
     }
 
     private static string DisplayValue(string? value)

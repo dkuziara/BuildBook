@@ -11,7 +11,7 @@ public sealed class RmaRecordService(
     IDbContextFactory<BuildBookDbContext> dbContextFactory,
     IRmaAuditService rmaAuditService,
     IRmaStatusTransitionService rmaStatusTransitionService,
-    IRmaAttachmentStorage rmaAttachmentStorage) : IRmaRecordService
+    IRmaAttachmentStorage rmaAttachmentStorage) : IRmaRecordService, IRmaRegisterReader
 {
     private static readonly HashSet<string> ReadyToShipDeferredChecklistItems =
     [
@@ -714,6 +714,13 @@ public sealed class RmaRecordService(
                 rmaRecord.BuildRecordId,
                 rmaRecord.LastUpdatedAt))
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<IReadOnlyList<RmaRegisterRow>> ListAsync(
+        RmaRegisterFilter? filter = null,
+        CancellationToken cancellationToken = default)
+    {
+        return SearchAsync(filter, cancellationToken);
     }
 
     public async Task<IReadOnlyList<RmaBuildRecordMatchSuggestion>> SuggestBuildRecordMatchesAsync(

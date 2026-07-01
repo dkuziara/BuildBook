@@ -27,79 +27,87 @@
     </div>
 </section>
 
-<section class="filter-panel compact-filter-panel" aria-labelledby="build-register-filters-heading">
-    <div class="table-panel-heading compact-panel-title">
+<section class="table-panel compact-table-panel" aria-labelledby="build-register-table-heading">
+    <div class="table-panel-heading register-toolbar-heading">
         <div>
-            <h2 id="build-register-filters-heading">Filters</h2>
-            <p>Refine the active register without pushing the list too far down the page.</p>
+            <h2 id="build-register-table-heading">Build Records</h2>
+            <p>@RecordsSummary</p>
         </div>
-    </div>
-
-    <EditForm Model="filterModel" OnValidSubmit="ApplyFiltersAsync" FormName="build-register-filters">
-        <div class="filter-grid">
-            <div class="form-field">
-                <label for="filter-customer">Customer</label>
-                <InputText id="filter-customer" class="text-input" @bind-Value="filterModel.Customer" />
-            </div>
-
-            <div class="form-field">
-                <label for="filter-product-code">Product code</label>
-                <InputText id="filter-product-code" class="text-input" @bind-Value="filterModel.ProductCode" />
-            </div>
-
-            <div class="form-field">
-                <label for="filter-date-shipped">Date shipped</label>
-                <InputDate id="filter-date-shipped" class="text-input" @bind-Value="filterModel.DateShipped" />
-            </div>
-
-            <div class="form-field">
-                <label for="filter-radsight-version">RadSight version</label>
-                <InputText id="filter-radsight-version" class="text-input" @bind-Value="filterModel.RadSightVersion" />
-            </div>
-
-            <div class="form-field">
-                <label for="filter-windows-version">Windows version</label>
-                <InputText id="filter-windows-version" class="text-input" @bind-Value="filterModel.WindowsVersion" />
-            </div>
-        </div>
-
-        <div class="form-actions register-actions">
-            <button type="submit" class="primary-button" disabled="@isLoading">Apply filters</button>
-            <button type="button" class="secondary-button" disabled="@(!canClearFilters)" @onclick="ClearFiltersAsync">Clear filters</button>
+        <div class="form-actions register-toolbar-actions">
+            <button type="button" class="secondary-button" aria-controls="build-register-filters-panel" aria-expanded="@showFilters.ToString().ToLowerInvariant()" @onclick="ToggleFilters">
+                @(showFilters ? "Hide filters" : "Show filters")
+            </button>
             <AuthorizeView Policy="@BuildBookPolicies.ExportNonSensitiveData">
-                <Authorized Context="exportAuthorizationState">
+                <Authorized>
                     @if (buildRecords is { Count: > 0 })
                     {
-                        <a class="action-link" href="@BuildRegisterCsvDownloadUrl">Export current results to CSV</a>
-                        <a class="action-link" href="@BuildRegisterExcelDownloadUrl">Export current results to Excel</a>
+                        <a class="secondary-button" href="@BuildRegisterExcelDownloadUrl">Export Excel</a>
+                        <a class="secondary-button" href="@BuildRegisterCsvDownloadUrl">Export CSV</a>
                     }
                 </Authorized>
             </AuthorizeView>
         </div>
-    </EditForm>
-</section>
+    </div>
 
-@if (buildRecords is null)
-{
-    <section class="placeholder-panel" aria-live="polite">
-        <p>Loading Build Records...</p>
-    </section>
-}
-else if (buildRecords.Count == 0)
-{
-    <section class="placeholder-panel" aria-labelledby="empty-build-register-heading">
-        <h2 id="empty-build-register-heading">No Build Records found</h2>
-        <p>@(hasActiveFilters ? "No Build Records match the current filters." : "Add the first Build Record to start replacing the spreadsheet.")</p>
-    </section>
-}
-else
-{
-    <section class="table-panel compact-table-panel" aria-labelledby="build-register-table-heading">
-        <div class="table-panel-heading">
-            <h2 id="build-register-table-heading">Build Records</h2>
-            <p>@buildRecords.Count @(hasActiveFilters ? "matching" : "active") records</p>
+    @if (showFilters)
+    {
+        <div id="build-register-filters-panel" class="register-filters-block" aria-labelledby="build-register-filters-heading">
+            <div class="compact-panel-title">
+                <h3 id="build-register-filters-heading">Filters</h3>
+                <p>Refine the active register without pushing the list too far down the page.</p>
+            </div>
+
+            <EditForm Model="filterModel" OnValidSubmit="ApplyFiltersAsync" FormName="build-register-filters">
+                <div class="filter-grid">
+                    <div class="form-field">
+                        <label for="filter-customer">Customer</label>
+                        <InputText id="filter-customer" class="text-input" @bind-Value="filterModel.Customer" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="filter-product-code">Product code</label>
+                        <InputText id="filter-product-code" class="text-input" @bind-Value="filterModel.ProductCode" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="filter-date-shipped">Date shipped</label>
+                        <InputDate id="filter-date-shipped" class="text-input" @bind-Value="filterModel.DateShipped" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="filter-radsight-version">RadSight version</label>
+                        <InputText id="filter-radsight-version" class="text-input" @bind-Value="filterModel.RadSightVersion" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="filter-windows-version">Windows version</label>
+                        <InputText id="filter-windows-version" class="text-input" @bind-Value="filterModel.WindowsVersion" />
+                    </div>
+                </div>
+
+                <div class="form-actions register-actions">
+                    <button type="submit" class="secondary-button" disabled="@isLoading">Apply filters</button>
+                    <button type="button" class="secondary-button" disabled="@(!canClearFilters)" @onclick="ClearFiltersAsync">Clear filters</button>
+                </div>
+            </EditForm>
         </div>
+    }
 
+    @if (buildRecords is null)
+    {
+        <div class="placeholder-panel table-panel-placeholder" aria-live="polite">
+            <p>Loading Build Records...</p>
+        </div>
+    }
+    else if (buildRecords.Count == 0)
+    {
+        <div class="placeholder-panel table-panel-placeholder" aria-labelledby="empty-build-register-heading">
+            <h3 id="empty-build-register-heading">No Build Records found</h3>
+            <p>@(hasActiveFilters ? "No Build Records match the current filters." : "Add the first Build Record to start replacing the spreadsheet.")</p>
+        </div>
+    }
+    else
+    {
         <div class="table-scroll">
             <table class="data-table">
                 <thead>
@@ -139,17 +147,21 @@ else
                 </tbody>
             </table>
         </div>
-    </section>
-}
+    }
+</section>
 
 @code {
     private IReadOnlyList<BuildRegisterRow>? buildRecords;
     private BuildRegisterFilter filterModel = new();
     private bool hasActiveFilters;
     private bool isLoading;
+    private bool showFilters;
     private bool canClearFilters => !isLoading && hasActiveFilters;
     private string BuildRegisterCsvDownloadUrl => BuildExportUrl();
     private string BuildRegisterExcelDownloadUrl => BuildExportUrl("xlsx");
+    private string RecordsSummary => buildRecords is null
+        ? "Loading Build Records..."
+        : $"{buildRecords.Count} {(hasActiveFilters ? "matching" : "active")} records";
 
     protected override async Task OnInitializedAsync()
     {
@@ -186,8 +198,14 @@ else
     {
         isLoading = true;
         hasActiveFilters = filter?.HasAnyFilter() == true;
+        showFilters = hasActiveFilters || showFilters;
         buildRecords = await BuildRegisterReader.ListAsync(filter);
         isLoading = false;
+    }
+
+    private void ToggleFilters()
+    {
+        showFilters = !showFilters;
     }
 
     private static string Display(string? value)

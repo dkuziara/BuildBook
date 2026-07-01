@@ -36,81 +36,98 @@
     </div>
 </section>
 
-<section class="filter-panel compact-filter-panel" aria-labelledby="customers-filters-heading">
-    <div class="table-panel-heading compact-panel-title">
+<section class="table-panel compact-table-panel" aria-labelledby="customers-table-heading">
+    <div class="table-panel-heading register-toolbar-heading">
         <div>
-            <h2 id="customers-filters-heading">Filters</h2>
-            <p>Search customer names, contacts and contract details without treating this as a full CRM workflow.</p>
+            <h2 id="customers-table-heading">Customer records</h2>
+            <p>@RecordsSummary</p>
+        </div>
+        <div class="form-actions register-toolbar-actions">
+            <button type="button" class="secondary-button" aria-controls="customers-filters-panel" aria-expanded="@showFilters.ToString().ToLowerInvariant()" @onclick="ToggleFilters">
+                @(showFilters ? "Hide filters" : "Show filters")
+            </button>
+            <AuthorizeView Policy="@BuildBookPolicies.ExportCustomers">
+                <Authorized>
+                    @if (customers is { Count: > 0 })
+                    {
+                        <a class="secondary-button" href="@CustomerExcelDownloadUrl">Export Excel</a>
+                        <a class="secondary-button" href="@CustomerCsvDownloadUrl">Export CSV</a>
+                    }
+                </Authorized>
+            </AuthorizeView>
         </div>
     </div>
 
-    <EditForm Model="filterModel" OnValidSubmit="ApplyFiltersAsync" FormName="customers-filters">
-        <div class="filter-grid">
-            <div class="form-field">
-                <label for="customer-search">Search</label>
-                <InputText id="customer-search" class="text-input" @bind-Value="filterModel.Search" />
+    @if (showFilters)
+    {
+        <div id="customers-filters-panel" class="register-filters-block" aria-labelledby="customers-filters-heading">
+            <div class="compact-panel-title">
+                <h3 id="customers-filters-heading">Filters</h3>
+                <p>Search customer names, contacts and contract details without treating this as a full CRM workflow.</p>
             </div>
 
-            <div class="form-field">
-                <label for="customer-contract-level">Contract level</label>
-                <InputSelect id="customer-contract-level" class="text-input" @bind-Value="filterModel.SupportContractLevelId">
-                    <option value="">Any level</option>
-                    @foreach (var supportContractLevel in supportContractLevels)
-                    {
-                        <option value="@supportContractLevel.Id">@supportContractLevel.Name</option>
-                    }
-                </InputSelect>
-            </div>
+            <EditForm Model="filterModel" OnValidSubmit="ApplyFiltersAsync" FormName="customers-filters">
+                <div class="filter-grid">
+                    <div class="form-field">
+                        <label for="customer-search">Search</label>
+                        <InputText id="customer-search" class="text-input" @bind-Value="filterModel.Search" />
+                    </div>
 
-            <div class="form-field">
-                <label for="customer-contract-status">Contract status</label>
-                <InputSelect id="customer-contract-status" class="text-input" @bind-Value="filterModel.SupportContractStatus">
-                    <option value="">Any status</option>
-                    @foreach (var supportContractStatus in CustomerSupportContractStatuses.All)
-                    {
-                        <option value="@supportContractStatus">@supportContractStatus</option>
-                    }
-                </InputSelect>
-            </div>
+                    <div class="form-field">
+                        <label for="customer-contract-level">Contract level</label>
+                        <InputSelect id="customer-contract-level" class="text-input" @bind-Value="filterModel.SupportContractLevelId">
+                            <option value="">Any level</option>
+                            @foreach (var supportContractLevel in supportContractLevels)
+                            {
+                                <option value="@supportContractLevel.Id">@supportContractLevel.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
 
-            <div class="form-field">
-                <label for="customer-active-state">Active</label>
-                <InputSelect id="customer-active-state" class="text-input" @bind-Value="activeFilterValue">
-                    <option value="">Any status</option>
-                    <option value="true">Active</option>
-                    <option value="false">Inactive</option>
-                </InputSelect>
-            </div>
+                    <div class="form-field">
+                        <label for="customer-contract-status">Contract status</label>
+                        <InputSelect id="customer-contract-status" class="text-input" @bind-Value="filterModel.SupportContractStatus">
+                            <option value="">Any status</option>
+                            @foreach (var supportContractStatus in CustomerSupportContractStatuses.All)
+                            {
+                                <option value="@supportContractStatus">@supportContractStatus</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="customer-active-state">Active</label>
+                        <InputSelect id="customer-active-state" class="text-input" @bind-Value="activeFilterValue">
+                            <option value="">Any status</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="form-actions register-actions">
+                    <button type="submit" class="secondary-button" disabled="@isLoading">Apply filters</button>
+                    <button type="button" class="secondary-button" disabled="@(!canClearFilters)" @onclick="ClearFiltersAsync">Clear filters</button>
+                </div>
+            </EditForm>
         </div>
+    }
 
-        <div class="form-actions register-actions">
-            <button type="submit" class="primary-button" disabled="@isLoading">Apply filters</button>
-            <button type="button" class="secondary-button" disabled="@(!canClearFilters)" @onclick="ClearFiltersAsync">Clear filters</button>
+    @if (customers is null)
+    {
+        <div class="placeholder-panel table-panel-placeholder" aria-live="polite">
+            <p>Loading customers...</p>
         </div>
-    </EditForm>
-</section>
-
-@if (customers is null)
-{
-    <section class="placeholder-panel" aria-live="polite">
-        <p>Loading customers...</p>
-    </section>
-}
-else if (customers.Count == 0)
-{
-    <section class="placeholder-panel" aria-labelledby="empty-customers-heading">
-        <h2 id="empty-customers-heading">No customers found</h2>
-        <p>@(hasActiveFilters ? "No customer records match the current filters." : "Add the first customer record to start centralising support contract details.")</p>
-    </section>
-}
-else
-{
-    <section class="table-panel compact-table-panel" aria-labelledby="customers-table-heading">
-        <div class="table-panel-heading">
-            <h2 id="customers-table-heading">Customer records</h2>
-            <p>@customers.Count @(hasActiveFilters ? "matching" : "available") records</p>
+    }
+    else if (customers.Count == 0)
+    {
+        <div class="placeholder-panel table-panel-placeholder" aria-labelledby="empty-customers-heading">
+            <h3 id="empty-customers-heading">No customers found</h3>
+            <p>@(hasActiveFilters ? "No customer records match the current filters." : "Add the first customer record to start centralising support contract details.")</p>
         </div>
-
+    }
+    else
+    {
         <div class="table-scroll">
             <table class="data-table">
                 <thead>
@@ -144,8 +161,8 @@ else
                 </tbody>
             </table>
         </div>
-    </section>
-}
+    }
+</section>
 
 @code {
     private IReadOnlyList<CustomerListItem>? customers;
@@ -153,8 +170,14 @@ else
     private CustomerListFilter filterModel = new();
     private bool hasActiveFilters;
     private bool isLoading;
+    private bool showFilters;
     private string? activeFilterValue;
     private bool canClearFilters => !isLoading && hasActiveFilters;
+    private string CustomerCsvDownloadUrl => BuildExportUrl();
+    private string CustomerExcelDownloadUrl => BuildExportUrl("xlsx");
+    private string RecordsSummary => customers is null
+        ? "Loading customers..."
+        : $"{customers.Count} {(hasActiveFilters ? "matching" : "available")} records";
 
     protected override async Task OnInitializedAsync()
     {
@@ -196,8 +219,14 @@ else
         isLoading = true;
         var activeFilter = filter ?? new CustomerListFilter();
         hasActiveFilters = activeFilter.HasAnyFilter();
+        showFilters = hasActiveFilters || showFilters;
         customers = await CustomerService.SearchAsync(activeFilter);
         isLoading = false;
+    }
+
+    private void ToggleFilters()
+    {
+        showFilters = !showFilters;
     }
 
     private bool? ParseActiveFilter()
@@ -225,5 +254,43 @@ else
     private static string Display(DateOnly? value)
     {
         return value?.ToString("d MMM yyyy") ?? "Not recorded";
+    }
+
+    private string BuildExportUrl(string format = "csv")
+    {
+        var queryParameters = new List<string>
+        {
+            CreateQueryParameter("sortBy", filterModel.SortBy.ToString()),
+            CreateQueryParameter("sortDescending", filterModel.SortDescending.ToString().ToLowerInvariant())
+        };
+
+        AddQueryParameter(queryParameters, "search", filterModel.Search);
+        AddQueryParameter(queryParameters, "supportContractStatus", filterModel.SupportContractStatus);
+
+        if (filterModel.SupportContractLevelId is not null)
+        {
+            queryParameters.Add(CreateQueryParameter("supportContractLevelId", filterModel.SupportContractLevelId.Value.ToString()));
+        }
+
+        var activeFilter = ParseActiveFilter();
+        if (activeFilter is not null)
+        {
+            queryParameters.Add(CreateQueryParameter("isActive", activeFilter.Value.ToString().ToLowerInvariant()));
+        }
+
+        return $"/customers/export.{format}?{string.Join("&", queryParameters)}";
+    }
+
+    private static void AddQueryParameter(ICollection<string> queryParameters, string key, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            queryParameters.Add(CreateQueryParameter(key, value.Trim()));
+        }
+    }
+
+    private static string CreateQueryParameter(string key, string value)
+    {
+        return $"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}";
     }
 }

@@ -8,8 +8,15 @@ namespace BuildBook.Infrastructure.Persistence.Customers;
 
 public sealed class CustomerService(
     IDbContextFactory<BuildBookDbContext> dbContextFactory,
-    IRmaAuditService rmaAuditService) : ICustomerService
+    IRmaAuditService rmaAuditService) : ICustomerService, ICustomerListReader
 {
+    public Task<IReadOnlyList<CustomerListItem>> ListAsync(
+        CustomerListFilter filter,
+        CancellationToken cancellationToken = default)
+    {
+        return SearchAsync(filter, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<CustomerListItem>> SearchAsync(
         CustomerListFilter filter,
         CancellationToken cancellationToken = default)

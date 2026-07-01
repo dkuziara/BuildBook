@@ -42,130 +42,123 @@
     </section>
 }
 
-<section class="detail-panel detail-section compact-callout-panel" aria-labelledby="rma-register-workflow-heading">
-    <div class="detail-panel-header">
+<section class="table-panel compact-table-panel" aria-labelledby="rma-register-table-heading">
+    <div class="table-panel-heading register-toolbar-heading">
         <div>
-            <h2 id="rma-register-workflow-heading">Daily Workflow</h2>
-            <p>Use the register for triage, the board for active movement, and reports for trend checks or handover prep.</p>
-        </div>
-    </div>
-
-    <div class="summary-list">
-        <div>
-            <dt>Register</dt>
-            <dd>Find and open the exact RMA quickly.</dd>
-        </div>
-        <div>
-            <dt>Board</dt>
-            <dd>Review bottlenecks across the repair stages.</dd>
-        </div>
-        <div>
-            <dt>Reports</dt>
-            <dd>Check repeat returns, open durations and status slices.</dd>
-        </div>
-    </div>
-</section>
-
-<section class="filter-panel compact-filter-panel" aria-labelledby="rma-register-filters-heading">
-    <div class="table-panel-heading compact-panel-title">
-        <div>
-            <h2 id="rma-register-filters-heading">Filters</h2>
-            <p>Refine the active register without losing sight of current work.</p>
-        </div>
-    </div>
-
-    <EditForm Model="filterModel" OnValidSubmit="ApplyFiltersAsync" FormName="rma-register-filters">
-        <div class="filter-grid">
-            <div class="form-field">
-                <label for="rma-search">Search</label>
-                <InputText id="rma-search" class="text-input" @bind-Value="filterModel.Search" />
-            </div>
-
-            <div class="form-field">
-                <label for="rma-status">Status</label>
-                <InputSelect id="rma-status" class="text-input" @bind-Value="filterModel.Status">
-                    <option value="">Any status</option>
-                    @foreach (var status in Enum.GetValues<RmaStatus>())
-                    {
-                        <option value="@status">@FormatStatus(status)</option>
-                    }
-                </InputSelect>
-            </div>
-
-            <div class="form-field">
-                <label for="rma-customer">Customer</label>
-                <InputText id="rma-customer" class="text-input" @bind-Value="filterModel.Customer" />
-            </div>
-
-            <div class="form-field">
-                <label for="rma-product">Product</label>
-                <InputText id="rma-product" class="text-input" @bind-Value="filterModel.Product" />
-            </div>
-
-            <div class="form-field">
-                <label for="rma-serial">Serial number</label>
-                <InputText id="rma-serial" class="text-input" @bind-Value="filterModel.SerialNumber" />
-            </div>
-
-            <div class="form-field">
-                <label for="rma-assigned">Assigned to</label>
-                <InputText id="rma-assigned" class="text-input" @bind-Value="filterModel.AssignedTo" />
-            </div>
-
-            <div class="form-field">
-                <label for="rma-priority">Priority</label>
-                <InputSelect id="rma-priority" class="text-input" @bind-Value="filterModel.Priority">
-                    <option value="">Any priority</option>
-                    @foreach (var priority in Enum.GetValues<RmaPriority>())
-                    {
-                        <option value="@priority">@priority</option>
-                    }
-                </InputSelect>
-            </div>
-
-            <div class="form-field">
-                <label for="rma-due-date">Due date</label>
-                <InputDate id="rma-due-date" class="text-input" @bind-Value="filterModel.DueDate" />
-            </div>
-
-            <div class="form-field">
-                <label for="rma-link-state">Build Record link</label>
-                <InputSelect id="rma-link-state" class="text-input" @bind-Value="linkedBuildRecordFilter">
-                    <option value="">Any link state</option>
-                    <option value="true">Linked</option>
-                    <option value="false">Unlinked</option>
-                </InputSelect>
-            </div>
-        </div>
-
-        <div class="form-actions register-actions">
-            <button type="submit" class="primary-button" disabled="@isLoading">Apply filters</button>
-            <button type="button" class="secondary-button" disabled="@(!canClearFilters)" @onclick="ClearFiltersAsync">Clear filters</button>
-        </div>
-    </EditForm>
-</section>
-
-@if (rmaRecords is null)
-{
-    <section class="placeholder-panel" aria-live="polite">
-        <p>Loading RMA records...</p>
-    </section>
-}
-else if (rmaRecords.Count == 0)
-{
-    <section class="placeholder-panel" aria-labelledby="empty-rma-register-heading">
-        <h2 id="empty-rma-register-heading">No RMA records found</h2>
-        <p>@(hasActiveFilters ? "No RMA records match the current filters." : "Create the first RMA record to begin tracking repairs in BuildBook.")</p>
-    </section>
-}
-else
-{
-    <section class="table-panel compact-table-panel" aria-labelledby="rma-register-table-heading">
-        <div class="table-panel-heading">
             <h2 id="rma-register-table-heading">RMA Records</h2>
-            <p>@rmaRecords.Count @(hasActiveFilters ? "matching" : "active") records</p>
+            <p>@RecordsSummary</p>
         </div>
+        <div class="form-actions register-toolbar-actions">
+            <button type="button" class="secondary-button" aria-controls="rma-register-filters-panel" aria-expanded="@showFilters.ToString().ToLowerInvariant()" @onclick="ToggleFilters">
+                @(showFilters ? "Hide filters" : "Show filters")
+            </button>
+            <AuthorizeView Policy="@BuildBookRmaPolicies.ExportRmaReports">
+                <Authorized>
+                    @if (rmaRecords is { Count: > 0 })
+                    {
+                        <a class="secondary-button" href="@RmaExcelDownloadUrl">Export Excel</a>
+                        <a class="secondary-button" href="@RmaCsvDownloadUrl">Export CSV</a>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </div>
 
+    @if (showFilters)
+    {
+        <div id="rma-register-filters-panel" class="register-filters-block" aria-labelledby="rma-register-filters-heading">
+            <div class="compact-panel-title">
+                <h3 id="rma-register-filters-heading">Filters</h3>
+                <p>Refine the active register without losing sight of current work.</p>
+            </div>
+
+            <EditForm Model="filterModel" OnValidSubmit="ApplyFiltersAsync" FormName="rma-register-filters">
+                <div class="filter-grid">
+                    <div class="form-field">
+                        <label for="rma-search">Search</label>
+                        <InputText id="rma-search" class="text-input" @bind-Value="filterModel.Search" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="rma-status">Status</label>
+                        <InputSelect id="rma-status" class="text-input" @bind-Value="filterModel.Status">
+                            <option value="">Any status</option>
+                            @foreach (var status in Enum.GetValues<RmaStatus>())
+                            {
+                                <option value="@status">@FormatStatus(status)</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="rma-customer">Customer</label>
+                        <InputText id="rma-customer" class="text-input" @bind-Value="filterModel.Customer" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="rma-product">Product</label>
+                        <InputText id="rma-product" class="text-input" @bind-Value="filterModel.Product" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="rma-serial">Serial number</label>
+                        <InputText id="rma-serial" class="text-input" @bind-Value="filterModel.SerialNumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="rma-assigned">Assigned to</label>
+                        <InputText id="rma-assigned" class="text-input" @bind-Value="filterModel.AssignedTo" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="rma-priority">Priority</label>
+                        <InputSelect id="rma-priority" class="text-input" @bind-Value="filterModel.Priority">
+                            <option value="">Any priority</option>
+                            @foreach (var priority in Enum.GetValues<RmaPriority>())
+                            {
+                                <option value="@priority">@priority</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="rma-due-date">Due date</label>
+                        <InputDate id="rma-due-date" class="text-input" @bind-Value="filterModel.DueDate" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="rma-link-state">Build Record link</label>
+                        <InputSelect id="rma-link-state" class="text-input" @bind-Value="linkedBuildRecordFilter">
+                            <option value="">Any link state</option>
+                            <option value="true">Linked</option>
+                            <option value="false">Unlinked</option>
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="form-actions register-actions">
+                    <button type="submit" class="secondary-button" disabled="@isLoading">Apply filters</button>
+                    <button type="button" class="secondary-button" disabled="@(!canClearFilters)" @onclick="ClearFiltersAsync">Clear filters</button>
+                </div>
+            </EditForm>
+        </div>
+    }
+
+    @if (rmaRecords is null)
+    {
+        <div class="placeholder-panel table-panel-placeholder" aria-live="polite">
+            <p>Loading RMA records...</p>
+        </div>
+    }
+    else if (rmaRecords.Count == 0)
+    {
+        <div class="placeholder-panel table-panel-placeholder" aria-labelledby="empty-rma-register-heading">
+            <h3 id="empty-rma-register-heading">No RMA records found</h3>
+            <p>@(hasActiveFilters ? "No RMA records match the current filters." : "Create the first RMA record to begin tracking repairs in BuildBook.")</p>
+        </div>
+    }
+    else
+    {
         <div class="table-scroll">
             <table class="data-table">
                 <thead>
@@ -203,8 +196,8 @@ else
                 </tbody>
             </table>
         </div>
-    </section>
-}
+    }
+</section>
 
 @code {
     private IReadOnlyList<RmaRegisterRow>? rmaRecords;
@@ -212,8 +205,14 @@ else
     private RmaRegisterFilter filterModel = new();
     private bool hasActiveFilters;
     private bool isLoading;
+    private bool showFilters;
     private string? linkedBuildRecordFilter;
     private bool canClearFilters => !isLoading && hasActiveFilters;
+    private string RmaCsvDownloadUrl => BuildExportUrl();
+    private string RmaExcelDownloadUrl => BuildExportUrl("xlsx");
+    private string RecordsSummary => rmaRecords is null
+        ? "Loading RMA records..."
+        : $"{rmaRecords.Count} {(hasActiveFilters ? "matching" : "active")} records";
 
     protected override async Task OnInitializedAsync()
     {
@@ -253,9 +252,15 @@ else
     {
         isLoading = true;
         hasActiveFilters = filter?.HasAnyFilter() == true;
+        showFilters = hasActiveFilters || showFilters;
         dashboardSummary = await RmaRecordService.GetDashboardSummaryAsync();
         rmaRecords = await RmaRecordService.SearchAsync(filter);
         isLoading = false;
+    }
+
+    private void ToggleFilters()
+    {
+        showFilters = !showFilters;
     }
 
     private bool? ParseLinkedBuildRecordFilter()
@@ -306,5 +311,56 @@ else
     private static string DashboardReportLink(RmaReportScope scope)
     {
         return $"/rmas/reports?scope={Uri.EscapeDataString(scope.ToString())}#selected-rma-report-heading";
+    }
+
+    private string BuildExportUrl(string format = "csv")
+    {
+        var queryParameters = new List<string>
+        {
+            CreateQueryParameter("sortBy", filterModel.SortBy.ToString()),
+            CreateQueryParameter("sortDescending", filterModel.SortDescending.ToString().ToLowerInvariant())
+        };
+
+        AddQueryParameter(queryParameters, "search", filterModel.Search);
+        AddQueryParameter(queryParameters, "customer", filterModel.Customer);
+        AddQueryParameter(queryParameters, "product", filterModel.Product);
+        AddQueryParameter(queryParameters, "serialNumber", filterModel.SerialNumber);
+        AddQueryParameter(queryParameters, "assignedTo", filterModel.AssignedTo);
+
+        if (filterModel.Status is not null)
+        {
+            queryParameters.Add(CreateQueryParameter("status", filterModel.Status.Value.ToString()));
+        }
+
+        if (filterModel.Priority is not null)
+        {
+            queryParameters.Add(CreateQueryParameter("priority", filterModel.Priority.Value.ToString()));
+        }
+
+        if (filterModel.DueDate is not null)
+        {
+            queryParameters.Add(CreateQueryParameter("dueDate", filterModel.DueDate.Value.ToString("yyyy-MM-dd")));
+        }
+
+        var hasLinkedBuildRecord = ParseLinkedBuildRecordFilter();
+        if (hasLinkedBuildRecord is not null)
+        {
+            queryParameters.Add(CreateQueryParameter("hasLinkedBuildRecord", hasLinkedBuildRecord.Value.ToString().ToLowerInvariant()));
+        }
+
+        return $"/rmas/export.{format}?{string.Join("&", queryParameters)}";
+    }
+
+    private static void AddQueryParameter(ICollection<string> queryParameters, string key, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            queryParameters.Add(CreateQueryParameter(key, value.Trim()));
+        }
+    }
+
+    private static string CreateQueryParameter(string key, string value)
+    {
+        return $"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}";
     }
 }
