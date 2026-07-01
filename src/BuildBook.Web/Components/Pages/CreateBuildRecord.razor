@@ -1,9 +1,12 @@
 @page "/build-records/new"
 @rendermode InteractiveServer
 
+@using BuildBook.Application.Orders
+
 @attribute [Authorize(Policy = BuildBookPolicies.EditBuildRecords)]
 
 @inject IBuildRecordCreator BuildRecordCreator
+@inject IOrderIntegrationService OrderIntegrationService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
@@ -16,6 +19,18 @@
         <p>Create the required product and serial details here, then complete the rest from the record page.</p>
     </div>
 </section>
+
+@if (SourceOrderId is not null)
+{
+    <section class="detail-panel">
+        <div class="detail-panel-header">
+            <div>
+                <h2>Order Context</h2>
+                <p>This Build Record will be created from Order @DisplaySourceOrder().</p>
+            </div>
+        </div>
+    </section>
+}
 
 <section class="form-panel" aria-labelledby="add-build-record-heading">
     <h2 id="add-build-record-heading">Required details</h2>
@@ -70,6 +85,40 @@
     private CreateBuildRecordRequest model = new();
     private readonly List<string> serverErrors = [];
     private bool isSaving;
+    private bool hasInitializedFromQuery;
+
+    [SupplyParameterFromQuery]
+    public int? SourceOrderId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? SourceOrderNumber { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? SourceOrderTitle { get; set; }
+
+    [SupplyParameterFromQuery]
+    public int? CustomerId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? CustomerOrder { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (hasInitializedFromQuery)
+        {
+            return;
+        }
+
+        model.CustomerId = CustomerId;
+        model.CustomerOrder = CustomerOrder;
+
+        if (!string.IsNullOrWhiteSpace(SourceOrderTitle) && string.IsNullOrWhiteSpace(model.ProductName))
+        {
+            model.ProductName = SourceOrderTitle;
+        }
+
+        hasInitializedFromQuery = true;
+    }
 
     private async Task CreateAsync()
     {
@@ -84,7 +133,20 @@
 
             if (result.Succeeded)
             {
-                NavigationManager.NavigateTo($"/build-records/{result.BuildRecordId}");
+                var buildRecordId = result.BuildRecordId!.Value;
+
+                if (SourceOrderId is not null)
+                {
+                    var linkResult = await OrderIntegrationService.LinkBuildRecordAsync(SourceOrderId.Value, buildRecordId, userName);
+                    if (!linkResult.Succeeded)
+                    {
+                        serverErrors.Add($"Build Record {buildRecordId} was created but could not be linked back to the Order.");
+                        serverErrors.AddRange(linkResult.Errors);
+                        return;
+                    }
+                }
+
+                NavigationManager.NavigateTo($"/build-records/{buildRecordId}");
             }
             else
             {
@@ -99,5 +161,12 @@
         {
             isSaving = false;
         }
+    }
+
+    private string DisplaySourceOrder()
+    {
+        return string.IsNullOrWhiteSpace(SourceOrderNumber)
+            ? SourceOrderId?.ToString() ?? "current order"
+            : SourceOrderNumber;
     }
 }

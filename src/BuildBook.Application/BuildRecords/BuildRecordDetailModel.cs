@@ -43,6 +43,16 @@ public sealed record BuildRecordDetailModel(
     string? ManufacturerSerialNumber,
     string? PackingList,
     string? CheckedBy,
+    IReadOnlyList<LinkedBuildRecordOrderSummary> LinkedOrders,
     IReadOnlyCollection<SecretType> SecretTypesSet,
     DateTimeOffset LastUpdatedAt,
     string LastUpdatedBy);
+
+public sealed record LinkedBuildRecordOrderSummary(
+    int OrderId,
+    string OrderNumber,
+    string OrderTitle,
+    string Status,
+    string? CustomerName,
+    string? LinkType,
+    DateTimeOffset LinkedAt);

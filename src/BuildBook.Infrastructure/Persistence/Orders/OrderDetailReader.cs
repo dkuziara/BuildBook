@@ -127,6 +127,7 @@ public sealed class OrderDetailReader(
                         link.BuildRecord != null ? link.BuildRecord.ProductName : string.Empty,
                         link.BuildRecord != null ? link.BuildRecord.SerialNumber : string.Empty,
                         link.BuildRecord != null ? link.BuildRecord.MachineName : null,
+                        link.BuildRecord != null ? link.BuildRecord.DateShipped : null,
                         link.LinkType,
                         link.LinkedAt))
                     .ToArray(),

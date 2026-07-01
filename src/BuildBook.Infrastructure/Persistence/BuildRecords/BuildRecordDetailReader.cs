@@ -58,6 +58,17 @@ public sealed class BuildRecordDetailReader(
                 buildRecord.ManufacturerSerialNumber,
                 buildRecord.PackingList,
                 buildRecord.CheckedBy,
+                LinkedOrders = buildRecord.OrderLinks
+                    .OrderByDescending(link => link.LinkedAt)
+                    .Select(link => new LinkedBuildRecordOrderSummary(
+                        link.OrderRecordId,
+                        link.OrderRecord != null ? link.OrderRecord.OrderNumber : string.Empty,
+                        link.OrderRecord != null ? link.OrderRecord.OrderTitle : string.Empty,
+                        link.OrderRecord != null ? link.OrderRecord.Status : string.Empty,
+                        link.OrderRecord != null && link.OrderRecord.Customer != null ? link.OrderRecord.Customer.Name : null,
+                        link.LinkType,
+                        link.LinkedAt))
+                    .ToArray(),
                 SecretTypesSet = buildRecord.Secrets
                     .Select(secret => secret.SecretType)
                     .ToArray(),
@@ -109,6 +120,7 @@ public sealed class BuildRecordDetailReader(
                 buildRecord.ManufacturerSerialNumber,
                 buildRecord.PackingList,
                 buildRecord.CheckedBy,
+                buildRecord.LinkedOrders,
                 buildRecord.SecretTypesSet,
                 buildRecord.LastUpdatedAt,
                 buildRecord.LastUpdatedBy);

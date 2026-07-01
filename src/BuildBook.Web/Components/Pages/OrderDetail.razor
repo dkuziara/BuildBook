@@ -1,8 +1,10 @@
 @page "/orders/{OrderId:int}"
 @rendermode InteractiveServer
 
+@using BuildBook.Application.BuildRecords
 @using BuildBook.Application.Orders
 @using BuildBook.Application.Security
+@using BuildBook.Application.Settings
 @using BuildBook.Domain.Orders
 @using Microsoft.AspNetCore.Components.Forms
 
@@ -10,7 +12,11 @@
 
 @inject IOrderDetailReader OrderDetailReader
 @inject IOrderWorkflowService OrderWorkflowService
+@inject IOrderIntegrationService OrderIntegrationService
 @inject IApplicationUserManagementService ApplicationUserManagementService
+@inject ICustomerOptionsReader CustomerOptionsReader
+@inject IBuildRecordSearchService BuildRecordSearchService
+@inject ISystemSettingsService SystemSettingsService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>@PageTitleText</PageTitle>
@@ -40,7 +46,7 @@ else
         <div class="page-heading-copy">
             <p class="eyebrow">Orders</p>
             <h1>@orderRecord.OrderTitle</h1>
-            <p>Order workflow, assignments, checklist progress and imported Planner context.</p>
+            <p>Order workflow, customer context, linked Build Records and imported Planner activity.</p>
         </div>
         <div class="page-actions">
             <a class="secondary-button" href="/orders">Back to Orders</a>
@@ -101,10 +107,133 @@ else
                 <dd>@orderRecord.LinkedBuildRecords.Count</dd>
             </div>
             <div>
-                <dt>Support ticket no.</dt>
-                <dd>@Display(orderRecord.SupportTicketNo)</dd>
+                <dt>@supportTicketLabel</dt>
+                <dd>
+                    @if (CurrentSupportTicketUrl is not null)
+                    {
+                        <a class="table-link" href="@CurrentSupportTicketUrl" target="_blank" rel="noopener noreferrer">@orderRecord.SupportTicketNo</a>
+                    }
+                    else
+                    {
+                        @Display(orderRecord.SupportTicketNo)
+                    }
+                </dd>
             </div>
         </dl>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-customer-support-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-customer-support-heading">Customer &amp; Support</h2>
+                <p>Customer linkage, reference values and support ticket details.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookOrderPolicies.EditOrders">
+                <Authorized Context="customerSupportAuthorization">
+                    @if (!isEditingCustomerSupport)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingCustomerSupport">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingCustomerSupport)
+        {
+            @SectionErrors(customerSupportErrors, "Customer and support details could not be saved.")
+
+            <EditForm Model="customerSupportModel" OnValidSubmit="SaveCustomerSupportAsync" FormName="edit-order-customer-support">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-order-customer">Customer</label>
+                        <InputSelect TValue="int?" id="edit-order-customer" class="text-input" @bind-Value="customerSupportModel.CustomerId">
+                            <option value="">Not recorded</option>
+                            @foreach (var customer in customerOptions)
+                            {
+                                <option value="@customer.Id">@customer.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-support-ticket">@supportTicketLabel</label>
+                        <InputText id="edit-order-support-ticket" class="text-input" @bind-Value="customerSupportModel.SupportTicketNo" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-customer-reference">Customer reference</label>
+                        <InputText id="edit-order-customer-reference" class="text-input" @bind-Value="customerSupportModel.CustomerReference" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-customer-po-number">Customer purchase order no.</label>
+                        <InputText id="edit-order-customer-po-number" class="text-input" @bind-Value="customerSupportModel.CustomerPurchaseOrderNumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-internal-reference">Internal order reference</label>
+                        <InputText id="edit-order-internal-reference" class="text-input" @bind-Value="customerSupportModel.InternalOrderReference" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-quote-number">Quote number</label>
+                        <InputText id="edit-order-quote-number" class="text-input" @bind-Value="customerSupportModel.QuoteNumber" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingCustomerSupport">@(isSavingCustomerSupport ? "Saving..." : "Save customer details")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingCustomerSupport" @onclick="CancelCustomerSupportEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Customer</dt>
+                    <dd>
+                        @if (orderRecord.CustomerId is not null && !string.IsNullOrWhiteSpace(orderRecord.CustomerName))
+                        {
+                            <a class="table-link" href="@($"/customers/{orderRecord.CustomerId.Value}")">@orderRecord.CustomerName</a>
+                        }
+                        else
+                        {
+                            @Display(orderRecord.CustomerName)
+                        }
+                    </dd>
+                </div>
+                <div>
+                    <dt>@supportTicketLabel</dt>
+                    <dd>
+                        @if (CurrentSupportTicketUrl is not null)
+                        {
+                            <a class="table-link" href="@CurrentSupportTicketUrl" target="_blank" rel="noopener noreferrer">@orderRecord.SupportTicketNo</a>
+                        }
+                        else
+                        {
+                            @Display(orderRecord.SupportTicketNo)
+                        }
+                    </dd>
+                </div>
+                <div>
+                    <dt>Customer reference</dt>
+                    <dd>@Display(orderRecord.CustomerReference)</dd>
+                </div>
+                <div>
+                    <dt>Customer purchase order no.</dt>
+                    <dd>@Display(orderRecord.CustomerPurchaseOrderNumber)</dd>
+                </div>
+                <div>
+                    <dt>Internal order reference</dt>
+                    <dd>@Display(orderRecord.InternalOrderReference)</dd>
+                </div>
+                <div>
+                    <dt>Quote number</dt>
+                    <dd>@Display(orderRecord.QuoteNumber)</dd>
+                </div>
+            </dl>
+        }
     </section>
 
     <section class="detail-panel detail-section" aria-labelledby="order-workflow-heading">
@@ -302,22 +431,6 @@ else
         </div>
 
         <dl class="summary-list">
-            <div>
-                <dt>Customer reference</dt>
-                <dd>@Display(orderRecord.CustomerReference)</dd>
-            </div>
-            <div>
-                <dt>Customer purchase order no.</dt>
-                <dd>@Display(orderRecord.CustomerPurchaseOrderNumber)</dd>
-            </div>
-            <div>
-                <dt>Internal order reference</dt>
-                <dd>@Display(orderRecord.InternalOrderReference)</dd>
-            </div>
-            <div>
-                <dt>Quote number</dt>
-                <dd>@Display(orderRecord.QuoteNumber)</dd>
-            </div>
             <div>
                 <dt>Sales / Admin owner</dt>
                 <dd>@Display(orderRecord.SalesAdminOwner)</dd>
@@ -539,9 +652,70 @@ else
 
     <section class="table-panel compact-table-panel detail-section" aria-labelledby="order-linked-build-records-heading">
         <div class="table-panel-heading">
-            <h2 id="order-linked-build-records-heading">Linked Build Records</h2>
-            <p>@orderRecord.LinkedBuildRecords.Count linked Build Records</p>
+            <div>
+                <h2 id="order-linked-build-records-heading">Linked Build Records</h2>
+                <p>@orderRecord.LinkedBuildRecords.Count linked Build Records</p>
+            </div>
+            <div class="page-actions">
+                <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+                    <Authorized>
+                        <a class="secondary-button" href="@CreateBuildRecordFromOrderUrl">Create Build Record from Order</a>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
         </div>
+
+        <AuthorizeView Policy="@BuildBookOrderPolicies.LinkOrderBuildRecords">
+            <Authorized Context="buildLinkAuthorization">
+                @SectionErrors(buildLinkErrors, "Build Record links could not be updated.")
+
+                <EditForm Model="buildRecordLinkModel" OnValidSubmit="SearchBuildRecordsAsync" FormName="search-order-build-records">
+                    <div class="form-grid">
+                        <div class="form-field form-field-wide">
+                            <label for="order-build-record-search">Find an existing Build Record</label>
+                            <InputText id="order-build-record-search" class="text-input" @bind-Value="buildRecordLinkModel.SearchText" />
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="primary-button" disabled="@isSearchingBuildRecords">@(isSearchingBuildRecords ? "Searching..." : "Search Build Records")</button>
+                    </div>
+                </EditForm>
+
+                @if (buildRecordSearchResults.Count > 0)
+                {
+                    <div class="table-scroll detail-section">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Build Record</th>
+                                    <th scope="col">Customer</th>
+                                    <th scope="col">Machine name</th>
+                                    <th scope="col">Shipped</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var result in buildRecordSearchResults)
+                                {
+                                    <tr>
+                                        <td>
+                                            <a class="table-link" href="@($"/build-records/{result.Id}")">@result.ProductCode / @result.ProductName / @result.SerialNumber</a>
+                                        </td>
+                                        <td>@Display(result.CustomerName)</td>
+                                        <td>@Display(result.MachineName)</td>
+                                        <td>@Display(result.DateShipped)</td>
+                                        <td>
+                                            <button type="button" class="secondary-button" disabled="@isLinkingBuildRecord" @onclick="() => LinkBuildRecordAsync(result.Id)">Link</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </Authorized>
+        </AuthorizeView>
 
         @if (orderRecord.LinkedBuildRecords.Count == 0)
         {
@@ -556,8 +730,14 @@ else
                             <th scope="col">Build Record</th>
                             <th scope="col">Serial number</th>
                             <th scope="col">Machine name</th>
+                            <th scope="col">Build status</th>
                             <th scope="col">Link type</th>
                             <th scope="col">Linked at</th>
+                            <AuthorizeView Policy="@BuildBookOrderPolicies.LinkOrderBuildRecords">
+                                <Authorized>
+                                    <th scope="col">Actions</th>
+                                </Authorized>
+                            </AuthorizeView>
                         </tr>
                     </thead>
                     <tbody>
@@ -567,8 +747,16 @@ else
                                 <td><a class="table-link" href="@($"/build-records/{buildRecordLink.BuildRecordId}")">@buildRecordLink.ProductCode / @buildRecordLink.ProductName</a></td>
                                 <td>@buildRecordLink.SerialNumber</td>
                                 <td>@Display(buildRecordLink.MachineName)</td>
+                                <td>@DisplayBuildRecordStatus(buildRecordLink.DateShipped)</td>
                                 <td>@Display(buildRecordLink.LinkType)</td>
                                 <td>@buildRecordLink.LinkedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                                <AuthorizeView Policy="@BuildBookOrderPolicies.LinkOrderBuildRecords">
+                                    <Authorized>
+                                        <td>
+                                            <button type="button" class="secondary-button" disabled="@isLinkingBuildRecord" @onclick="() => UnlinkBuildRecordAsync(buildRecordLink.BuildRecordId)">Unlink</button>
+                                        </td>
+                                    </Authorized>
+                                </AuthorizeView>
                             </tr>
                         }
                     </tbody>
@@ -693,25 +881,71 @@ else
     private bool isLoading = true;
     private bool statusIsError;
     private string? statusMessage;
+    private bool isEditingCustomerSupport;
+    private bool isSavingCustomerSupport;
     private bool isEditingWorkflow;
     private bool isSavingWorkflow;
     private bool isEditingStatus;
     private bool isSavingStatus;
     private bool isSavingAssignment;
     private bool isSavingChecklist;
+    private bool isSearchingBuildRecords;
+    private bool isLinkingBuildRecord;
     private bool confirmStatusWarnings;
+    private UpdateOrderCustomerAndSupportRequest customerSupportModel = new();
     private UpdateOrderWorkflowRequest workflowModel = new();
     private ChangeOrderStatusRequest statusModel = new();
     private SaveOrderAssignmentRequest assignmentModel = new();
     private UpdateOrderChecklistItemRequest checklistModel = new();
+    private BuildRecordSearchModel buildRecordLinkModel = new();
+    private List<string> customerSupportErrors = [];
     private List<string> workflowErrors = [];
     private List<string> statusErrors = [];
     private List<string> statusWarnings = [];
     private List<string> assignmentErrors = [];
     private List<string> checklistErrors = [];
+    private List<string> buildLinkErrors = [];
     private IReadOnlyList<OrderUserOption> userOptions = [];
+    private IReadOnlyList<CustomerOption> customerOptions = [];
+    private IReadOnlyList<BuildRecordSearchResult> buildRecordSearchResults = [];
+    private string supportTicketLabel = SupportTicketSettingsValidator.DefaultSupportTicketLabel;
+    private string? supportTicketUrlTemplate;
 
     private string PageTitleText => orderRecord is null ? "Order Detail" : $"{orderRecord.OrderNumber} | Order Detail";
+
+    private string? CurrentSupportTicketUrl => orderRecord is null
+        ? null
+        : SupportTicketLinkBuilder.BuildUrl(supportTicketUrlTemplate, orderRecord.SupportTicketNo);
+
+    private string CreateBuildRecordFromOrderUrl
+    {
+        get
+        {
+            if (orderRecord is null)
+            {
+                return "/build-records/new";
+            }
+
+            var query = new List<string>
+            {
+                $"sourceOrderId={OrderId}",
+                $"sourceOrderNumber={Uri.EscapeDataString(orderRecord.OrderNumber)}",
+                $"sourceOrderTitle={Uri.EscapeDataString(orderRecord.OrderTitle)}"
+            };
+
+            if (orderRecord.CustomerId is not null)
+            {
+                query.Add($"customerId={orderRecord.CustomerId.Value}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(orderRecord.CustomerPurchaseOrderNumber))
+            {
+                query.Add($"customerOrder={Uri.EscapeDataString(orderRecord.CustomerPurchaseOrderNumber)}");
+            }
+
+            return $"/build-records/new?{string.Join("&", query)}";
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -726,6 +960,8 @@ else
         {
             orderRecord = await OrderDetailReader.GetByIdAsync(OrderId);
             var users = await ApplicationUserManagementService.ListAsync();
+            var supportTicketSettings = await SystemSettingsService.GetSupportTicketSettingsAsync();
+
             userOptions = users
                 .Where(user => user.IsActive)
                 .Select(user => new OrderUserOption(
@@ -733,11 +969,72 @@ else
                     user.DisplayName ?? user.EmailAddress ?? user.WindowsUserName))
                 .OrderBy(user => user.Label, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
+            customerOptions = await CustomerOptionsReader.ListActiveAsync();
+            supportTicketLabel = supportTicketSettings.SupportTicketLabel;
+            supportTicketUrlTemplate = supportTicketSettings.SupportTicketUrlTemplate;
         }
         finally
         {
             isLoading = false;
         }
+    }
+
+    private void StartEditingCustomerSupport()
+    {
+        if (orderRecord is null)
+        {
+            return;
+        }
+
+        customerSupportModel = new UpdateOrderCustomerAndSupportRequest
+        {
+            CustomerId = orderRecord.CustomerId,
+            CustomerReference = orderRecord.CustomerReference,
+            CustomerPurchaseOrderNumber = orderRecord.CustomerPurchaseOrderNumber,
+            InternalOrderReference = orderRecord.InternalOrderReference,
+            QuoteNumber = orderRecord.QuoteNumber,
+            SupportTicketNo = orderRecord.SupportTicketNo
+        };
+
+        customerSupportErrors.Clear();
+        statusMessage = null;
+        isEditingCustomerSupport = true;
+    }
+
+    private async Task SaveCustomerSupportAsync()
+    {
+        isSavingCustomerSupport = true;
+        customerSupportErrors.Clear();
+
+        try
+        {
+            var result = await OrderIntegrationService.UpdateCustomerAndSupportAsync(OrderId, customerSupportModel, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                await LoadOrderAsync();
+                isEditingCustomerSupport = false;
+                statusMessage = "Customer and support details were updated.";
+                statusIsError = false;
+            }
+            else
+            {
+                customerSupportErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            customerSupportErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingCustomerSupport = false;
+        }
+    }
+
+    private void CancelCustomerSupportEdit()
+    {
+        customerSupportErrors.Clear();
+        isEditingCustomerSupport = false;
     }
 
     private void StartEditingWorkflow()
@@ -980,6 +1277,89 @@ else
         }
     }
 
+    private async Task SearchBuildRecordsAsync()
+    {
+        isSearchingBuildRecords = true;
+        buildLinkErrors.Clear();
+
+        try
+        {
+            buildRecordSearchResults = await BuildRecordSearchService.SearchAsync(buildRecordLinkModel.SearchText);
+            if (buildRecordSearchResults.Count == 0)
+            {
+                buildLinkErrors.Add("No matching Build Records were found.");
+            }
+        }
+        catch
+        {
+            buildLinkErrors.Add("Build Record search could not be completed. Try again.");
+        }
+        finally
+        {
+            isSearchingBuildRecords = false;
+        }
+    }
+
+    private async Task LinkBuildRecordAsync(int buildRecordId)
+    {
+        isLinkingBuildRecord = true;
+        buildLinkErrors.Clear();
+
+        try
+        {
+            var result = await OrderIntegrationService.LinkBuildRecordAsync(OrderId, buildRecordId, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                buildRecordSearchResults = [];
+                buildRecordLinkModel = new BuildRecordSearchModel();
+                await LoadOrderAsync();
+                statusMessage = "Build Record was linked.";
+                statusIsError = false;
+            }
+            else
+            {
+                buildLinkErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            buildLinkErrors.Add("Build Record could not be linked. Try again.");
+        }
+        finally
+        {
+            isLinkingBuildRecord = false;
+        }
+    }
+
+    private async Task UnlinkBuildRecordAsync(int buildRecordId)
+    {
+        isLinkingBuildRecord = true;
+        buildLinkErrors.Clear();
+
+        try
+        {
+            var result = await OrderIntegrationService.UnlinkBuildRecordAsync(OrderId, buildRecordId, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                await LoadOrderAsync();
+                statusMessage = "Build Record was unlinked.";
+                statusIsError = false;
+            }
+            else
+            {
+                buildLinkErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            buildLinkErrors.Add("Build Record could not be unlinked. Try again.");
+        }
+        finally
+        {
+            isLinkingBuildRecord = false;
+        }
+    }
+
     private async Task<string> GetCurrentUserNameAsync()
     {
         var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -1042,6 +1422,18 @@ else
             false => "No",
             _ => "Not recorded"
         };
+    }
+
+    private static string DisplayBuildRecordStatus(DateOnly? dateShipped)
+    {
+        return dateShipped is null
+            ? "Still in build"
+            : $"Shipped {dateShipped.Value: d MMM yyyy}".Replace("  ", " ", StringComparison.Ordinal);
+    }
+
+    private sealed class BuildRecordSearchModel
+    {
+        public string? SearchText { get; set; }
     }
 
     private sealed record OrderUserOption(int Id, string Label);

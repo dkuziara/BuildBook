@@ -37,6 +37,9 @@ public sealed class BuildRecordCreator(
         var now = DateTimeOffset.UtcNow;
         var buildRecord = new BuildRecord
         {
+            CustomerId = request.CustomerId,
+            CustomerOrder = NormalizeOptionalValue(request.CustomerOrder),
+            InvoiceNumber = NormalizeOptionalValue(request.InvoiceNumber),
             ProductCode = productCode,
             ProductName = productName,
             SerialNumber = serialNumber,
@@ -52,5 +55,10 @@ public sealed class BuildRecordCreator(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return CreateBuildRecordResult.Success(buildRecord.Id);
+    }
+
+    private static string? NormalizeOptionalValue(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }

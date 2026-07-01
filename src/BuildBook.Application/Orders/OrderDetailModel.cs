@@ -77,6 +77,7 @@ public sealed record OrderLinkedBuildRecordSummary(
     string ProductName,
     string SerialNumber,
     string? MachineName,
+    DateOnly? DateShipped,
     string? LinkType,
     DateTimeOffset LinkedAt);
 

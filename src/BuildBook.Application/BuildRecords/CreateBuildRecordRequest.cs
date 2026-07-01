@@ -4,6 +4,12 @@ namespace BuildBook.Application.BuildRecords;
 
 public sealed class CreateBuildRecordRequest
 {
+    public int? CustomerId { get; set; }
+
+    public string? CustomerOrder { get; set; }
+
+    public string? InvoiceNumber { get; set; }
+
     [Required(ErrorMessage = "Product code is required.")]
     public string ProductCode { get; set; } = string.Empty;
 
