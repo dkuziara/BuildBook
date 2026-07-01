@@ -12,7 +12,7 @@
     <div class="page-heading-copy">
         <p class="eyebrow">Orders</p>
         <h1>Orders</h1>
-        <p>The Orders module foundation is in place so navigation, permissions and default workflow setup are ready for the next implementation steps.</p>
+        <p>The Orders module foundation is in place, and Planner import is now the first operational step for bringing historic order workflow into BuildBook.</p>
     </div>
 </section>
 
@@ -20,8 +20,13 @@
     <div class="detail-panel-header">
         <div>
             <h2 id="orders-foundation-heading">Foundation ready</h2>
-            <p>This placeholder keeps Orders visible in BuildBook while the register, import and detail screens are added in later issues.</p>
+            <p>Use the Planner import flow to bring existing order tasks into the new Orders data model while the register and detail screens are still being added.</p>
         </div>
+        <AuthorizeView Policy="@BuildBookOrderPolicies.ImportOrders">
+            <Authorized>
+                <a class="primary-button" href="/orders/import">Import Planner Export</a>
+            </Authorized>
+        </AuthorizeView>
     </div>
 
     <div class="detail-grid">
@@ -37,8 +42,8 @@
         <div>
             <h3>Planned next slices</h3>
             <ul class="recent-record-list">
-                <li>Orders data model and migration</li>
-                <li>Planner spreadsheet import</li>
+                <li>Orders register and dashboard</li>
+                <li>Order detail and manual create/edit</li>
                 <li>Orders register and detail screens</li>
             </ul>
         </div>

@@ -9,6 +9,7 @@ public class BuildBookPageAuthorizationTests
     [InlineData("BuildRegister.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRecordDetail.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("Orders.razor", BuildBookOrderPolicies.ViewOrders)]
+    [InlineData("OrderImport.razor", BuildBookOrderPolicies.ImportOrders)]
     [InlineData("Rmas.razor", BuildBookRmaPolicies.ViewRmas)]
     [InlineData("RmaBoard.razor", BuildBookRmaPolicies.ViewRmas)]
     [InlineData("RmaDetail.razor", BuildBookRmaPolicies.ViewRmas)]
@@ -224,13 +225,42 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Orders", pageContent);
         Assert.Contains("Foundation ready", pageContent);
         Assert.Contains("BuildBookOrderStatuses.DefaultWorkflow", pageContent);
-        Assert.Contains("Order Received", pageContent);
-        Assert.Contains("Parts Ordered / Stock Allocated", pageContent);
-        Assert.Contains("Prepared for Shipping", pageContent);
-        Assert.Contains("Contract Ready for Invoicing", pageContent);
-        Assert.Contains("Orders data model and migration", pageContent);
+        Assert.Contains("Import Planner Export", pageContent);
+        Assert.Contains("/orders/import", pageContent);
+        Assert.Contains("Default workflow statuses", pageContent);
+        Assert.Contains("@foreach (var status in BuildBookOrderStatuses.DefaultWorkflow)", pageContent);
         Assert.DoesNotContain("Password", pageContent);
         Assert.DoesNotContain("BitLocker", pageContent);
+    }
+
+    [Fact]
+    public void OrderImportPageDefinesExpectedRouteAndImportWorkflow()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("OrderImport.razor"));
+
+        Assert.Contains("@page \"/orders/import\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookOrderPolicies.ImportOrders", pageContent);
+        Assert.Contains("IOrderPlannerImportService", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("ILogger<OrderImport>", pageContent);
+        Assert.Contains("Upload Planner Export", pageContent);
+        Assert.Contains("InputFile", pageContent);
+        Assert.Contains("BuildReviewAsync", pageContent);
+        Assert.Contains("Import Review", pageContent);
+        Assert.Contains("Import Validation", pageContent);
+        Assert.Contains("Import Summary", pageContent);
+        Assert.Contains("Preferred worksheet", pageContent);
+        Assert.Contains("Plan name", pageContent);
+        Assert.Contains("Task rows read", pageContent);
+        Assert.Contains("Rows checked", pageContent);
+        Assert.Contains("Task ID", pageContent);
+        Assert.Contains("Run Import", pageContent);
+        Assert.Contains("BuildImportAsync", pageContent);
+        Assert.Contains("HandleUnexpectedException", pageContent);
+        Assert.Contains("The spreadsheet must be 25 MB or smaller.", pageContent);
+        Assert.Contains("Choose an Excel workbook or CSV file.", pageContent);
+        Assert.Contains("Planner task rows have been converted into BuildBook Orders", pageContent);
     }
 
     [Fact]
@@ -903,6 +933,7 @@ public class BuildBookPageAuthorizationTests
         return policy switch
         {
             BuildBookOrderPolicies.ViewOrders => $"BuildBookOrderPolicies.{nameof(BuildBookOrderPolicies.ViewOrders)}",
+            BuildBookOrderPolicies.ImportOrders => $"BuildBookOrderPolicies.{nameof(BuildBookOrderPolicies.ImportOrders)}",
             BuildBookRmaPolicies.ViewRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ViewRmas)}",
             BuildBookRmaPolicies.CreateRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.CreateRmas)}",
             BuildBookRmaPolicies.ExportRmaReports => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ExportRmaReports)}",

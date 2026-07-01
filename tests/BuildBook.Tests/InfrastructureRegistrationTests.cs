@@ -41,6 +41,7 @@ public class InfrastructureRegistrationTests
         var missingDataReportReader = provider.GetRequiredService<IMissingDataReportReader>();
         var searchService = provider.GetRequiredService<IBuildRecordSearchService>();
         var detailReader = provider.GetRequiredService<IBuildRecordDetailReader>();
+        var orderPlannerImportService = provider.GetRequiredService<IOrderPlannerImportService>();
         var productDetailsUpdater = provider.GetRequiredService<IProductDetailsUpdater>();
         var buildDetailsUpdater = provider.GetRequiredService<IBuildDetailsUpdater>();
         var customerOptionsReader = provider.GetRequiredService<ICustomerOptionsReader>();
@@ -73,6 +74,7 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(missingDataReportReader);
         Assert.NotNull(searchService);
         Assert.NotNull(detailReader);
+        Assert.NotNull(orderPlannerImportService);
         Assert.NotNull(productDetailsUpdater);
         Assert.NotNull(buildDetailsUpdater);
         Assert.NotNull(customerOptionsReader);

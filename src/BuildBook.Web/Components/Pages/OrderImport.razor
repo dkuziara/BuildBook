@@ -1,0 +1,510 @@
+@page "/orders/import"
+@rendermode InteractiveServer
+
+@using System.Globalization
+@using BuildBook.Application.Orders
+@using BuildBook.Application.Security
+@using BuildBook.Domain.Orders
+
+@attribute [Authorize(Policy = BuildBookOrderPolicies.ImportOrders)]
+
+@inject IOrderPlannerImportService OrderPlannerImportService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<OrderImport> Logger
+
+<PageTitle>Import Orders</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">Orders</p>
+        <h1>Import Planner Spreadsheet</h1>
+        <p>Upload the Planner export, review the detected task rows, validate the import, and then bring those orders into BuildBook.</p>
+    </div>
+</section>
+
+@if (statusMessage.Length > 0)
+{
+    <div class="status-message @(isWarningState ? "warning" : "success")" role="status">
+        @statusMessage
+    </div>
+}
+
+@if (uploadErrors.Count > 0)
+{
+    <div class="status-message error" role="alert">
+        <p>The Planner export could not be loaded.</p>
+        <ul>
+            @foreach (var error in uploadErrors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    </div>
+}
+
+<section class="detail-panel" aria-labelledby="orders-import-upload-heading">
+    <div class="detail-panel-header">
+        <div>
+            <h2 id="orders-import-upload-heading">Planner Export Upload</h2>
+            <p>Use the Excel workbook exported from Planner. CSV is also accepted when it contains task rows equivalent to the Consolidated Data sheet.</p>
+        </div>
+    </div>
+
+    <div class="form-grid">
+        <div class="form-field form-field-wide">
+            <label for="orders-import-file">Planner export file</label>
+            <InputFile id="orders-import-file" OnChange="HandleFileSelected" accept=".xlsx,.xls,.csv" />
+        </div>
+    </div>
+
+    <dl class="summary-list import-upload-summary">
+        <div>
+            <dt>Selected file</dt>
+            <dd>@(selectedFile is null ? "No file selected" : selectedFile.Name)</dd>
+        </div>
+        <div>
+            <dt>File size</dt>
+            <dd>@DisplayFileSize(selectedFile?.Size)</dd>
+        </div>
+    </dl>
+
+    <div class="form-actions">
+        <button type="button" class="primary-button" disabled="@isUploading" @onclick="UploadSpreadsheetAsync">
+            @(isUploading ? "Uploading..." : "Upload Planner Export")
+        </button>
+        <a class="action-link" href="/orders">Back to Orders</a>
+    </div>
+</section>
+
+@if (importReview is not null)
+{
+    <section class="detail-panel detail-section" aria-labelledby="orders-import-review-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="orders-import-review-heading">Import Review</h2>
+                <p>Check the worksheet selection, plan details and a sample of the incoming rows before validating the import.</p>
+            </div>
+        </div>
+
+        @if (importReview.Notices.Count > 0)
+        {
+            <div class="status-message warning" role="status">
+                <ul>
+                    @foreach (var notice in importReview.Notices)
+                    {
+                        <li>@notice</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <dl class="summary-list import-upload-summary">
+            <div>
+                <dt>Preferred worksheet</dt>
+                <dd>@Display(importReview.PreferredWorksheetName)</dd>
+            </div>
+            <div>
+                <dt>Plan name</dt>
+                <dd>@Display(importReview.PlanName)</dd>
+            </div>
+            <div>
+                <dt>Plan ID</dt>
+                <dd>@Display(importReview.PlanId)</dd>
+            </div>
+            <div>
+                <dt>Export date</dt>
+                <dd>@Display(importReview.ExportDate)</dd>
+            </div>
+            <div>
+                <dt>Worksheets found</dt>
+                <dd>@string.Join(", ", importReview.WorksheetNames)</dd>
+            </div>
+            <div>
+                <dt>Task rows read</dt>
+                <dd>@importReview.RowsRead</dd>
+            </div>
+        </dl>
+
+        @if (importReview.Rows.Count > 0 && importReview.Columns.Count > 0)
+        {
+            <div class="table-scroll">
+                <table class="data-table import-preview-table">
+                    <thead>
+                        <tr>
+                            <th>Spreadsheet row</th>
+                            @foreach (var column in importReview.Columns)
+                            {
+                                <th>@column.Label</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in importReview.Rows)
+                        {
+                            <tr>
+                                <td>@row.SourceRowNumber</td>
+                                @foreach (var column in importReview.Columns)
+                                {
+                                    <td>@DisplayPreviewValue(row, column.Key)</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="form-actions">
+            <button type="button" class="primary-button" @onclick="ValidateImportAsync">Validate Import</button>
+        </div>
+    </section>
+}
+
+@if (importValidation is not null)
+{
+    <section class="detail-panel detail-section" aria-labelledby="orders-import-validation-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="orders-import-validation-heading">Import Validation</h2>
+                <p>Review Planner task IDs, bucket mappings, date parsing, and user matches before creating Orders.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list import-upload-summary">
+            <div>
+                <dt>Rows checked</dt>
+                <dd>@importValidation.RowsRead</dd>
+            </div>
+            <div>
+                <dt>Errors</dt>
+                <dd>@importValidation.ErrorCount</dd>
+            </div>
+            <div>
+                <dt>Warnings</dt>
+                <dd>@importValidation.WarningCount</dd>
+            </div>
+        </dl>
+
+        @if (importValidation.Issues.Count == 0)
+        {
+            <div class="status-message success" role="status">
+                No validation issues were found in the Planner import data.
+            </div>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table import-validation-table">
+                    <thead>
+                        <tr>
+                            <th>Spreadsheet row</th>
+                            <th>Task ID</th>
+                            <th>Severity</th>
+                            <th>Issue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var issue in importValidation.Issues)
+                        {
+                            <tr>
+                                <td>@(issue.SourceRowNumber?.ToString() ?? "—")</td>
+                                <td>@Display(issue.PlannerTaskId)</td>
+                                <td>
+                                    <span class="validation-badge @(issue.Severity == OrderImportWarningSeverity.Error ? "error" : issue.Severity == OrderImportWarningSeverity.Warning ? "warning" : string.Empty)">
+                                        @issue.Severity
+                                    </span>
+                                </td>
+                                <td>@issue.Message</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="form-actions">
+            <button type="button" class="primary-button" disabled="@(importValidation.ErrorCount > 0 || isImporting)" @onclick="RunImportAsync">
+                @(isImporting ? "Importing..." : "Run Import")
+            </button>
+        </div>
+    </section>
+}
+
+@if (importExecution is not null)
+{
+    <section class="detail-panel detail-section" aria-labelledby="orders-import-summary-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="orders-import-summary-heading">Import Summary</h2>
+                <p>Planner task rows have been converted into BuildBook Orders using the safe default behaviour of skipping existing Planner task IDs.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list import-upload-summary">
+            <div>
+                <dt>Import batch</dt>
+                <dd>@(importExecution.ImportBatchId?.ToString() ?? "Pending")</dd>
+            </div>
+            <div>
+                <dt>Rows read</dt>
+                <dd>@importExecution.RowsRead</dd>
+            </div>
+            <div>
+                <dt>Orders created</dt>
+                <dd>@importExecution.OrdersCreated</dd>
+            </div>
+            <div>
+                <dt>Orders skipped</dt>
+                <dd>@importExecution.OrdersSkipped</dd>
+            </div>
+            <div>
+                <dt>Warnings</dt>
+                <dd>@importExecution.WarningCount</dd>
+            </div>
+            <div>
+                <dt>Errors</dt>
+                <dd>@importExecution.ErrorCount</dd>
+            </div>
+        </dl>
+
+        <div class="status-message @(importExecution.WarningCount > 0 || importExecution.ErrorCount > 0 ? "warning" : "success")" role="status">
+            @importExecution.Summary
+        </div>
+    </section>
+}
+
+@code {
+    private const long MaximumUploadBytes = 25 * 1024 * 1024;
+    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".xlsx",
+        ".xls",
+        ".csv"
+    };
+
+    private IBrowserFile? selectedFile;
+    private readonly List<string> uploadErrors = [];
+    private bool isUploading;
+    private bool isImporting;
+    private bool isWarningState;
+    private string statusMessage = string.Empty;
+    private OrderPlannerImportReview? importReview;
+    private OrderPlannerImportValidationResult? importValidation;
+    private OrderPlannerImportExecutionResult? importExecution;
+
+    private void HandleFileSelected(InputFileChangeEventArgs eventArgs)
+    {
+        uploadErrors.Clear();
+        statusMessage = string.Empty;
+        isWarningState = false;
+        importReview = null;
+        importValidation = null;
+        importExecution = null;
+        selectedFile = eventArgs.File;
+
+        if (selectedFile is null)
+        {
+            uploadErrors.Add("Choose a Planner export file to continue.");
+            return;
+        }
+
+        ValidateSelectedFile(selectedFile);
+    }
+
+    private async Task UploadSpreadsheetAsync()
+    {
+        uploadErrors.Clear();
+        statusMessage = string.Empty;
+        isWarningState = false;
+        importReview = null;
+        importValidation = null;
+        importExecution = null;
+
+        if (selectedFile is null)
+        {
+            uploadErrors.Add("Choose a Planner export file to continue.");
+            return;
+        }
+
+        ValidateSelectedFile(selectedFile);
+        if (uploadErrors.Count > 0)
+        {
+            return;
+        }
+
+        isUploading = true;
+
+        try
+        {
+            await using var uploadStream = selectedFile.OpenReadStream(MaximumUploadBytes);
+            importReview = await OrderPlannerImportService.BuildReviewAsync(selectedFile.Name, uploadStream);
+            statusMessage = $"Planner export '{selectedFile.Name}' was loaded and {importReview.RowsRead} task rows are ready for review.";
+        }
+        catch (IOException)
+        {
+            uploadErrors.Add("The Planner export could not be read. Try choosing the file again.");
+        }
+        catch (InvalidDataException)
+        {
+            uploadErrors.Add("The Planner export could not be read. Check that the file is a valid workbook or CSV file.");
+        }
+        catch (Exception exception)
+        {
+            HandleUnexpectedException(exception, "The Planner export could not be reviewed. Check the file and try again.");
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    private async Task ValidateImportAsync()
+    {
+        if (selectedFile is null)
+        {
+            uploadErrors.Clear();
+            uploadErrors.Add("Choose the Planner export file again before validating the import.");
+            return;
+        }
+
+        try
+        {
+            await using var uploadStream = selectedFile.OpenReadStream(MaximumUploadBytes);
+            importValidation = await OrderPlannerImportService.BuildValidationAsync(selectedFile.Name, uploadStream);
+            importExecution = null;
+            isWarningState = importValidation.ErrorCount > 0 || importValidation.WarningCount > 0;
+            statusMessage = importValidation.ErrorCount > 0
+                ? "Import validation found issues that need attention."
+                : importValidation.WarningCount > 0
+                    ? "Import validation completed with warnings."
+                    : "Import validation completed successfully.";
+        }
+        catch (IOException)
+        {
+            uploadErrors.Clear();
+            uploadErrors.Add("The Planner export could not be read during validation. Choose the file again and retry.");
+        }
+        catch (InvalidDataException)
+        {
+            uploadErrors.Clear();
+            uploadErrors.Add("The Planner export could not be validated because the workbook format was not recognised.");
+        }
+        catch (Exception exception)
+        {
+            HandleUnexpectedException(exception, "Validation could not be completed for this Planner export.");
+        }
+    }
+
+    private async Task RunImportAsync()
+    {
+        if (selectedFile is null)
+        {
+            uploadErrors.Clear();
+            uploadErrors.Add("Choose the Planner export file again before running the import.");
+            return;
+        }
+
+        if (importValidation is null)
+        {
+            uploadErrors.Clear();
+            uploadErrors.Add("Validate the Planner import before creating Orders.");
+            return;
+        }
+
+        if (importValidation.ErrorCount > 0)
+        {
+            uploadErrors.Clear();
+            uploadErrors.Add("Resolve validation errors before running the import.");
+            return;
+        }
+
+        isImporting = true;
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var importedBy = authenticationState.User.Identity?.Name ?? "Unknown";
+
+            await using var uploadStream = selectedFile.OpenReadStream(MaximumUploadBytes);
+            importExecution = await OrderPlannerImportService.BuildImportAsync(selectedFile.Name, uploadStream, importedBy);
+            isWarningState = importExecution.WarningCount > 0 || importExecution.ErrorCount > 0;
+            statusMessage = isWarningState
+                ? "Order import completed with warnings. Review the summary below."
+                : "Order import completed successfully.";
+        }
+        catch (IOException)
+        {
+            uploadErrors.Clear();
+            uploadErrors.Add("The Planner export could not be read during import. Choose the file again and retry.");
+        }
+        catch (InvalidDataException)
+        {
+            uploadErrors.Clear();
+            uploadErrors.Add("The Planner export format could not be processed during import.");
+        }
+        catch (Exception exception)
+        {
+            HandleUnexpectedException(exception, "The Planner export could not be imported. No Orders were created from this attempt.");
+        }
+        finally
+        {
+            isImporting = false;
+        }
+    }
+
+    private void ValidateSelectedFile(IBrowserFile file)
+    {
+        var extension = Path.GetExtension(file.Name);
+
+        if (!AllowedExtensions.Contains(extension))
+        {
+            uploadErrors.Add("Choose an Excel workbook or CSV file.");
+        }
+
+        if (file.Size <= 0)
+        {
+            uploadErrors.Add("The selected file is empty.");
+        }
+        else if (file.Size > MaximumUploadBytes)
+        {
+            uploadErrors.Add("The spreadsheet must be 25 MB or smaller.");
+        }
+    }
+
+    private static string DisplayFileSize(long? fileSizeBytes)
+    {
+        if (fileSizeBytes is null)
+        {
+            return "Not available";
+        }
+
+        var sizeInMegabytes = fileSizeBytes.Value / 1024d / 1024d;
+        return $"{sizeInMegabytes:0.##} MB";
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "—" : value;
+    }
+
+    private static string Display(DateTimeOffset? value)
+    {
+        return value?.ToString("dd MMM yyyy HH:mm", CultureInfo.InvariantCulture) ?? "—";
+    }
+
+    private static string DisplayPreviewValue(OrderPlannerImportPreviewRow row, string key)
+    {
+        return row.Values.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : "—";
+    }
+
+    private void HandleUnexpectedException(Exception exception, string userMessage)
+    {
+        Logger.LogError(exception, "Order Planner import failed for file {FileName}.", selectedFile?.Name);
+        uploadErrors.Clear();
+        uploadErrors.Add(userMessage);
+        isWarningState = true;
+        statusMessage = string.Empty;
+    }
+}
