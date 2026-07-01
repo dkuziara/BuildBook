@@ -45,11 +45,13 @@ public sealed record OrderDetailModel(
     IReadOnlyList<OrderStatusHistorySummary> StatusHistory);
 
 public sealed record OrderAssignmentSummary(
+    int Id,
     string DisplayName,
     string? AssignmentType,
     DateTimeOffset AssignedAt);
 
 public sealed record OrderChecklistItemSummary(
+    int Id,
     int DisplayOrder,
     string Text,
     bool IsCompleted,

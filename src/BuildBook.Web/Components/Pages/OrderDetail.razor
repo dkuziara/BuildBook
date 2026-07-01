@@ -3,17 +3,35 @@
 
 @using BuildBook.Application.Orders
 @using BuildBook.Application.Security
+@using BuildBook.Domain.Orders
+@using Microsoft.AspNetCore.Components.Forms
 
 @attribute [Authorize(Policy = BuildBookOrderPolicies.ViewOrders)]
 
 @inject IOrderDetailReader OrderDetailReader
+@inject IOrderWorkflowService OrderWorkflowService
+@inject IApplicationUserManagementService ApplicationUserManagementService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
-<PageTitle>Order Detail</PageTitle>
+<PageTitle>@PageTitleText</PageTitle>
 
-@if (orderRecord is null)
+@if (isLoading)
 {
     <section class="placeholder-panel" aria-live="polite">
-        <p>@statusMessage</p>
+        <p>Loading order details...</p>
+    </section>
+}
+else if (orderRecord is null)
+{
+    <section class="page-heading">
+        <div class="page-heading-copy">
+            <p class="eyebrow">Orders</p>
+            <h1>Order not found.</h1>
+            <p>The order may not exist, or it may no longer be active.</p>
+        </div>
+        <div class="page-actions">
+            <a class="secondary-button" href="/orders">Back to Orders</a>
+        </div>
     </section>
 }
 else
@@ -22,12 +40,19 @@ else
         <div class="page-heading-copy">
             <p class="eyebrow">Orders</p>
             <h1>@orderRecord.OrderTitle</h1>
-            <p>Order summary, imported Planner context and linked BuildBook activity.</p>
+            <p>Order workflow, assignments, checklist progress and imported Planner context.</p>
         </div>
         <div class="page-actions">
             <a class="secondary-button" href="/orders">Back to Orders</a>
         </div>
     </section>
+
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="status-message @(statusIsError ? "error" : "success")" role="status">
+            <p>@statusMessage</p>
+        </div>
+    }
 
     <section class="detail-panel" aria-labelledby="order-summary-heading">
         <div class="detail-panel-header">
@@ -80,6 +105,160 @@ else
                 <dd>@Display(orderRecord.SupportTicketNo)</dd>
             </div>
         </dl>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-workflow-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-workflow-heading">Workflow</h2>
+                <p>Priority and planning dates for this Order.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookOrderPolicies.EditOrders">
+                <Authorized Context="workflowAuthorization">
+                    @if (!isEditingWorkflow)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingWorkflow">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingWorkflow)
+        {
+            @SectionErrors(workflowErrors, "Workflow details could not be saved.")
+
+            <EditForm Model="workflowModel" OnValidSubmit="SaveWorkflowAsync" FormName="edit-order-workflow">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-order-priority">Priority</label>
+                        <InputSelect TValue="OrderPriority?" id="edit-order-priority" class="text-input" @bind-Value="workflowModel.Priority">
+                            <option value="">Not set</option>
+                            @foreach (var priority in Enum.GetValues<OrderPriority>())
+                            {
+                                <option value="@priority">@priority</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-start-date">Start date</label>
+                        <InputDate id="edit-order-start-date" class="text-input" @bind-Value="workflowModel.StartDate" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-due-date">Due date</label>
+                        <InputDate id="edit-order-due-date" class="text-input" @bind-Value="workflowModel.DueDate" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingWorkflow">@(isSavingWorkflow ? "Saving..." : "Save workflow details")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingWorkflow" @onclick="CancelWorkflowEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Priority</dt>
+                    <dd>@Display(orderRecord.Priority?.ToString() ?? orderRecord.ImportedPriorityText)</dd>
+                </div>
+                <div>
+                    <dt>Start date</dt>
+                    <dd>@Display(orderRecord.StartDate)</dd>
+                </div>
+                <div>
+                    <dt>Due date</dt>
+                    <dd>@Display(orderRecord.DueDate)</dd>
+                </div>
+                <div>
+                    <dt>Completed date</dt>
+                    <dd>@Display(orderRecord.CompletedAt)</dd>
+                </div>
+                <div>
+                    <dt>Completed by</dt>
+                    <dd>@Display(orderRecord.CompletedBy)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-status-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-status-heading">Status Workflow</h2>
+                <p>Move the Order through the configured workflow with readiness warnings.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookOrderPolicies.ChangeOrderStatus">
+                <Authorized Context="statusAuthorization">
+                    @if (!isEditingStatus)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingStatus">Change status</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingStatus)
+        {
+            @SectionErrors(statusErrors, "Status change could not be saved.")
+
+            @if (statusWarnings.Count > 0)
+            {
+                <div class="status-message warning" role="alert">
+                    <p>Workflow warnings were found.</p>
+                    <ul>
+                        @foreach (var warning in statusWarnings)
+                        {
+                            <li>@warning</li>
+                        }
+                    </ul>
+                </div>
+
+                <label class="role-checkbox">
+                    <InputCheckbox @bind-Value="confirmStatusWarnings" class="darker-border-checkbox form-check-input" />
+                    <span>Continue with the status change anyway</span>
+                </label>
+            }
+
+            <EditForm Model="statusModel" OnValidSubmit="SaveStatusAsync" FormName="change-order-status">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-order-status">New status</label>
+                        <InputSelect id="edit-order-status" class="text-input" @bind-Value="statusModel.NewStatus">
+                            @foreach (var status in BuildBookOrderStatuses.DefaultWorkflow)
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-order-status-reason">Status note</label>
+                    <InputTextArea id="edit-order-status-reason" class="text-input" @bind-Value="statusModel.Reason" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingStatus">@(isSavingStatus ? "Saving..." : "Save status change")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingStatus" @onclick="CancelStatusEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Current status</dt>
+                    <dd>@orderRecord.Status</dd>
+                </div>
+                <div>
+                    <dt>Status note</dt>
+                    <dd>@Display(orderRecord.StatusHistory.FirstOrDefault()?.Reason)</dd>
+                </div>
+            </dl>
+        }
     </section>
 
     <section class="detail-panel detail-section" aria-labelledby="order-overview-heading">
@@ -196,9 +375,52 @@ else
 
     <section class="table-panel compact-table-panel detail-section" aria-labelledby="order-assignments-heading">
         <div class="table-panel-heading">
-            <h2 id="order-assignments-heading">Assignments</h2>
-            <p>@orderRecord.Assignments.Count assignments</p>
+            <div>
+                <h2 id="order-assignments-heading">Assignments</h2>
+                <p>@orderRecord.Assignments.Count assignments</p>
+            </div>
         </div>
+
+        <AuthorizeView Policy="@BuildBookOrderPolicies.EditOrders">
+            <Authorized Context="assignmentAuthorization">
+                @SectionErrors(assignmentErrors, "Assignment could not be saved.")
+
+                <EditForm Model="assignmentModel" OnValidSubmit="SaveAssignmentAsync" FormName="add-order-assignment">
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label for="edit-order-assignment-user">BuildBook user</label>
+                            <InputSelect TValue="int?" id="edit-order-assignment-user" class="text-input" @bind-Value="assignmentModel.ApplicationUserId">
+                                <option value="">Select user</option>
+                                @foreach (var user in userOptions)
+                                {
+                                    <option value="@user.Id">@user.Label</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="form-field">
+                            <label for="edit-order-assignment-type">Assignment type</label>
+                            <InputSelect TValue="OrderAssignmentType?" id="edit-order-assignment-type" class="text-input" @bind-Value="assignmentModel.AssignmentType">
+                                <option value="">Not set</option>
+                                @foreach (var assignmentType in Enum.GetValues<OrderAssignmentType>())
+                                {
+                                    <option value="@assignmentType">@assignmentType</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="form-field">
+                            <label for="edit-order-imported-user-text">Imported / external user</label>
+                            <InputText id="edit-order-imported-user-text" class="text-input" @bind-Value="assignmentModel.ImportedUserText" />
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="primary-button" disabled="@isSavingAssignment">@(isSavingAssignment ? "Saving..." : "Add assignment")</button>
+                    </div>
+                </EditForm>
+            </Authorized>
+        </AuthorizeView>
 
         @if (orderRecord.Assignments.Count == 0)
         {
@@ -213,6 +435,11 @@ else
                             <th scope="col">Assigned to</th>
                             <th scope="col">Assignment type</th>
                             <th scope="col">Assigned at</th>
+                            <AuthorizeView Policy="@BuildBookOrderPolicies.EditOrders">
+                                <Authorized>
+                                    <th scope="col">Actions</th>
+                                </Authorized>
+                            </AuthorizeView>
                         </tr>
                     </thead>
                     <tbody>
@@ -222,6 +449,13 @@ else
                                 <td>@assignment.DisplayName</td>
                                 <td>@Display(assignment.AssignmentType)</td>
                                 <td>@assignment.AssignedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                                <AuthorizeView Policy="@BuildBookOrderPolicies.EditOrders">
+                                    <Authorized>
+                                        <td>
+                                            <button type="button" class="secondary-button" @onclick="() => RemoveAssignmentAsync(assignment.Id)">Remove</button>
+                                        </td>
+                                    </Authorized>
+                                </AuthorizeView>
                             </tr>
                         }
                     </tbody>
@@ -232,9 +466,30 @@ else
 
     <section class="table-panel compact-table-panel detail-section" aria-labelledby="order-checklist-heading">
         <div class="table-panel-heading">
-            <h2 id="order-checklist-heading">Checklist</h2>
-            <p>@orderRecord.ChecklistItems.Count checklist items</p>
+            <div>
+                <h2 id="order-checklist-heading">Checklist</h2>
+                <p>@orderRecord.ChecklistItems.Count checklist items</p>
+            </div>
         </div>
+
+        <AuthorizeView Policy="@BuildBookOrderPolicies.CompleteOrderChecklist">
+            <Authorized Context="checklistAuthorization">
+                @SectionErrors(checklistErrors, "Checklist could not be updated.")
+
+                <EditForm Model="checklistModel" OnValidSubmit="AddChecklistItemAsync" FormName="add-order-checklist-item">
+                    <div class="form-grid">
+                        <div class="form-field form-field-wide">
+                            <label for="edit-order-checklist-text">Checklist item</label>
+                            <InputText id="edit-order-checklist-text" class="text-input" @bind-Value="checklistModel.Text" />
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="primary-button" disabled="@isSavingChecklist">@(isSavingChecklist ? "Saving..." : "Add checklist item")</button>
+                    </div>
+                </EditForm>
+            </Authorized>
+        </AuthorizeView>
 
         @if (orderRecord.ChecklistItems.Count == 0)
         {
@@ -250,6 +505,11 @@ else
                             <th scope="col">Checklist item</th>
                             <th scope="col">Completed by</th>
                             <th scope="col">Completed at</th>
+                            <AuthorizeView Policy="@BuildBookOrderPolicies.CompleteOrderChecklist">
+                                <Authorized>
+                                    <th scope="col">Actions</th>
+                                </Authorized>
+                            </AuthorizeView>
                         </tr>
                     </thead>
                     <tbody>
@@ -260,6 +520,15 @@ else
                                 <td>@checklistItem.Text</td>
                                 <td>@Display(checklistItem.CompletedBy)</td>
                                 <td>@Display(checklistItem.CompletedAt)</td>
+                                <AuthorizeView Policy="@BuildBookOrderPolicies.CompleteOrderChecklist">
+                                    <Authorized>
+                                        <td>
+                                            <button type="button" class="secondary-button" @onclick="() => ToggleChecklistItemAsync(checklistItem)">
+                                                @(checklistItem.IsCompleted ? "Mark incomplete" : "Mark complete")
+                                            </button>
+                                        </td>
+                                    </Authorized>
+                                </AuthorizeView>
                             </tr>
                         }
                     </tbody>
@@ -421,14 +690,300 @@ else
     public int OrderId { get; set; }
 
     private OrderDetailModel? orderRecord;
-    private string statusMessage = "Loading order details...";
+    private bool isLoading = true;
+    private bool statusIsError;
+    private string? statusMessage;
+    private bool isEditingWorkflow;
+    private bool isSavingWorkflow;
+    private bool isEditingStatus;
+    private bool isSavingStatus;
+    private bool isSavingAssignment;
+    private bool isSavingChecklist;
+    private bool confirmStatusWarnings;
+    private UpdateOrderWorkflowRequest workflowModel = new();
+    private ChangeOrderStatusRequest statusModel = new();
+    private SaveOrderAssignmentRequest assignmentModel = new();
+    private UpdateOrderChecklistItemRequest checklistModel = new();
+    private List<string> workflowErrors = [];
+    private List<string> statusErrors = [];
+    private List<string> statusWarnings = [];
+    private List<string> assignmentErrors = [];
+    private List<string> checklistErrors = [];
+    private IReadOnlyList<OrderUserOption> userOptions = [];
+
+    private string PageTitleText => orderRecord is null ? "Order Detail" : $"{orderRecord.OrderNumber} | Order Detail";
 
     protected override async Task OnParametersSetAsync()
     {
-        orderRecord = await OrderDetailReader.GetByIdAsync(OrderId);
-        statusMessage = orderRecord is null
-            ? "Order was not found."
-            : string.Empty;
+        await LoadOrderAsync();
+    }
+
+    private async Task LoadOrderAsync()
+    {
+        isLoading = true;
+
+        try
+        {
+            orderRecord = await OrderDetailReader.GetByIdAsync(OrderId);
+            var users = await ApplicationUserManagementService.ListAsync();
+            userOptions = users
+                .Where(user => user.IsActive)
+                .Select(user => new OrderUserOption(
+                    user.Id,
+                    user.DisplayName ?? user.EmailAddress ?? user.WindowsUserName))
+                .OrderBy(user => user.Label, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void StartEditingWorkflow()
+    {
+        if (orderRecord is null)
+        {
+            return;
+        }
+
+        workflowModel = new UpdateOrderWorkflowRequest
+        {
+            Priority = orderRecord.Priority,
+            StartDate = orderRecord.StartDate,
+            DueDate = orderRecord.DueDate
+        };
+
+        workflowErrors.Clear();
+        statusMessage = null;
+        isEditingWorkflow = true;
+    }
+
+    private async Task SaveWorkflowAsync()
+    {
+        isSavingWorkflow = true;
+        workflowErrors.Clear();
+
+        try
+        {
+            var result = await OrderWorkflowService.UpdateWorkflowAsync(OrderId, workflowModel, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                await LoadOrderAsync();
+                isEditingWorkflow = false;
+                statusMessage = "Workflow details were updated.";
+                statusIsError = false;
+            }
+            else
+            {
+                workflowErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            workflowErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingWorkflow = false;
+        }
+    }
+
+    private void CancelWorkflowEdit()
+    {
+        workflowErrors.Clear();
+        isEditingWorkflow = false;
+    }
+
+    private void StartEditingStatus()
+    {
+        if (orderRecord is null)
+        {
+            return;
+        }
+
+        statusModel = new ChangeOrderStatusRequest
+        {
+            NewStatus = orderRecord.Status
+        };
+
+        statusErrors.Clear();
+        statusWarnings.Clear();
+        confirmStatusWarnings = false;
+        statusMessage = null;
+        isEditingStatus = true;
+    }
+
+    private async Task SaveStatusAsync()
+    {
+        isSavingStatus = true;
+        statusErrors.Clear();
+
+        try
+        {
+            statusModel.IgnoreReadinessWarnings = confirmStatusWarnings;
+            var result = await OrderWorkflowService.ChangeStatusAsync(OrderId, statusModel, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                await LoadOrderAsync();
+                isEditingStatus = false;
+                statusWarnings.Clear();
+                confirmStatusWarnings = false;
+                statusMessage = "Order status was updated.";
+                statusIsError = false;
+            }
+            else if (result.RequiresConfirmation)
+            {
+                statusWarnings = [.. result.Warnings];
+            }
+            else
+            {
+                statusErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            statusErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingStatus = false;
+        }
+    }
+
+    private void CancelStatusEdit()
+    {
+        statusErrors.Clear();
+        statusWarnings.Clear();
+        confirmStatusWarnings = false;
+        isEditingStatus = false;
+    }
+
+    private async Task SaveAssignmentAsync()
+    {
+        isSavingAssignment = true;
+        assignmentErrors.Clear();
+
+        try
+        {
+            var result = await OrderWorkflowService.SaveAssignmentAsync(OrderId, assignmentModel, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                assignmentModel = new SaveOrderAssignmentRequest();
+                await LoadOrderAsync();
+                statusMessage = "Assignment was added.";
+                statusIsError = false;
+            }
+            else
+            {
+                assignmentErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            assignmentErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingAssignment = false;
+        }
+    }
+
+    private async Task RemoveAssignmentAsync(int assignmentId)
+    {
+        try
+        {
+            var result = await OrderWorkflowService.DeleteAssignmentAsync(OrderId, assignmentId, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                await LoadOrderAsync();
+                statusMessage = "Assignment was removed.";
+                statusIsError = false;
+            }
+            else
+            {
+                statusMessage = string.Join(" ", result.Errors);
+                statusIsError = true;
+            }
+        }
+        catch
+        {
+            statusMessage = "Assignment could not be removed. Try again.";
+            statusIsError = true;
+        }
+    }
+
+    private async Task ToggleChecklistItemAsync(OrderChecklistItemSummary checklistItem)
+    {
+        isSavingChecklist = true;
+        checklistErrors.Clear();
+
+        try
+        {
+            var result = await OrderWorkflowService.UpdateChecklistItemAsync(
+                OrderId,
+                new UpdateOrderChecklistItemRequest
+                {
+                    ChecklistItemId = checklistItem.Id,
+                    IsCompleted = !checklistItem.IsCompleted
+                },
+                await GetCurrentUserNameAsync());
+
+            if (result.Succeeded)
+            {
+                await LoadOrderAsync();
+                statusMessage = "Checklist item was updated.";
+                statusIsError = false;
+            }
+            else
+            {
+                checklistErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            checklistErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingChecklist = false;
+        }
+    }
+
+    private async Task AddChecklistItemAsync()
+    {
+        isSavingChecklist = true;
+        checklistErrors.Clear();
+
+        try
+        {
+            var result = await OrderWorkflowService.UpdateChecklistItemAsync(OrderId, checklistModel, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                checklistModel = new UpdateOrderChecklistItemRequest();
+                await LoadOrderAsync();
+                statusMessage = "Checklist item was added.";
+                statusIsError = false;
+            }
+            else
+            {
+                checklistErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            checklistErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingChecklist = false;
+        }
+    }
+
+    private async Task<string> GetCurrentUserNameAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return authenticationState.User.Identity?.Name ?? "Unknown";
     }
 
     private string FormatLabels()
@@ -437,6 +992,32 @@ else
             ? string.Join(", ", orderRecord.Labels.Select(label => label.LabelText))
             : "Not recorded";
     }
+
+    private RenderFragment SectionErrors(IReadOnlyList<string> errors, string title) => builder =>
+    {
+        if (errors.Count == 0)
+        {
+            return;
+        }
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "status-message error");
+        builder.AddAttribute(2, "role", "alert");
+        builder.OpenElement(3, "p");
+        builder.AddContent(4, title);
+        builder.CloseElement();
+        builder.OpenElement(5, "ul");
+        var sequence = 6;
+        foreach (var error in errors)
+        {
+            builder.OpenElement(sequence++, "li");
+            builder.AddContent(sequence++, error);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+        builder.CloseElement();
+    };
 
     private static string Display(string? value)
     {
@@ -462,4 +1043,6 @@ else
             _ => "Not recorded"
         };
     }
+
+    private sealed record OrderUserOption(int Id, string Label);
 }

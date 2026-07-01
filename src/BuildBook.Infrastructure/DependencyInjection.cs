@@ -75,6 +75,7 @@ public static class DependencyInjection
         services.AddScoped<IOrderRegisterReader, OrderRegisterReader>();
         services.AddScoped<IOrderRecordCreator, OrderRecordCreator>();
         services.AddScoped<IOrderDetailReader, OrderDetailReader>();
+        services.AddScoped<IOrderWorkflowService, OrderWorkflowService>();
         services.AddScoped<IProductDetailsUpdater, ProductDetailsUpdater>();
         services.AddScoped<IBuildDetailsUpdater, BuildDetailsUpdater>();
         services.AddScoped<ICustomerOptionsReader, CustomerOptionsReader>();

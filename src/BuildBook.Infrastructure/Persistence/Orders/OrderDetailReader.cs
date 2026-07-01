@@ -75,6 +75,7 @@ public sealed class OrderDetailReader(
                 Assignments = record.Assignments
                     .OrderBy(assignment => assignment.AssignedAt)
                     .Select(assignment => new OrderAssignmentSummary(
+                        assignment.Id,
                         assignment.ApplicationUser != null
                             ? assignment.ApplicationUser.DisplayName
                                 ?? assignment.ApplicationUser.EmailAddress
@@ -86,6 +87,7 @@ public sealed class OrderDetailReader(
                 ChecklistItems = record.ChecklistItems
                     .OrderBy(checklistItem => checklistItem.DisplayOrder)
                     .Select(checklistItem => new OrderChecklistItemSummary(
+                        checklistItem.Id,
                         checklistItem.DisplayOrder,
                         checklistItem.Text,
                         checklistItem.IsCompleted,
