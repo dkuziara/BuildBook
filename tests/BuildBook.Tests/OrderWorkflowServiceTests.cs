@@ -88,4 +88,77 @@ public class OrderWorkflowServiceTests
         Assert.Contains("This Order has no assignments yet.", warnings!);
         Assert.Contains("Checklist items are still incomplete.", warnings);
     }
+
+    [Fact]
+    public void BuildStatusWarnings_ReturnsShippingWarningForShippedStatusWithoutDate()
+    {
+        var buildWarningsMethod = typeof(OrderWorkflowService).GetMethod(
+            "BuildStatusWarnings",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.NotNull(buildWarningsMethod);
+
+        var orderRecord = new OrderRecord
+        {
+            OrderNumber = "ORD-2002",
+            OrderTitle = "Shipping warning order",
+            Status = BuildBookOrderStatuses.PreparedForShipping,
+            ShippedDate = null
+        };
+
+        var warnings = (List<string>?)buildWarningsMethod!.Invoke(null, [orderRecord, BuildBookOrderStatuses.Shipped]);
+
+        Assert.NotNull(warnings);
+        Assert.Contains("Status is Shipped but shipped date is missing.", warnings!);
+    }
+
+    [Fact]
+    public void BuildStatusWarnings_ReturnsInvoicingReadinessWarningsWhenContractReadyStatusIsMissingFields()
+    {
+        var buildWarningsMethod = typeof(OrderWorkflowService).GetMethod(
+            "BuildStatusWarnings",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.NotNull(buildWarningsMethod);
+
+        var orderRecord = new OrderRecord
+        {
+            OrderNumber = "ORD-2003",
+            OrderTitle = "Invoicing readiness warning order",
+            Status = BuildBookOrderStatuses.Shipped,
+            ContractReadyForInvoicing = false,
+            ReadyForInvoicingDate = null
+        };
+
+        var warnings = (List<string>?)buildWarningsMethod!.Invoke(null, [orderRecord, BuildBookOrderStatuses.ContractReadyForInvoicing]);
+
+        Assert.NotNull(warnings);
+        Assert.Contains("Status is Contract Ready for Invoicing but invoice readiness date is missing.", warnings!);
+        Assert.Contains("Contract ready for invoicing has not been marked.", warnings);
+    }
+
+    [Fact]
+    public void BuildStatusWarnings_ReturnsInvoiceWarningsForInvoicedStatusWithoutNumberOrDate()
+    {
+        var buildWarningsMethod = typeof(OrderWorkflowService).GetMethod(
+            "BuildStatusWarnings",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.NotNull(buildWarningsMethod);
+
+        var orderRecord = new OrderRecord
+        {
+            OrderNumber = "ORD-2004",
+            OrderTitle = "Invoice warning order",
+            Status = BuildBookOrderStatuses.ContractReadyForInvoicing,
+            InvoiceNumber = null,
+            InvoicedDate = null
+        };
+
+        var warnings = (List<string>?)buildWarningsMethod!.Invoke(null, [orderRecord, BuildBookOrderStatuses.Invoiced]);
+
+        Assert.NotNull(warnings);
+        Assert.Contains("Status is Invoiced but invoice number is missing.", warnings!);
+        Assert.Contains("Status is Invoiced but invoiced date is missing.", warnings);
+    }
 }

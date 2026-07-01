@@ -298,6 +298,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Customer &amp; Support", pageContent);
         Assert.Contains("Workflow", pageContent);
         Assert.Contains("Status Workflow", pageContent);
+        Assert.Contains("Shipping", pageContent);
+        Assert.Contains("Invoicing", pageContent);
         Assert.Contains("Overview", pageContent);
         Assert.Contains("Order Details", pageContent);
         Assert.Contains("Dates", pageContent);
@@ -310,6 +312,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("FormName=\"edit-order-customer-support\"", pageContent);
         Assert.Contains("FormName=\"edit-order-workflow\"", pageContent);
         Assert.Contains("FormName=\"change-order-status\"", pageContent);
+        Assert.Contains("FormName=\"edit-order-shipping\"", pageContent);
+        Assert.Contains("FormName=\"edit-order-invoicing\"", pageContent);
         Assert.Contains("FormName=\"add-order-assignment\"", pageContent);
         Assert.Contains("FormName=\"add-order-checklist-item\"", pageContent);
         Assert.Contains("FormName=\"search-order-build-records\"", pageContent);
@@ -320,10 +324,14 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("SaveCustomerSupportAsync", pageContent);
         Assert.Contains("SaveWorkflowAsync", pageContent);
         Assert.Contains("SaveStatusAsync", pageContent);
+        Assert.Contains("SaveShippingAsync", pageContent);
+        Assert.Contains("SaveInvoicingAsync", pageContent);
         Assert.Contains("SaveAssignmentAsync", pageContent);
         Assert.Contains("RemoveAssignmentAsync", pageContent);
         Assert.Contains("ToggleChecklistItemAsync", pageContent);
         Assert.Contains("AddChecklistItemAsync", pageContent);
+        Assert.Contains("CurrentWarnings", pageContent);
+        Assert.Contains("Readiness warnings were found.", pageContent);
         Assert.Contains("SupportTicketLinkBuilder.BuildUrl", pageContent);
         Assert.Contains("LoadOrderAsync", pageContent);
         Assert.Contains("Continue with the status change anyway", pageContent);

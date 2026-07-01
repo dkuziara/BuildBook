@@ -60,6 +60,19 @@ else
         </div>
     }
 
+    @if (CurrentWarnings.Count > 0)
+    {
+        <div class="status-message warning" role="status">
+            <p>Readiness warnings were found.</p>
+            <ul>
+                @foreach (var warning in CurrentWarnings)
+                {
+                    <li>@warning</li>
+                }
+            </ul>
+        </div>
+    }
+
     <section class="detail-panel" aria-labelledby="order-summary-heading">
         <div class="detail-panel-header">
             <div>
@@ -486,6 +499,215 @@ else
         </dl>
     </section>
 
+    <section class="detail-panel detail-section" aria-labelledby="order-shipping-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-shipping-heading">Shipping</h2>
+                <p>Structured shipping, collection and despatch details.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookOrderPolicies.EditOrders">
+                <Authorized Context="shippingAuthorization">
+                    @if (!isEditingShipping)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingShipping">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingShipping)
+        {
+            @SectionErrors(shippingErrors, "Shipping details could not be saved.")
+
+            <EditForm Model="shippingModel" OnValidSubmit="SaveShippingAsync" FormName="edit-order-shipping">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-order-shipping-required">Shipping required</label>
+                        <InputSelect TValue="bool?" id="edit-order-shipping-required" class="text-input" @bind-Value="shippingModel.ShippingRequired">
+                            <option value="">Not recorded</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-shipping-method">Shipping method</label>
+                        <InputText id="edit-order-shipping-method" class="text-input" @bind-Value="shippingModel.ShippingMethod" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-courier">Courier</label>
+                        <InputText id="edit-order-courier" class="text-input" @bind-Value="shippingModel.Courier" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-tracking-number">Tracking number</label>
+                        <InputText id="edit-order-tracking-number" class="text-input" @bind-Value="shippingModel.TrackingNumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-collection-required">Collection required</label>
+                        <InputSelect TValue="bool?" id="edit-order-collection-required" class="text-input" @bind-Value="shippingModel.CollectionRequired">
+                            <option value="">Not recorded</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-collection-date">Collection date</label>
+                        <InputDate id="edit-order-collection-date" class="text-input" @bind-Value="shippingModel.CollectionDate" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-shipped-date">Shipped date</label>
+                        <InputDate id="edit-order-shipped-date" class="text-input" @bind-Value="shippingModel.ShippedDate" />
+                    </div>
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-order-shipping-notes">Shipping notes</label>
+                    <InputTextArea id="edit-order-shipping-notes" class="text-input" @bind-Value="shippingModel.ShippingNotes" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingShipping">@(isSavingShipping ? "Saving..." : "Save shipping details")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingShipping" @onclick="CancelShippingEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Shipping required</dt>
+                    <dd>@DisplayBoolean(orderRecord.ShippingRequired)</dd>
+                </div>
+                <div>
+                    <dt>Shipping method</dt>
+                    <dd>@Display(orderRecord.ShippingMethod)</dd>
+                </div>
+                <div>
+                    <dt>Courier</dt>
+                    <dd>@Display(orderRecord.Courier)</dd>
+                </div>
+                <div>
+                    <dt>Tracking number</dt>
+                    <dd>@Display(orderRecord.TrackingNumber)</dd>
+                </div>
+                <div>
+                    <dt>Collection required</dt>
+                    <dd>@DisplayBoolean(orderRecord.CollectionRequired)</dd>
+                </div>
+                <div>
+                    <dt>Collection date</dt>
+                    <dd>@Display(orderRecord.CollectionDate)</dd>
+                </div>
+                <div>
+                    <dt>Shipped date</dt>
+                    <dd>@Display(orderRecord.ShippedDate)</dd>
+                </div>
+                <div>
+                    <dt>Shipped by</dt>
+                    <dd>@Display(orderRecord.ShippedBy)</dd>
+                </div>
+                <div>
+                    <dt>Shipping notes</dt>
+                    <dd>@Display(orderRecord.ShippingNotes)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-invoicing-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-invoicing-heading">Invoicing</h2>
+                <p>Readiness and completion details for invoicing.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookOrderPolicies.EditOrders">
+                <Authorized Context="invoicingAuthorization">
+                    @if (!isEditingInvoicing)
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingInvoicing">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (isEditingInvoicing)
+        {
+            @SectionErrors(invoicingErrors, "Invoicing details could not be saved.")
+
+            <EditForm Model="invoicingModel" OnValidSubmit="SaveInvoicingAsync" FormName="edit-order-invoicing">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-order-contract-ready">Contract ready for invoicing</label>
+                        <InputSelect TValue="bool?" id="edit-order-contract-ready" class="text-input" @bind-Value="invoicingModel.ContractReadyForInvoicing">
+                            <option value="">Not recorded</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-ready-for-invoicing-date">Ready for invoicing date</label>
+                        <InputDate id="edit-order-ready-for-invoicing-date" class="text-input" @bind-Value="invoicingModel.ReadyForInvoicingDate" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-invoice-number">Invoice number</label>
+                        <InputText id="edit-order-invoice-number" class="text-input" @bind-Value="invoicingModel.InvoiceNumber" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-order-invoiced-date">Invoiced date</label>
+                        <InputDate id="edit-order-invoiced-date" class="text-input" @bind-Value="invoicingModel.InvoicedDate" />
+                    </div>
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-order-invoicing-notes">Invoicing notes</label>
+                    <InputTextArea id="edit-order-invoicing-notes" class="text-input" @bind-Value="invoicingModel.InvoicingNotes" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingInvoicing">@(isSavingInvoicing ? "Saving..." : "Save invoicing details")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingInvoicing" @onclick="CancelInvoicingEdit">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Contract ready for invoicing</dt>
+                    <dd>@DisplayBoolean(orderRecord.ContractReadyForInvoicing)</dd>
+                </div>
+                <div>
+                    <dt>Ready for invoicing date</dt>
+                    <dd>@Display(orderRecord.ReadyForInvoicingDate)</dd>
+                </div>
+                <div>
+                    <dt>Invoice number</dt>
+                    <dd>@Display(orderRecord.InvoiceNumber)</dd>
+                </div>
+                <div>
+                    <dt>Invoiced date</dt>
+                    <dd>@Display(orderRecord.InvoicedDate)</dd>
+                </div>
+                <div>
+                    <dt>Invoiced by</dt>
+                    <dd>@Display(orderRecord.InvoicedBy)</dd>
+                </div>
+                <div>
+                    <dt>Invoicing notes</dt>
+                    <dd>@Display(orderRecord.InvoicingNotes)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
     <section class="table-panel compact-table-panel detail-section" aria-labelledby="order-assignments-heading">
         <div class="table-panel-heading">
             <div>
@@ -887,6 +1109,10 @@ else
     private bool isSavingWorkflow;
     private bool isEditingStatus;
     private bool isSavingStatus;
+    private bool isEditingShipping;
+    private bool isSavingShipping;
+    private bool isEditingInvoicing;
+    private bool isSavingInvoicing;
     private bool isSavingAssignment;
     private bool isSavingChecklist;
     private bool isSearchingBuildRecords;
@@ -895,6 +1121,8 @@ else
     private UpdateOrderCustomerAndSupportRequest customerSupportModel = new();
     private UpdateOrderWorkflowRequest workflowModel = new();
     private ChangeOrderStatusRequest statusModel = new();
+    private UpdateOrderShippingRequest shippingModel = new();
+    private UpdateOrderInvoicingRequest invoicingModel = new();
     private SaveOrderAssignmentRequest assignmentModel = new();
     private UpdateOrderChecklistItemRequest checklistModel = new();
     private BuildRecordSearchModel buildRecordLinkModel = new();
@@ -902,6 +1130,8 @@ else
     private List<string> workflowErrors = [];
     private List<string> statusErrors = [];
     private List<string> statusWarnings = [];
+    private List<string> shippingErrors = [];
+    private List<string> invoicingErrors = [];
     private List<string> assignmentErrors = [];
     private List<string> checklistErrors = [];
     private List<string> buildLinkErrors = [];
@@ -916,6 +1146,10 @@ else
     private string? CurrentSupportTicketUrl => orderRecord is null
         ? null
         : SupportTicketLinkBuilder.BuildUrl(supportTicketUrlTemplate, orderRecord.SupportTicketNo);
+
+    private IReadOnlyList<string> CurrentWarnings => orderRecord is null
+        ? []
+        : BuildWarnings(orderRecord);
 
     private string CreateBuildRecordFromOrderUrl
     {
@@ -1090,6 +1324,123 @@ else
     {
         workflowErrors.Clear();
         isEditingWorkflow = false;
+    }
+
+    private void StartEditingShipping()
+    {
+        if (orderRecord is null)
+        {
+            return;
+        }
+
+        shippingModel = new UpdateOrderShippingRequest
+        {
+            ShippingRequired = orderRecord.ShippingRequired,
+            ShippingMethod = orderRecord.ShippingMethod,
+            Courier = orderRecord.Courier,
+            TrackingNumber = orderRecord.TrackingNumber,
+            CollectionRequired = orderRecord.CollectionRequired,
+            CollectionDate = orderRecord.CollectionDate,
+            ShippedDate = orderRecord.ShippedDate,
+            ShippingNotes = orderRecord.ShippingNotes
+        };
+
+        shippingErrors.Clear();
+        statusMessage = null;
+        isEditingShipping = true;
+    }
+
+    private async Task SaveShippingAsync()
+    {
+        isSavingShipping = true;
+        shippingErrors.Clear();
+
+        try
+        {
+            var result = await OrderWorkflowService.UpdateShippingAsync(OrderId, shippingModel, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                await LoadOrderAsync();
+                isEditingShipping = false;
+                statusMessage = "Shipping details were updated.";
+                statusIsError = false;
+            }
+            else
+            {
+                shippingErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            shippingErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingShipping = false;
+        }
+    }
+
+    private void CancelShippingEdit()
+    {
+        shippingErrors.Clear();
+        isEditingShipping = false;
+    }
+
+    private void StartEditingInvoicing()
+    {
+        if (orderRecord is null)
+        {
+            return;
+        }
+
+        invoicingModel = new UpdateOrderInvoicingRequest
+        {
+            ContractReadyForInvoicing = orderRecord.ContractReadyForInvoicing,
+            ReadyForInvoicingDate = orderRecord.ReadyForInvoicingDate,
+            InvoiceNumber = orderRecord.InvoiceNumber,
+            InvoicedDate = orderRecord.InvoicedDate,
+            InvoicingNotes = orderRecord.InvoicingNotes
+        };
+
+        invoicingErrors.Clear();
+        statusMessage = null;
+        isEditingInvoicing = true;
+    }
+
+    private async Task SaveInvoicingAsync()
+    {
+        isSavingInvoicing = true;
+        invoicingErrors.Clear();
+
+        try
+        {
+            var result = await OrderWorkflowService.UpdateInvoicingAsync(OrderId, invoicingModel, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                await LoadOrderAsync();
+                isEditingInvoicing = false;
+                statusMessage = "Invoicing details were updated.";
+                statusIsError = false;
+            }
+            else
+            {
+                invoicingErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            invoicingErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingInvoicing = false;
+        }
+    }
+
+    private void CancelInvoicingEdit()
+    {
+        invoicingErrors.Clear();
+        isEditingInvoicing = false;
     }
 
     private void StartEditingStatus()
@@ -1398,6 +1749,62 @@ else
         builder.CloseElement();
         builder.CloseElement();
     };
+
+    private static List<string> BuildWarnings(OrderDetailModel order)
+    {
+        var warnings = new List<string>();
+
+        if (string.Equals(order.Status, BuildBookOrderStatuses.PreparedForShipping, StringComparison.Ordinal)
+            || string.Equals(order.Status, BuildBookOrderStatuses.ReadyForCollection, StringComparison.Ordinal)
+            || string.Equals(order.Status, BuildBookOrderStatuses.Shipped, StringComparison.Ordinal)
+            || string.Equals(order.Status, BuildBookOrderStatuses.ContractReadyForInvoicing, StringComparison.Ordinal)
+            || string.Equals(order.Status, BuildBookOrderStatuses.Invoiced, StringComparison.Ordinal))
+        {
+            if (order.Assignments.Count == 0)
+            {
+                warnings.Add("This Order has no assignments yet.");
+            }
+
+            if (order.ChecklistItems.Any(item => !item.IsCompleted))
+            {
+                warnings.Add("Checklist items are still incomplete.");
+            }
+        }
+
+        if (string.Equals(order.Status, BuildBookOrderStatuses.Shipped, StringComparison.Ordinal)
+            && order.ShippedDate is null)
+        {
+            warnings.Add("Status is Shipped but shipped date is missing.");
+        }
+
+        if (string.Equals(order.Status, BuildBookOrderStatuses.ContractReadyForInvoicing, StringComparison.Ordinal))
+        {
+            if (order.ReadyForInvoicingDate is null)
+            {
+                warnings.Add("Status is Contract Ready for Invoicing but invoice readiness date is missing.");
+            }
+
+            if (order.ContractReadyForInvoicing != true)
+            {
+                warnings.Add("Contract ready for invoicing has not been marked.");
+            }
+        }
+
+        if (string.Equals(order.Status, BuildBookOrderStatuses.Invoiced, StringComparison.Ordinal))
+        {
+            if (string.IsNullOrWhiteSpace(order.InvoiceNumber))
+            {
+                warnings.Add("Status is Invoiced but invoice number is missing.");
+            }
+
+            if (order.InvoicedDate is null)
+            {
+                warnings.Add("Status is Invoiced but invoiced date is missing.");
+            }
+        }
+
+        return warnings;
+    }
 
     private static string Display(string? value)
     {

@@ -54,6 +54,96 @@ public sealed class OrderWorkflowService(
         return OrderOperationResult.Success();
     }
 
+    public async Task<OrderOperationResult> UpdateShippingAsync(
+        int orderRecordId,
+        UpdateOrderShippingRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var orderRecord = await dbContext.OrderRecords
+            .SingleOrDefaultAsync(record => record.Id == orderRecordId && record.IsActive, cancellationToken);
+
+        if (orderRecord is null)
+        {
+            return OrderOperationResult.Failure("Order was not found.");
+        }
+
+        var shippingMethod = NormalizeOptionalValue(request.ShippingMethod);
+        var courier = NormalizeOptionalValue(request.Courier);
+        var trackingNumber = NormalizeOptionalValue(request.TrackingNumber);
+        var shippingNotes = NormalizeOptionalValue(request.ShippingNotes);
+
+        if (orderRecord.ShippingRequired == request.ShippingRequired
+            && orderRecord.ShippingMethod == shippingMethod
+            && orderRecord.Courier == courier
+            && orderRecord.TrackingNumber == trackingNumber
+            && orderRecord.CollectionRequired == request.CollectionRequired
+            && orderRecord.CollectionDate == request.CollectionDate
+            && orderRecord.ShippedDate == request.ShippedDate
+            && orderRecord.ShippingNotes == shippingNotes)
+        {
+            return OrderOperationResult.Success();
+        }
+
+        var actor = NormalizeActor(updatedBy);
+        var actorUser = await FindApplicationUserAsync(dbContext, actor, cancellationToken);
+
+        orderRecord.ShippingRequired = request.ShippingRequired;
+        orderRecord.ShippingMethod = shippingMethod;
+        orderRecord.Courier = courier;
+        orderRecord.TrackingNumber = trackingNumber;
+        orderRecord.CollectionRequired = request.CollectionRequired;
+        orderRecord.CollectionDate = request.CollectionDate;
+        orderRecord.ShippedDate = request.ShippedDate;
+        orderRecord.ShippedByUserId = request.ShippedDate is null ? null : actorUser?.Id;
+        orderRecord.ShippingNotes = shippingNotes;
+
+        await SaveOrderAsync(dbContext, orderRecord, actor, cancellationToken, actorUser);
+        return OrderOperationResult.Success();
+    }
+
+    public async Task<OrderOperationResult> UpdateInvoicingAsync(
+        int orderRecordId,
+        UpdateOrderInvoicingRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var orderRecord = await dbContext.OrderRecords
+            .SingleOrDefaultAsync(record => record.Id == orderRecordId && record.IsActive, cancellationToken);
+
+        if (orderRecord is null)
+        {
+            return OrderOperationResult.Failure("Order was not found.");
+        }
+
+        var invoiceNumber = NormalizeOptionalValue(request.InvoiceNumber);
+        var invoicingNotes = NormalizeOptionalValue(request.InvoicingNotes);
+
+        if (orderRecord.ContractReadyForInvoicing == request.ContractReadyForInvoicing
+            && orderRecord.ReadyForInvoicingDate == request.ReadyForInvoicingDate
+            && orderRecord.InvoiceNumber == invoiceNumber
+            && orderRecord.InvoicedDate == request.InvoicedDate
+            && orderRecord.InvoicingNotes == invoicingNotes)
+        {
+            return OrderOperationResult.Success();
+        }
+
+        var actor = NormalizeActor(updatedBy);
+        var actorUser = await FindApplicationUserAsync(dbContext, actor, cancellationToken);
+
+        orderRecord.ContractReadyForInvoicing = request.ContractReadyForInvoicing;
+        orderRecord.ReadyForInvoicingDate = request.ReadyForInvoicingDate;
+        orderRecord.InvoiceNumber = invoiceNumber;
+        orderRecord.InvoicedDate = request.InvoicedDate;
+        orderRecord.InvoicedByUserId = request.InvoicedDate is null ? null : actorUser?.Id;
+        orderRecord.InvoicingNotes = invoicingNotes;
+
+        await SaveOrderAsync(dbContext, orderRecord, actor, cancellationToken, actorUser);
+        return OrderOperationResult.Success();
+    }
+
     public async Task<ChangeOrderStatusResult> ChangeStatusAsync(
         int orderRecordId,
         ChangeOrderStatusRequest request,
@@ -293,6 +383,38 @@ public sealed class OrderWorkflowService(
         if (orderRecord.ChecklistItems.Any(item => !item.IsCompleted))
         {
             warnings.Add("Checklist items are still incomplete.");
+        }
+
+        if (string.Equals(newStatus, BuildBookOrderStatuses.Shipped, StringComparison.Ordinal)
+            && orderRecord.ShippedDate is null)
+        {
+            warnings.Add("Status is Shipped but shipped date is missing.");
+        }
+
+        if (string.Equals(newStatus, BuildBookOrderStatuses.ContractReadyForInvoicing, StringComparison.Ordinal))
+        {
+            if (orderRecord.ReadyForInvoicingDate is null)
+            {
+                warnings.Add("Status is Contract Ready for Invoicing but invoice readiness date is missing.");
+            }
+
+            if (orderRecord.ContractReadyForInvoicing != true)
+            {
+                warnings.Add("Contract ready for invoicing has not been marked.");
+            }
+        }
+
+        if (string.Equals(newStatus, BuildBookOrderStatuses.Invoiced, StringComparison.Ordinal))
+        {
+            if (string.IsNullOrWhiteSpace(orderRecord.InvoiceNumber))
+            {
+                warnings.Add("Status is Invoiced but invoice number is missing.");
+            }
+
+            if (orderRecord.InvoicedDate is null)
+            {
+                warnings.Add("Status is Invoiced but invoiced date is missing.");
+            }
         }
 
         return warnings;

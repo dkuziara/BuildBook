@@ -72,6 +72,29 @@ public sealed class OrderDetailReader(
                     : null,
                 record.NotesSummary,
                 record.SupportTicketNo,
+                record.ShippingRequired,
+                record.ShippingMethod,
+                record.Courier,
+                record.TrackingNumber,
+                record.CollectionRequired,
+                record.CollectionDate,
+                record.ShippedDate,
+                ShippedBy = record.ShippedByUser != null
+                    ? record.ShippedByUser.DisplayName
+                        ?? record.ShippedByUser.EmailAddress
+                        ?? record.ShippedByUser.WindowsUserName
+                    : null,
+                record.ShippingNotes,
+                record.ContractReadyForInvoicing,
+                record.ReadyForInvoicingDate,
+                record.InvoiceNumber,
+                record.InvoicedDate,
+                InvoicedBy = record.InvoicedByUser != null
+                    ? record.InvoicedByUser.DisplayName
+                        ?? record.InvoicedByUser.EmailAddress
+                        ?? record.InvoicedByUser.WindowsUserName
+                    : null,
+                record.InvoicingNotes,
                 Assignments = record.Assignments
                     .OrderBy(assignment => assignment.AssignedAt)
                     .Select(assignment => new OrderAssignmentSummary(
@@ -184,6 +207,21 @@ public sealed class OrderDetailReader(
                 orderRecord.ProductionOwner,
                 orderRecord.NotesSummary,
                 orderRecord.SupportTicketNo,
+                orderRecord.ShippingRequired,
+                orderRecord.ShippingMethod,
+                orderRecord.Courier,
+                orderRecord.TrackingNumber,
+                orderRecord.CollectionRequired,
+                orderRecord.CollectionDate,
+                orderRecord.ShippedDate,
+                orderRecord.ShippedBy,
+                orderRecord.ShippingNotes,
+                orderRecord.ContractReadyForInvoicing,
+                orderRecord.ReadyForInvoicingDate,
+                orderRecord.InvoiceNumber,
+                orderRecord.InvoicedDate,
+                orderRecord.InvoicedBy,
+                orderRecord.InvoicingNotes,
                 orderRecord.Assignments,
                 orderRecord.ChecklistItems,
                 orderRecord.Notes,

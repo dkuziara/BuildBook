@@ -10,6 +10,18 @@ public interface IOrderWorkflowService
         string updatedBy,
         CancellationToken cancellationToken = default);
 
+    Task<OrderOperationResult> UpdateShippingAsync(
+        int orderRecordId,
+        UpdateOrderShippingRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<OrderOperationResult> UpdateInvoicingAsync(
+        int orderRecordId,
+        UpdateOrderInvoicingRequest request,
+        string updatedBy,
+        CancellationToken cancellationToken = default);
+
     Task<ChangeOrderStatusResult> ChangeStatusAsync(
         int orderRecordId,
         ChangeOrderStatusRequest request,
