@@ -114,6 +114,7 @@ public class InfrastructureRegistrationTests
         var migrations = context.Database.GetMigrations();
 
         Assert.Contains(migrations, migration => migration.EndsWith("_InitialCreate", StringComparison.Ordinal));
+        Assert.Contains(migrations, migration => migration.EndsWith("_AddOrdersModuleDataModel", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -160,6 +161,31 @@ public class InfrastructureRegistrationTests
         Assert.Contains(SystemSettingKeys.OrderWorkflowStatuses, initializerContent);
         Assert.Contains(SystemSettingKeys.SupportTicketUrlTemplate, initializerContent);
         Assert.Contains(SystemSettingKeys.SupportTicketLabel, initializerContent);
+    }
+
+    [Fact]
+    public void OrdersMigrationCreatesCoreOrdersTables()
+    {
+        var migrationPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Infrastructure",
+            "Persistence",
+            "Migrations",
+            "20260701140000_AddOrdersModuleDataModel.cs");
+        var migrationContent = File.ReadAllText(migrationPath);
+
+        Assert.Contains("CreateTable(", migrationContent);
+        Assert.Contains("\"OrderRecords\"", migrationContent);
+        Assert.Contains("\"OrderAssignments\"", migrationContent);
+        Assert.Contains("\"OrderChecklistItems\"", migrationContent);
+        Assert.Contains("\"OrderNotes\"", migrationContent);
+        Assert.Contains("\"OrderLabels\"", migrationContent);
+        Assert.Contains("\"OrderBuildRecordLinks\"", migrationContent);
+        Assert.Contains("\"OrderStatusHistory\"", migrationContent);
+        Assert.Contains("\"OrderImportBatches\"", migrationContent);
+        Assert.Contains("\"OrderImportWarnings\"", migrationContent);
+        Assert.Contains("IX_OrderRecords_PlannerTaskId", migrationContent);
     }
 
     private static IConfiguration CreateConfiguration(string? connectionString)

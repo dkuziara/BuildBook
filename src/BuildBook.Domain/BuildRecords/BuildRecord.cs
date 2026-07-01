@@ -1,4 +1,5 @@
 using BuildBook.Domain.Customers;
+using BuildBook.Domain.Orders;
 
 namespace BuildBook.Domain.BuildRecords;
 
@@ -99,6 +100,8 @@ public sealed class BuildRecord
     public bool IsActive { get; set; } = true;
 
     public ICollection<BuildRecordSecret> Secrets { get; } = new List<BuildRecordSecret>();
+
+    public ICollection<OrderBuildRecordLink> OrderLinks { get; } = new List<OrderBuildRecordLink>();
 
     public ICollection<BuildRecordAudit> AuditEntries { get; } = new List<BuildRecordAudit>();
 }

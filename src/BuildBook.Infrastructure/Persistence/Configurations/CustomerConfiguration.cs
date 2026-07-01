@@ -77,6 +77,11 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
             .HasForeignKey(buildRecord => buildRecord.CustomerId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasMany(customer => customer.OrderRecords)
+            .WithOne(orderRecord => orderRecord.Customer)
+            .HasForeignKey(orderRecord => orderRecord.CustomerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasMany(customer => customer.RmaRecords)
             .WithOne(rmaRecord => rmaRecord.Customer)
             .HasForeignKey(rmaRecord => rmaRecord.CustomerId)

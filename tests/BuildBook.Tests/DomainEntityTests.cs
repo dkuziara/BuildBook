@@ -1,6 +1,7 @@
 using System.Reflection;
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
+using BuildBook.Domain.Orders;
 using BuildBook.Domain.Rmas;
 using BuildBook.Domain.Security;
 using BuildBook.Domain.Settings;
@@ -59,6 +60,15 @@ public class DomainEntityTests
         Assert.IsAssignableFrom<DbSet<ApplicationRole>>(context.ApplicationRoles);
         Assert.IsAssignableFrom<DbSet<ApplicationUserRole>>(context.ApplicationUserRoles);
         Assert.IsAssignableFrom<DbSet<SystemSetting>>(context.SystemSettings);
+        Assert.IsAssignableFrom<DbSet<OrderRecord>>(context.OrderRecords);
+        Assert.IsAssignableFrom<DbSet<OrderAssignment>>(context.OrderAssignments);
+        Assert.IsAssignableFrom<DbSet<OrderChecklistItem>>(context.OrderChecklistItems);
+        Assert.IsAssignableFrom<DbSet<OrderNote>>(context.OrderNotes);
+        Assert.IsAssignableFrom<DbSet<OrderLabel>>(context.OrderLabels);
+        Assert.IsAssignableFrom<DbSet<OrderBuildRecordLink>>(context.OrderBuildRecordLinks);
+        Assert.IsAssignableFrom<DbSet<OrderStatusHistory>>(context.OrderStatusHistory);
+        Assert.IsAssignableFrom<DbSet<OrderImportBatch>>(context.OrderImportBatches);
+        Assert.IsAssignableFrom<DbSet<OrderImportWarning>>(context.OrderImportWarnings);
         Assert.IsAssignableFrom<DbSet<RmaRecord>>(context.RmaRecords);
         Assert.IsAssignableFrom<DbSet<RmaChecklistItem>>(context.RmaChecklistItems);
         Assert.IsAssignableFrom<DbSet<RmaNote>>(context.RmaNotes);
@@ -136,6 +146,7 @@ public class DomainEntityTests
         Assert.Contains(nameof(Customer.SupportContractStartDate), propertyNames);
         Assert.Contains(nameof(Customer.SupportContractEndDate), propertyNames);
         Assert.Contains(nameof(Customer.SupportNotes), propertyNames);
+        Assert.Contains(nameof(Customer.OrderRecords), propertyNames);
     }
 
     [Fact]
@@ -225,6 +236,79 @@ public class DomainEntityTests
         Assert.Equal(
             "ApplicationUserId,ApplicationRoleId",
             string.Join(",", applicationUserRole.FindPrimaryKey()!.Properties.Select(property => property.Name)));
+    }
+
+    [Fact]
+    public void OrderEnumsCoverFoundationSpecificationValues()
+    {
+        Assert.Contains(nameof(OrderPriority.Urgent), Enum.GetNames<OrderPriority>());
+        Assert.Contains(nameof(OrderAssignmentType.Owner), Enum.GetNames<OrderAssignmentType>());
+        Assert.Contains(nameof(OrderAssignmentType.SalesAdmin), Enum.GetNames<OrderAssignmentType>());
+        Assert.Contains(nameof(OrderAssignmentType.Qa), Enum.GetNames<OrderAssignmentType>());
+        Assert.Contains(nameof(OrderNoteType.PlannerImportedNote), Enum.GetNames<OrderNoteType>());
+        Assert.Contains(nameof(OrderImportWarningSeverity.Warning), Enum.GetNames<OrderImportWarningSeverity>());
+        Assert.Contains(nameof(OrderImportWarningSeverity.Error), Enum.GetNames<OrderImportWarningSeverity>());
+    }
+
+    [Fact]
+    public void OrderRecordModelIncludesExpectedWorkflowAndImportFields()
+    {
+        var propertyNames = typeof(OrderRecord)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(property => property.Name)
+            .ToArray();
+
+        Assert.Contains(nameof(OrderRecord.OrderNumber), propertyNames);
+        Assert.Contains(nameof(OrderRecord.OrderTitle), propertyNames);
+        Assert.Contains(nameof(OrderRecord.Status), propertyNames);
+        Assert.Contains(nameof(OrderRecord.Priority), propertyNames);
+        Assert.Contains(nameof(OrderRecord.PlannerTaskId), propertyNames);
+        Assert.Contains(nameof(OrderRecord.PlannerPlanId), propertyNames);
+        Assert.Contains(nameof(OrderRecord.PlannerBucketId), propertyNames);
+        Assert.Contains(nameof(OrderRecord.PlannerSource), propertyNames);
+        Assert.Contains(nameof(OrderRecord.ImportedPriorityText), propertyNames);
+        Assert.Contains(nameof(OrderRecord.ImportedCreatedByText), propertyNames);
+        Assert.Contains(nameof(OrderRecord.ImportedCompletedByText), propertyNames);
+        Assert.Contains(nameof(OrderRecord.BuildRecordLinks), propertyNames);
+    }
+
+    [Fact]
+    public void OrderRecordModelHasOperationalIndexes()
+    {
+        var options = new DbContextOptionsBuilder<BuildBookDbContext>()
+            .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=BuildBookOrderIndexTest;Trusted_Connection=True;TrustServerCertificate=True")
+            .Options;
+
+        using var context = new BuildBookDbContext(options);
+        var orderRecord = context.Model.FindEntityType(typeof(OrderRecord));
+
+        Assert.NotNull(orderRecord);
+
+        var indexedProperties = orderRecord.GetIndexes()
+            .Select(index => string.Join(",", index.Properties.Select(property => property.Name)))
+            .ToArray();
+
+        Assert.Contains(nameof(OrderRecord.OrderNumber), indexedProperties);
+        Assert.Contains(nameof(OrderRecord.CustomerId), indexedProperties);
+        Assert.Contains(nameof(OrderRecord.Status), indexedProperties);
+        Assert.Contains(nameof(OrderRecord.Priority), indexedProperties);
+        Assert.Contains(nameof(OrderRecord.StartDate), indexedProperties);
+        Assert.Contains(nameof(OrderRecord.DueDate), indexedProperties);
+        Assert.Contains(nameof(OrderRecord.PlannerTaskId), indexedProperties);
+        Assert.Contains(nameof(OrderRecord.InvoiceNumber), indexedProperties);
+        Assert.Contains(nameof(OrderRecord.SupportTicketNo), indexedProperties);
+        Assert.Contains(nameof(OrderRecord.LastUpdatedAt), indexedProperties);
+    }
+
+    [Fact]
+    public void BuildRecordModelIncludesOrderLinkNavigation()
+    {
+        var propertyNames = typeof(BuildRecord)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(property => property.Name)
+            .ToArray();
+
+        Assert.Contains(nameof(BuildRecord.OrderLinks), propertyNames);
     }
 
     [Fact]

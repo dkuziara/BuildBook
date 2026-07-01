@@ -1,4 +1,5 @@
 using BuildBook.Domain.BuildRecords;
+using BuildBook.Domain.Orders;
 using BuildBook.Domain.Rmas;
 
 namespace BuildBook.Domain.Customers;
@@ -58,6 +59,8 @@ public sealed class Customer
     public bool IsActive { get; set; } = true;
 
     public ICollection<BuildRecord> BuildRecords { get; } = new List<BuildRecord>();
+
+    public ICollection<OrderRecord> OrderRecords { get; } = new List<OrderRecord>();
 
     public ICollection<RmaRecord> RmaRecords { get; } = new List<RmaRecord>();
 }

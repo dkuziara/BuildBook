@@ -1,5 +1,6 @@
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
+using BuildBook.Domain.Orders;
 using BuildBook.Domain.Rmas;
 using BuildBook.Domain.Security;
 using BuildBook.Domain.Settings;
@@ -28,6 +29,24 @@ public sealed class BuildBookDbContext(DbContextOptions<BuildBookDbContext> opti
     public DbSet<ApplicationUserRole> ApplicationUserRoles => Set<ApplicationUserRole>();
 
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
+
+    public DbSet<OrderRecord> OrderRecords => Set<OrderRecord>();
+
+    public DbSet<OrderAssignment> OrderAssignments => Set<OrderAssignment>();
+
+    public DbSet<OrderChecklistItem> OrderChecklistItems => Set<OrderChecklistItem>();
+
+    public DbSet<OrderNote> OrderNotes => Set<OrderNote>();
+
+    public DbSet<OrderLabel> OrderLabels => Set<OrderLabel>();
+
+    public DbSet<OrderBuildRecordLink> OrderBuildRecordLinks => Set<OrderBuildRecordLink>();
+
+    public DbSet<OrderStatusHistory> OrderStatusHistory => Set<OrderStatusHistory>();
+
+    public DbSet<OrderImportBatch> OrderImportBatches => Set<OrderImportBatch>();
+
+    public DbSet<OrderImportWarning> OrderImportWarnings => Set<OrderImportWarning>();
 
     public DbSet<RmaRecord> RmaRecords => Set<RmaRecord>();
 
