@@ -9,8 +9,10 @@ public class BuildBookPageAuthorizationTests
     [InlineData("BuildRegister.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRecordDetail.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("Orders.razor", BuildBookOrderPolicies.ViewOrders)]
+    [InlineData("OrderBoard.razor", BuildBookOrderPolicies.ViewOrders)]
     [InlineData("CreateOrder.razor", BuildBookOrderPolicies.CreateOrders)]
     [InlineData("OrderDetail.razor", BuildBookOrderPolicies.ViewOrders)]
+    [InlineData("OrderReports.razor", BuildBookOrderPolicies.ExportOrders)]
     [InlineData("OrderImport.razor", BuildBookOrderPolicies.ImportOrders)]
     [InlineData("Rmas.razor", BuildBookRmaPolicies.ViewRmas)]
     [InlineData("RmaBoard.razor", BuildBookRmaPolicies.ViewRmas)]
@@ -234,10 +236,17 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("FormName=\"orders-register-filters\"", pageContent);
         Assert.Contains("BuildBookOrderPolicies.CreateOrders", pageContent);
         Assert.Contains("BuildBookOrderPolicies.ImportOrders", pageContent);
+        Assert.Contains("BuildBookOrderPolicies.ExportOrders", pageContent);
         Assert.Contains("Add Order", pageContent);
         Assert.Contains("Import Planner Export", pageContent);
+        Assert.Contains("Board view", pageContent);
+        Assert.Contains("Reports", pageContent);
+        Assert.Contains("RegisterExportUrl(\"csv\")", pageContent);
+        Assert.Contains("RegisterExportUrl(\"xlsx\")", pageContent);
         Assert.Contains("/orders/new", pageContent);
         Assert.Contains("/orders/import", pageContent);
+        Assert.Contains("/orders/board", pageContent);
+        Assert.Contains("/orders/reports", pageContent);
         Assert.Contains("Search", pageContent);
         Assert.Contains("Customer", pageContent);
         Assert.Contains("Assigned to", pageContent);
@@ -250,6 +259,53 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Loading Orders", pageContent);
         Assert.Contains("No Orders found", pageContent);
         Assert.Contains("/orders/{orderRecord.Id}", pageContent);
+        Assert.DoesNotContain("Password", pageContent);
+        Assert.DoesNotContain("BitLocker", pageContent);
+    }
+
+    [Fact]
+    public void OrderBoardPageDefinesExpectedRouteGroupingAndWarnings()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("OrderBoard.razor"));
+
+        Assert.Contains("@page \"/orders/board\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookOrderPolicies.ViewOrders", pageContent);
+        Assert.Contains("IOrderBoardReader", pageContent);
+        Assert.Contains("Order Board", pageContent);
+        Assert.Contains("GetBoardAsync", pageContent);
+        Assert.Contains("BoardStatuses", pageContent);
+        Assert.Contains("Checklist", pageContent);
+        Assert.Contains("card.HasLinkedBuildRecord", pageContent);
+        Assert.Contains("Overdue", pageContent);
+        Assert.Contains("board-warning-list", pageContent);
+        Assert.Contains("/orders/{card.Id}", pageContent);
+    }
+
+    [Fact]
+    public void OrderReportsPageDefinesExpectedReportsAndExports()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("OrderReports.razor"));
+
+        Assert.Contains("@page \"/orders/reports\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookOrderPolicies.ExportOrders", pageContent);
+        Assert.Contains("IOrderReportReader", pageContent);
+        Assert.Contains("Order Reports", pageContent);
+        Assert.Contains("Operational reports", pageContent);
+        Assert.Contains("Customer and assignment reports", pageContent);
+        Assert.Contains("Build linkage reports", pageContent);
+        Assert.Contains("Checklist reports", pageContent);
+        Assert.Contains("Invoicing reports", pageContent);
+        Assert.Contains("ExportUrl(\"csv\")", pageContent);
+        Assert.Contains("ExportUrl(\"xlsx\")", pageContent);
+        Assert.Contains("ReportScopeQuery", pageContent);
+        Assert.Contains("ReportValueQuery", pageContent);
+        Assert.Contains("ApplySelectedReport", pageContent);
+        Assert.Contains("BuildSummaries", pageContent);
+        Assert.Contains("LoadReportsAsync", pageContent);
+        Assert.Contains("scope=", pageContent);
+        Assert.Contains("#selected-order-report-heading", pageContent);
         Assert.DoesNotContain("Password", pageContent);
         Assert.DoesNotContain("BitLocker", pageContent);
     }
@@ -1031,6 +1087,7 @@ public class BuildBookPageAuthorizationTests
             BuildBookPolicies.ManageSystemSettings => nameof(BuildBookPolicies.ManageSystemSettings),
             BuildBookOrderPolicies.ViewOrders => nameof(BuildBookOrderPolicies.ViewOrders),
             BuildBookOrderPolicies.CreateOrders => nameof(BuildBookOrderPolicies.CreateOrders),
+            BuildBookOrderPolicies.ExportOrders => nameof(BuildBookOrderPolicies.ExportOrders),
             BuildBookRmaPolicies.ViewRmas => nameof(BuildBookRmaPolicies.ViewRmas),
             BuildBookRmaPolicies.CreateRmas => nameof(BuildBookRmaPolicies.CreateRmas),
             BuildBookRmaPolicies.ExportRmaReports => nameof(BuildBookRmaPolicies.ExportRmaReports),
@@ -1045,6 +1102,7 @@ public class BuildBookPageAuthorizationTests
             BuildBookOrderPolicies.ViewOrders => $"BuildBookOrderPolicies.{nameof(BuildBookOrderPolicies.ViewOrders)}",
             BuildBookOrderPolicies.CreateOrders => $"BuildBookOrderPolicies.{nameof(BuildBookOrderPolicies.CreateOrders)}",
             BuildBookOrderPolicies.ImportOrders => $"BuildBookOrderPolicies.{nameof(BuildBookOrderPolicies.ImportOrders)}",
+            BuildBookOrderPolicies.ExportOrders => $"BuildBookOrderPolicies.{nameof(BuildBookOrderPolicies.ExportOrders)}",
             BuildBookRmaPolicies.ViewRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ViewRmas)}",
             BuildBookRmaPolicies.CreateRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.CreateRmas)}",
             BuildBookRmaPolicies.ExportRmaReports => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ExportRmaReports)}",

@@ -1,0 +1,444 @@
+@page "/orders/reports"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.Orders
+@using BuildBook.Application.Security
+@using BuildBook.Domain.Orders
+@using Microsoft.AspNetCore.Components
+
+@attribute [Authorize(Policy = BuildBookOrderPolicies.ExportOrders)]
+
+@inject IOrderReportReader OrderReportReader
+
+<PageTitle>Order Reports</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">Orders</p>
+        <h1>Order Reports</h1>
+        <p>Review operational workload, build linkage gaps, checklist progress and invoicing readiness without going back to Planner.</p>
+    </div>
+    <div class="page-actions">
+        <a class="secondary-button" href="/orders">Back to Order Register</a>
+        <a class="secondary-button" href="@ExportUrl("xlsx")">Export Excel</a>
+        <a class="primary-button" href="@ExportUrl("csv")">Export CSV</a>
+    </div>
+</section>
+
+@if (isLoading)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading Order reports...</p>
+    </section>
+}
+else if (!string.IsNullOrWhiteSpace(loadError))
+{
+    <section class="status-message error" role="alert">
+        <p>@loadError</p>
+    </section>
+}
+else
+{
+    <section class="detail-panel" aria-labelledby="order-operational-reports-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-operational-reports-heading">Operational reports</h2>
+                <p>Quick views for open workload, due dates, stock waiting and shipping-to-invoice handoff.</p>
+            </div>
+        </div>
+
+        <div class="dashboard-card-grid">
+            @foreach (var card in operationalCards)
+            {
+                <DashboardSummaryCard Label="@card.Label" Value="@card.Count" LinkHref="@ReportLink(card.Scope)" LinkLabel="Show Orders" />
+            }
+        </div>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-customer-reports-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-customer-reports-heading">Customer and assignment reports</h2>
+                <p>See which customers and owners are driving the most open order activity.</p>
+            </div>
+        </div>
+
+        <div class="home-activity-grid">
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>By customer</h3>
+                        <p>Top customers by order count.</p>
+                    </div>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Customer</th>
+                                <th scope="col">Orders</th>
+                                <th scope="col">Open</th>
+                                <th scope="col">Review</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in customerRows)
+                            {
+                                <tr>
+                                    <td>@row.Label</td>
+                                    <td>@row.Count</td>
+                                    <td>@row.OpenCount</td>
+                                    <td><a class="table-link" href="@ReportLink(OrderReportScope.Customer, row.FilterValue)">Show Orders</a></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="table-panel">
+                <div class="table-panel-heading">
+                    <div>
+                        <h3>By assigned user</h3>
+                        <p>Orders grouped by owner or imported assignee text.</p>
+                    </div>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Assigned to</th>
+                                <th scope="col">Orders</th>
+                                <th scope="col">Open</th>
+                                <th scope="col">Review</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in assignedRows)
+                            {
+                                <tr>
+                                    <td>@row.Label</td>
+                                    <td>@row.Count</td>
+                                    <td>@row.OpenCount</td>
+                                    <td><a class="table-link" href="@ReportLink(OrderReportScope.AssignedUser, row.FilterValue)">Show Orders</a></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-build-linkage-reports-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-build-linkage-reports-heading">Build linkage reports</h2>
+                <p>Spot orders that still need customer linkage or Build Record linkage cleanup.</p>
+            </div>
+        </div>
+
+        <div class="dashboard-card-grid">
+            <DashboardSummaryCard Label="No linked customer" Value="@Count(OrderReportScope.OrdersWithoutLinkedCustomer)" LinkHref="@ReportLink(OrderReportScope.OrdersWithoutLinkedCustomer)" LinkLabel="Show Orders" />
+            <DashboardSummaryCard Label="No linked Build Record" Value="@Count(OrderReportScope.NoLinkedBuildRecord)" LinkHref="@ReportLink(OrderReportScope.NoLinkedBuildRecord)" LinkLabel="Show Orders" />
+            <DashboardSummaryCard Label="Multiple linked Build Records" Value="@Count(OrderReportScope.MultipleLinkedBuildRecords)" LinkHref="@ReportLink(OrderReportScope.MultipleLinkedBuildRecords)" LinkLabel="Show Orders" />
+        </div>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-checklist-reports-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-checklist-reports-heading">Checklist reports</h2>
+                <p>Find orders blocked by incomplete checklist work and those ready to move forward.</p>
+            </div>
+        </div>
+
+        <div class="dashboard-card-grid">
+            <DashboardSummaryCard Label="Incomplete checklist" Value="@Count(OrderReportScope.IncompleteChecklist)" LinkHref="@ReportLink(OrderReportScope.IncompleteChecklist)" LinkLabel="Show Orders" />
+            <DashboardSummaryCard Label="Checklist complete" Value="@Count(OrderReportScope.ReadyBasedOnChecklist)" LinkHref="@ReportLink(OrderReportScope.ReadyBasedOnChecklist)" LinkLabel="Show Orders" />
+        </div>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-invoicing-reports-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-invoicing-reports-heading">Invoicing reports</h2>
+                <p>Follow the shipping-to-invoicing pipeline with structured dates and invoice numbers.</p>
+            </div>
+        </div>
+
+        <div class="dashboard-card-grid">
+            <DashboardSummaryCard Label="Ready for invoicing" Value="@Count(OrderReportScope.OrdersReadyForInvoicing)" LinkHref="@ReportLink(OrderReportScope.OrdersReadyForInvoicing)" LinkLabel="Show Orders" />
+            <DashboardSummaryCard Label="Invoiced this month" Value="@Count(OrderReportScope.OrdersInvoicedThisMonth)" LinkHref="@ReportLink(OrderReportScope.OrdersInvoicedThisMonth)" LinkLabel="Show Orders" />
+            <DashboardSummaryCard Label="Shipped not invoiced" Value="@Count(OrderReportScope.OrdersShippedNotInvoiced)" LinkHref="@ReportLink(OrderReportScope.OrdersShippedNotInvoiced)" LinkLabel="Show Orders" />
+            <DashboardSummaryCard Label="Missing invoice number" Value="@Count(OrderReportScope.MissingInvoiceNumber)" LinkHref="@ReportLink(OrderReportScope.MissingInvoiceNumber)" LinkLabel="Show Orders" />
+        </div>
+    </section>
+
+    @if (selectedScope is not null)
+    {
+        <section id="selected-order-report-section" class="table-panel detail-section report-scroll-target" aria-labelledby="selected-order-report-heading">
+            <div class="table-panel-heading">
+                <div>
+                    <h2 id="selected-order-report-heading" class="report-scroll-heading">@selectedReportTitle</h2>
+                    <p>@selectedRows.Count matching orders</p>
+                </div>
+                <a class="secondary-button" href="/orders/reports">Clear</a>
+            </div>
+
+            @if (selectedRows.Count == 0)
+            {
+                <div class="placeholder-panel">
+                    <p>No Orders match this report.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Order</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Customer</th>
+                                <th scope="col">Priority</th>
+                                <th scope="col">Assigned to</th>
+                                <th scope="col">Due date</th>
+                                <th scope="col">Checklist</th>
+                                <th scope="col">Linked Builds</th>
+                                <th scope="col">Invoice</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in selectedRows)
+                            {
+                                <tr>
+                                    <td><a class="table-link" href="@($"/orders/{row.Id}")">@row.OrderTitle</a><div>@row.OrderNumber</div></td>
+                                    <td>@row.Status</td>
+                                    <td>@Display(row.CustomerName)</td>
+                                    <td>@Display(row.Priority)</td>
+                                    <td>@Display(row.AssignedTo)</td>
+                                    <td>@Display(row.DueDate)</td>
+                                    <td>@Checklist(row)</td>
+                                    <td>@row.LinkedBuildRecords</td>
+                                    <td>@Display(row.InvoiceNumber)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "scope")]
+    private string? ReportScopeQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "value")]
+    private string? ReportValueQuery { get; set; }
+
+    private IReadOnlyList<OrderReportRow> reportRows = [];
+    private IReadOnlyList<OrderReportRow> selectedRows = [];
+    private IReadOnlyList<ScopeCard> operationalCards = [];
+    private IReadOnlyList<SummaryRow> customerRows = [];
+    private IReadOnlyList<SummaryRow> assignedRows = [];
+    private OrderReportScope? selectedScope;
+    private string selectedReportTitle = "Selected report";
+    private bool isLoading = true;
+    private string? loadError;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadReportsAsync();
+        ApplySelectedReport();
+    }
+
+    private async Task LoadReportsAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        try
+        {
+            reportRows = await OrderReportReader.ListAsync();
+            BuildSummaries();
+        }
+        catch
+        {
+            loadError = "The Order reports could not be loaded. Refresh the page and try again.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void BuildSummaries()
+    {
+        operationalCards =
+        [
+            BuildCard("Open Orders", OrderReportScope.OperationalOpen),
+            BuildCard("Overdue Orders", OrderReportScope.OperationalOverdue),
+            BuildCard("Orders due this week", OrderReportScope.OperationalDueThisWeek),
+            BuildCard("Waiting for parts / stock", OrderReportScope.WaitingForPartsStock),
+            BuildCard("Built not prepared", OrderReportScope.BuiltNotPreparedForShipping),
+            BuildCard("Ready for collection not shipped", OrderReportScope.ReadyForCollectionNotShipped),
+            BuildCard("Shipped not ready for invoicing", OrderReportScope.ShippedNotReadyForInvoicing),
+            BuildCard("Ready for invoicing not invoiced", OrderReportScope.ReadyForInvoicingNotInvoiced)
+        ];
+
+        customerRows = reportRows
+            .GroupBy(row => string.IsNullOrWhiteSpace(row.CustomerName) ? "Not linked" : row.CustomerName!)
+            .Select(group => new SummaryRow(
+                group.Key,
+                group.Key,
+                group.Count(),
+                group.Count(row => !string.Equals(row.Status, BuildBookOrderStatuses.Invoiced, StringComparison.Ordinal))))
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToArray();
+
+        assignedRows = reportRows
+            .GroupBy(row => string.IsNullOrWhiteSpace(row.AssignedTo) ? "Unassigned" : row.AssignedTo)
+            .Select(group => new SummaryRow(
+                group.Key,
+                group.Key,
+                group.Count(),
+                group.Count(row => !string.Equals(row.Status, BuildBookOrderStatuses.Invoiced, StringComparison.Ordinal))))
+            .OrderByDescending(row => row.Count)
+            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToArray();
+    }
+
+    private void ApplySelectedReport()
+    {
+        selectedRows = [];
+        selectedScope = null;
+        selectedReportTitle = "Selected report";
+
+        if (!Enum.TryParse<OrderReportScope>(ReportScopeQuery, ignoreCase: true, out var scope))
+        {
+            return;
+        }
+
+        selectedScope = scope;
+        selectedRows = FilterRows(scope, ReportValueQuery);
+        selectedReportTitle = BuildSelectedReportTitle(scope, ReportValueQuery);
+    }
+
+    private IReadOnlyList<OrderReportRow> FilterRows(OrderReportScope scope, string? value)
+    {
+        return reportRows
+            .Where(row => OrderReportReaderMatches(scope, value, row))
+            .ToArray();
+    }
+
+    private static bool OrderReportReaderMatches(OrderReportScope scope, string? value, OrderReportRow row)
+    {
+        var normalizedValue = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var monthStart = new DateOnly(today.Year, today.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+
+        return scope switch
+        {
+            OrderReportScope.OperationalOpen => !string.Equals(row.Status, BuildBookOrderStatuses.Invoiced, StringComparison.Ordinal),
+            OrderReportScope.OperationalOverdue => row.IsOverdue,
+            OrderReportScope.OperationalDueThisWeek => row.DueDate is not null && row.DueDate >= today && row.DueDate <= today.AddDays(7) && !string.Equals(row.Status, BuildBookOrderStatuses.Invoiced, StringComparison.Ordinal),
+            OrderReportScope.Status => string.Equals(row.Status, normalizedValue, StringComparison.OrdinalIgnoreCase),
+            OrderReportScope.AssignedUser => row.AssignedTo.Contains(normalizedValue ?? string.Empty, StringComparison.OrdinalIgnoreCase),
+            OrderReportScope.WaitingForPartsStock => string.Equals(row.Status, BuildBookOrderStatuses.PartsOrderedOrStockAllocated, StringComparison.Ordinal),
+            OrderReportScope.BuiltNotPreparedForShipping => string.Equals(row.Status, BuildBookOrderStatuses.Built, StringComparison.Ordinal),
+            OrderReportScope.ReadyForCollectionNotShipped => string.Equals(row.Status, BuildBookOrderStatuses.ReadyForCollection, StringComparison.Ordinal) || (string.Equals(row.Status, BuildBookOrderStatuses.Shipped, StringComparison.Ordinal) && row.ShippedDate is null),
+            OrderReportScope.ShippedNotReadyForInvoicing => row.ShippedDate is not null && (row.ContractReadyForInvoicing != true || row.ReadyForInvoicingDate is null) && row.InvoicedDate is null,
+            OrderReportScope.ReadyForInvoicingNotInvoiced => row.ContractReadyForInvoicing == true && row.InvoicedDate is null,
+            OrderReportScope.Customer => string.Equals(Normalize(row.CustomerName), normalizedValue, StringComparison.OrdinalIgnoreCase),
+            OrderReportScope.OrdersWithoutLinkedCustomer => string.IsNullOrWhiteSpace(row.CustomerName),
+            OrderReportScope.NoLinkedBuildRecord => row.LinkedBuildRecords == 0,
+            OrderReportScope.MultipleLinkedBuildRecords => row.LinkedBuildRecords > 1,
+            OrderReportScope.IncompleteChecklist => row.TotalChecklistItems > 0 && row.CompletedChecklistItems < row.TotalChecklistItems,
+            OrderReportScope.ReadyBasedOnChecklist => row.TotalChecklistItems > 0 && row.CompletedChecklistItems == row.TotalChecklistItems && !string.Equals(row.Status, BuildBookOrderStatuses.Invoiced, StringComparison.Ordinal),
+            OrderReportScope.OrdersReadyForInvoicing => row.ContractReadyForInvoicing == true && row.ReadyForInvoicingDate is not null && row.InvoicedDate is null,
+            OrderReportScope.OrdersInvoicedThisMonth => row.InvoicedDate is not null && row.InvoicedDate >= monthStart && row.InvoicedDate <= monthEnd,
+            OrderReportScope.OrdersShippedNotInvoiced => row.ShippedDate is not null && row.InvoicedDate is null,
+            OrderReportScope.MissingInvoiceNumber => string.Equals(row.Status, BuildBookOrderStatuses.Invoiced, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(row.InvoiceNumber),
+            _ => true
+        };
+    }
+
+    private ScopeCard BuildCard(string label, OrderReportScope scope)
+    {
+        return new ScopeCard(label, scope, FilterRows(scope, null).Count);
+    }
+
+    private int Count(OrderReportScope scope) => FilterRows(scope, null).Count;
+
+    private string ReportLink(OrderReportScope scope, string? value = null)
+    {
+        var query = value is null
+            ? $"scope={Uri.EscapeDataString(scope.ToString())}"
+            : $"scope={Uri.EscapeDataString(scope.ToString())}&value={Uri.EscapeDataString(value)}";
+
+        return $"/orders/reports?{query}#selected-order-report-heading";
+    }
+
+    private string ExportUrl(string format)
+    {
+        var query = string.IsNullOrWhiteSpace(ReportScopeQuery)
+            ? string.Empty
+            : string.IsNullOrWhiteSpace(ReportValueQuery)
+                ? $"?scope={Uri.EscapeDataString(ReportScopeQuery)}"
+                : $"?scope={Uri.EscapeDataString(ReportScopeQuery)}&value={Uri.EscapeDataString(ReportValueQuery)}";
+
+        return $"/orders/reports/export.{format}{query}";
+    }
+
+    private static string BuildSelectedReportTitle(OrderReportScope scope, string? value)
+    {
+        return scope switch
+        {
+            OrderReportScope.Customer => $"Orders for {value}",
+            OrderReportScope.AssignedUser => $"Orders assigned to {value}",
+            OrderReportScope.Status => $"Orders in {value}",
+            OrderReportScope.OperationalOpen => "Open Orders",
+            OrderReportScope.OperationalOverdue => "Overdue Orders",
+            OrderReportScope.OperationalDueThisWeek => "Orders due this week",
+            OrderReportScope.WaitingForPartsStock => "Orders waiting for parts / stock",
+            OrderReportScope.BuiltNotPreparedForShipping => "Built not prepared for shipping",
+            OrderReportScope.ReadyForCollectionNotShipped => "Ready for collection not shipped",
+            OrderReportScope.ShippedNotReadyForInvoicing => "Shipped not ready for invoicing",
+            OrderReportScope.ReadyForInvoicingNotInvoiced => "Ready for invoicing not invoiced",
+            OrderReportScope.OrdersWithoutLinkedCustomer => "Orders without linked customer",
+            OrderReportScope.NoLinkedBuildRecord => "Orders with no linked Build Record",
+            OrderReportScope.MultipleLinkedBuildRecords => "Orders with multiple linked Build Records",
+            OrderReportScope.IncompleteChecklist => "Orders with incomplete checklist",
+            OrderReportScope.ReadyBasedOnChecklist => "Orders with checklist complete",
+            OrderReportScope.OrdersReadyForInvoicing => "Orders ready for invoicing",
+            OrderReportScope.OrdersInvoicedThisMonth => "Orders invoiced this month",
+            OrderReportScope.OrdersShippedNotInvoiced => "Orders shipped not invoiced",
+            OrderReportScope.MissingInvoiceNumber => "Orders missing invoice number",
+            _ => "Selected report"
+        };
+    }
+
+    private static string Checklist(OrderReportRow row)
+    {
+        return row.TotalChecklistItems == 0
+            ? "No checklist"
+            : $"{row.CompletedChecklistItems} / {row.TotalChecklistItems}";
+    }
+
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    private static string Display(DateOnly? value) => value?.ToString("d MMM yyyy") ?? "Not recorded";
+    private static string Display(OrderPriority? value) => value?.ToString() ?? "Not recorded";
+    private static string Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+
+    private sealed record ScopeCard(string Label, OrderReportScope Scope, int Count);
+    private sealed record SummaryRow(string Label, string FilterValue, int Count, int OpenCount);
+}

@@ -1,0 +1,112 @@
+@page "/orders/board"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.Orders
+@using BuildBook.Application.Security
+@using BuildBook.Domain.Orders
+
+@attribute [Authorize(Policy = BuildBookOrderPolicies.ViewOrders)]
+
+@inject IOrderBoardReader OrderBoardReader
+
+<PageTitle>Order Board</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">Orders</p>
+        <h1>Order Board</h1>
+        <p>Group orders by workflow stage and surface the warnings that matter before shipping and invoicing.</p>
+    </div>
+    <div class="page-actions">
+        <a class="secondary-button" href="/orders">Open Order Register</a>
+    </div>
+</section>
+
+@if (isLoading)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>Loading Order board...</p>
+    </section>
+}
+else
+{
+    <section class="board-grid" aria-label="Order board">
+        @foreach (var status in BoardStatuses)
+        {
+            var cards = boardCards.Where(card => card.Status == status).ToList();
+
+            <article class="detail-panel board-column">
+                <div class="detail-panel-header">
+                    <div>
+                        <h2>@status</h2>
+                        <p>@cards.Count @(cards.Count == 1 ? "order" : "orders")</p>
+                    </div>
+                </div>
+
+                @if (cards.Count == 0)
+                {
+                    <p class="empty-state">No Orders in this status.</p>
+                }
+                else
+                {
+                    <ul class="recent-record-list">
+                        @foreach (var card in cards)
+                        {
+                            <li>
+                                <a class="recent-record-link board-card-link" href="@($"/orders/{card.Id}")">
+                                    <div class="board-card-row">
+                                        <span class="recent-record-title">@card.OrderTitle</span>
+                                        @if (card.Priority is not null)
+                                        {
+                                            <span class="status-pill">@card.Priority</span>
+                                        }
+                                    </div>
+                                    <span class="recent-record-meta">@card.OrderNumber</span>
+                                    <span class="recent-record-meta">@Display(card.CustomerName)</span>
+                                    <div class="board-card-meta-row">
+                                        <span class="validation-badge">Checklist @card.CompletedChecklistItems/@card.TotalChecklistItems</span>
+                                        <span class="validation-badge">Build @(card.HasLinkedBuildRecord ? "linked" : "unlinked")</span>
+                                        @if (card.IsOverdue)
+                                        {
+                                            <span class="validation-badge error">Overdue</span>
+                                        }
+                                    </div>
+                                    <div class="board-card-meta-row">
+                                        <span class="recent-record-meta">Assigned: @card.AssignedTo</span>
+                                        <span class="recent-record-meta">Due: @Display(card.DueDate)</span>
+                                    </div>
+
+                                    @if (card.Warnings.Count > 0)
+                                    {
+                                        <ul class="board-warning-list">
+                                            @foreach (var warning in card.Warnings)
+                                            {
+                                                <li>@warning</li>
+                                            }
+                                        </ul>
+                                    }
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                }
+            </article>
+        }
+    </section>
+}
+
+@code {
+    private IReadOnlyList<OrderBoardCardModel> boardCards = [];
+    private bool isLoading = true;
+
+    private static IReadOnlyList<string> BoardStatuses { get; } = BuildBookOrderStatuses.DefaultWorkflow;
+
+    protected override async Task OnInitializedAsync()
+    {
+        boardCards = await OrderBoardReader.GetBoardAsync();
+        isLoading = false;
+    }
+
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    private static string Display(DateOnly? value) => value?.ToString("d MMM yyyy") ?? "Not recorded";
+}

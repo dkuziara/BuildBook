@@ -1,6 +1,8 @@
 using System.IO.Compression;
 using System.Text;
+using BuildBook.Domain.Security;
 using BuildBook.Infrastructure.Persistence.Orders;
+using System.Reflection;
 
 namespace BuildBook.Tests;
 
@@ -103,6 +105,36 @@ public class OrderPlannerImportServiceTests
             () => service.BuildImportAsync("planner-orders.xlsx", stream, @"DOMAIN\importer"));
 
         Assert.Contains("database services", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TryFindApplicationUser_MatchesApplicationUserDisplayName()
+    {
+        var method = typeof(OrderPlannerImportService).GetMethod(
+            "TryFindApplicationUser",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.NotNull(method);
+
+        var knownUsers = new List<ApplicationUser>
+        {
+            new()
+            {
+                Id = 42,
+                WindowsUserName = @"DOMAIN\asmith",
+                DisplayName = "Alex Mason",
+                EmailAddress = "alex.mason@example.com",
+                IsActive = true
+            }
+        };
+
+        var parameters = new object?[] { knownUsers, "Alex Mason", null };
+        var matched = (bool)method!.Invoke(null, parameters)!;
+
+        Assert.True(matched);
+        var matchedUser = Assert.IsType<ApplicationUser>(parameters[2]);
+        Assert.Equal(42, matchedUser.Id);
+        Assert.Equal("Alex Mason", matchedUser.DisplayName);
     }
 
     private static MemoryStream CreatePlannerExportStream(params (string SheetName, IReadOnlyList<string> Headers, IReadOnlyList<IReadOnlyList<string>> Rows)[] sheets)

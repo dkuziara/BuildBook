@@ -73,8 +73,14 @@ public static class DependencyInjection
         services.AddScoped<ISpreadsheetImportMappingService, SpreadsheetImportMappingService>();
         services.AddScoped<IOrderPlannerImportService, OrderPlannerImportService>();
         services.AddScoped<IOrderRegisterReader, OrderRegisterReader>();
+        services.AddScoped<IOrderRegisterCsvExporter, OrderRegisterCsvExporter>();
+        services.AddScoped<IOrderRegisterExcelExporter, OrderRegisterExcelExporter>();
         services.AddScoped<IOrderRecordCreator, OrderRecordCreator>();
         services.AddScoped<IOrderDetailReader, OrderDetailReader>();
+        services.AddScoped<IOrderBoardReader, OrderBoardReader>();
+        services.AddScoped<IOrderReportReader, OrderReportReader>();
+        services.AddScoped<IOrderReportCsvExporter, OrderReportCsvExporter>();
+        services.AddScoped<IOrderReportExcelExporter, OrderReportExcelExporter>();
         services.AddScoped<IOrderWorkflowService, OrderWorkflowService>();
         services.AddScoped<IOrderIntegrationService, OrderIntegrationService>();
         services.AddScoped<IProductDetailsUpdater, ProductDetailsUpdater>();

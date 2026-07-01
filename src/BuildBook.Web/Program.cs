@@ -1,6 +1,7 @@
 using System.Text;
 using BuildBook.Application.BuildRecords;
 using BuildBook.Application.Customers;
+using BuildBook.Application.Orders;
 using BuildBook.Application.Rmas;
 using BuildBook.Application.Security;
 using BuildBook.Domain.Rmas;
@@ -82,6 +83,62 @@ app.MapGet(
                     attachment.FileName);
         })
     .RequireAuthorization(BuildBookRmaPolicies.ViewRmas);
+app.MapGet(
+        "/orders/export.csv",
+        async (HttpRequest request, IOrderRegisterCsvExporter orderRegisterCsvExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateOrderRegisterFilter(request);
+            var csv = await orderRegisterCsvExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"order-register-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.csv";
+
+            return Results.File(
+                Encoding.UTF8.GetBytes(csv),
+                "text/csv; charset=utf-8",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookOrderPolicies.ExportOrders);
+app.MapGet(
+        "/orders/export.xlsx",
+        async (HttpRequest request, IOrderRegisterExcelExporter orderRegisterExcelExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateOrderRegisterFilter(request);
+            var workbook = await orderRegisterExcelExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"order-register-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.xlsx";
+
+            return Results.File(
+                workbook,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookOrderPolicies.ExportOrders);
+app.MapGet(
+        "/orders/reports/export.csv",
+        async (HttpRequest request, IOrderReportCsvExporter orderReportCsvExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateOrderReportFilter(request);
+            var csv = await orderReportCsvExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"order-report-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.csv";
+
+            return Results.File(
+                Encoding.UTF8.GetBytes(csv),
+                "text/csv; charset=utf-8",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookOrderPolicies.ExportOrders);
+app.MapGet(
+        "/orders/reports/export.xlsx",
+        async (HttpRequest request, IOrderReportExcelExporter orderReportExcelExporter, CancellationToken cancellationToken) =>
+        {
+            var filter = CreateOrderReportFilter(request);
+            var workbook = await orderReportExcelExporter.ExportAsync(filter, cancellationToken);
+            var fileName = $"order-report-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.xlsx";
+
+            return Results.File(
+                workbook,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        })
+    .RequireAuthorization(BuildBookOrderPolicies.ExportOrders);
 app.MapGet(
         "/reports/build-register.csv",
         async (HttpRequest request, IBuildRegisterCsvExporter buildRegisterCsvExporter, CancellationToken cancellationToken) =>
@@ -352,6 +409,76 @@ static RmaReportFilter CreateRmaReportFilter(HttpRequest request)
             Scope = scope,
             Value = value
         };
+    }
+
+    return filter;
+}
+
+static OrderReportFilter CreateOrderReportFilter(HttpRequest request)
+{
+    var scopeValue = ReadString(request.Query, "scope");
+    var value = ReadString(request.Query, "value");
+    var filter = new OrderReportFilter
+    {
+        Value = value
+    };
+
+    if (Enum.TryParse<OrderReportScope>(scopeValue, ignoreCase: true, out var scope))
+    {
+        filter = new OrderReportFilter
+        {
+            Scope = scope,
+            Value = value
+        };
+    }
+
+    return filter;
+}
+
+static OrderRegisterFilter CreateOrderRegisterFilter(HttpRequest request)
+{
+    var query = request.Query;
+    var filter = new OrderRegisterFilter
+    {
+        Search = ReadString(query, "search"),
+        Customer = ReadString(query, "customer"),
+        AssignedTo = ReadString(query, "assignedTo"),
+        Status = ReadString(query, "status")
+    };
+
+    if (Enum.TryParse<BuildBook.Domain.Orders.OrderPriority>(ReadString(query, "priority"), ignoreCase: true, out var priority))
+    {
+        filter.Priority = priority;
+    }
+
+    if (DateOnly.TryParse(ReadString(query, "dueDate"), out var dueDate))
+    {
+        filter.DueDate = dueDate;
+    }
+
+    if (bool.TryParse(ReadString(query, "isOverdue"), out var isOverdue))
+    {
+        filter.IsOverdue = isOverdue;
+    }
+
+    if (bool.TryParse(ReadString(query, "isCompleted"), out var isCompleted))
+    {
+        filter.IsCompleted = isCompleted;
+    }
+
+    if (bool.TryParse(ReadString(query, "hasLinkedBuildRecord"), out var hasLinkedBuildRecord))
+    {
+        filter.HasLinkedBuildRecord = hasLinkedBuildRecord;
+    }
+
+    if (Enum.TryParse<OrderRegisterSortColumn>(ReadString(query, "sortBy"), ignoreCase: true, out var sortBy))
+    {
+        filter.SortBy = sortBy;
+    }
+
+    if (bool.TryParse(ReadString(query, "sortDescending"), out var sortDescending))
+    {
+        filter.SortDescending = sortDescending;
     }
 
     return filter;

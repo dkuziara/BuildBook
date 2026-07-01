@@ -18,6 +18,14 @@
         <p>Search, filter and open BuildBook Orders without going back to Planner exports.</p>
     </div>
     <div class="page-actions">
+        <AuthorizeView Policy="@BuildBookOrderPolicies.ExportOrders">
+            <Authorized>
+                <a class="secondary-button" href="/orders/reports">Reports</a>
+                <a class="secondary-button" href="@RegisterExportUrl("xlsx")">Export Excel</a>
+                <a class="secondary-button" href="@RegisterExportUrl("csv")">Export CSV</a>
+            </Authorized>
+        </AuthorizeView>
+        <a class="secondary-button" href="/orders/board">Board view</a>
         <AuthorizeView Policy="@BuildBookOrderPolicies.ImportOrders">
             <Authorized>
                 <a class="secondary-button" href="/orders/import">Import Planner Export</a>
@@ -168,8 +176,8 @@
                     {
                         <tr>
                             <td>
-                                <a class="table-link" href="@($"/orders/{orderRecord.Id}")">@orderRecord.OrderNumber</a>
-                                <div>@orderRecord.OrderTitle</div>
+                                <a class="table-link" href="@($"/orders/{orderRecord.Id}")">@orderRecord.OrderTitle</a>
+                                <div>@orderRecord.OrderNumber</div>
                             </td>
                             <td>@orderRecord.Status</td>
                             <td>@Display(orderRecord.CustomerName)</td>
@@ -253,6 +261,28 @@
         showFilters = !showFilters;
     }
 
+    private string RegisterExportUrl(string format)
+    {
+        SynchronizeFilterValuesToModel();
+        var queryParameters = new List<string>();
+
+        AddQuery(queryParameters, "search", filterModel.Search);
+        AddQuery(queryParameters, "customer", filterModel.Customer);
+        AddQuery(queryParameters, "assignedTo", filterModel.AssignedTo);
+        AddQuery(queryParameters, "status", filterModel.Status);
+        AddQuery(queryParameters, "priority", filterModel.Priority?.ToString());
+        AddQuery(queryParameters, "dueDate", filterModel.DueDate?.ToString("yyyy-MM-dd"));
+        AddQuery(queryParameters, "isOverdue", overdueFilterValue);
+        AddQuery(queryParameters, "isCompleted", completedFilterValue);
+        AddQuery(queryParameters, "hasLinkedBuildRecord", linkedBuildRecordFilterValue);
+        AddQuery(queryParameters, "sortBy", filterModel.SortBy.ToString());
+        AddQuery(queryParameters, "sortDescending", filterModel.SortDescending.ToString().ToLowerInvariant());
+
+        return queryParameters.Count == 0
+            ? $"/orders/export.{format}"
+            : $"/orders/export.{format}?{string.Join("&", queryParameters)}";
+    }
+
     private static string Display(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
@@ -313,5 +343,13 @@
     private static string FormatNullableBoolean(bool? value)
     {
         return value?.ToString().ToLowerInvariant() ?? string.Empty;
+    }
+
+    private static void AddQuery(List<string> values, string key, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            values.Add($"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}");
+        }
     }
 }
