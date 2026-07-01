@@ -12,6 +12,10 @@ For RMA module work, also read:
 
 - docs/specs/BuildBook-RMA-Module-Specification.md
 
+For Orders module work, also read:
+
+- docs/specs/BuildBook-Orders-Module-Specification.md
+
 For Customer & Support Contracts module work, also read:
 
 - docs/specs/BuildBook-Customer-Support-Contracts-Specification.md
@@ -89,7 +93,6 @@ When finishing a task, summarise:
 - Commands run
 - Tests added or updated
 - Any follow-up issues needed
-
 
 
 

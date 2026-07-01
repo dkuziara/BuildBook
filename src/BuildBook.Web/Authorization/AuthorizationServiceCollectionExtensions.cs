@@ -94,6 +94,58 @@ public static class AuthorizationServiceCollectionExtensions
                 policy => policy.RequireRole(BuildBookRoles.Administrator));
 
             options.AddPolicy(
+                BuildBookOrderPolicies.ViewOrders,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Viewer,
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookOrderPolicies.CreateOrders,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookOrderPolicies.EditOrders,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookOrderPolicies.ChangeOrderStatus,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookOrderPolicies.CompleteOrderChecklist,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookOrderPolicies.LinkOrderBuildRecords,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookOrderPolicies.ImportOrders,
+                policy => policy.RequireRole(BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookOrderPolicies.ExportOrders,
+                policy => policy.RequireRole(
+                    BuildBookRoles.Viewer,
+                    BuildBookRoles.Editor,
+                    BuildBookRoles.Administrator));
+
+            options.AddPolicy(
+                BuildBookOrderPolicies.DeleteOrders,
+                policy => policy.RequireRole(BuildBookRoles.Administrator));
+
+            options.AddPolicy(
                 BuildBookRmaPolicies.ViewRmas,
                 policy => policy.RequireRole(
                     BuildBookRoles.Viewer,

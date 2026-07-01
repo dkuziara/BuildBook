@@ -33,6 +33,11 @@
                         <NavLink href="/build-register">Build Register</NavLink>
                     </Authorized>
                 </AuthorizeView>
+                <AuthorizeView Policy="@BuildBookOrderPolicies.ViewOrders">
+                    <Authorized>
+                        <NavLink href="/orders">Orders</NavLink>
+                    </Authorized>
+                </AuthorizeView>
                 <AuthorizeView Policy="@BuildBookRmaPolicies.ViewRmas">
                     <Authorized>
                         <NavLink href="/rmas">RMAs</NavLink>

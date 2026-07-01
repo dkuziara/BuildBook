@@ -1,6 +1,7 @@
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
 using BuildBook.Domain.Rmas;
+using BuildBook.Application.Orders;
 using BuildBook.Application.Settings;
 using BuildBook.Infrastructure.Persistence.SeedData;
 
@@ -15,6 +16,7 @@ public class DevelopmentSeedDataTests
 
         Assert.Equal(3, seedData.SupportContractLevels.Count);
         Assert.Equal(3, seedData.Customers.Count);
+        Assert.Single(seedData.SystemSettings, setting => setting.Key == SystemSettingKeys.OrderWorkflowStatuses);
         Assert.Single(seedData.SystemSettings, setting => setting.Key == SystemSettingKeys.SupportTicketUrlTemplate);
         Assert.Equal(3, seedData.BuildRecords.Count);
         Assert.All(seedData.BuildRecords, buildRecord =>
@@ -35,6 +37,18 @@ public class DevelopmentSeedDataTests
         var seedData = DevelopmentSeedData.Create();
 
         Assert.All(seedData.BuildRecords, buildRecord => Assert.Empty(buildRecord.Secrets));
+    }
+
+    [Fact]
+    public void DevelopmentSeedDataSeedsDefaultOrderWorkflowStatuses()
+    {
+        var seedData = DevelopmentSeedData.Create();
+
+        var orderWorkflowSetting = Assert.Single(
+            seedData.SystemSettings,
+            setting => setting.Key == SystemSettingKeys.OrderWorkflowStatuses);
+
+        Assert.Equal(BuildBookOrderStatuses.SerializeDefaultWorkflow(), orderWorkflowSetting.Value);
     }
 
     [Fact]

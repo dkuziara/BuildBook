@@ -1,0 +1,46 @@
+@page "/orders"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.Orders
+@using BuildBook.Application.Security
+
+@attribute [Authorize(Policy = BuildBookOrderPolicies.ViewOrders)]
+
+<PageTitle>Orders</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">Orders</p>
+        <h1>Orders</h1>
+        <p>The Orders module foundation is in place so navigation, permissions and default workflow setup are ready for the next implementation steps.</p>
+    </div>
+</section>
+
+<section class="detail-panel" aria-labelledby="orders-foundation-heading">
+    <div class="detail-panel-header">
+        <div>
+            <h2 id="orders-foundation-heading">Foundation ready</h2>
+            <p>This placeholder keeps Orders visible in BuildBook while the register, import and detail screens are added in later issues.</p>
+        </div>
+    </div>
+
+    <div class="detail-grid">
+        <div>
+            <h3>Default workflow statuses</h3>
+            <ul class="recent-record-list">
+                @foreach (var status in BuildBookOrderStatuses.DefaultWorkflow)
+                {
+                    <li>@status</li>
+                }
+            </ul>
+        </div>
+        <div>
+            <h3>Planned next slices</h3>
+            <ul class="recent-record-list">
+                <li>Orders data model and migration</li>
+                <li>Planner spreadsheet import</li>
+                <li>Orders register and detail screens</li>
+            </ul>
+        </div>
+    </div>
+</section>

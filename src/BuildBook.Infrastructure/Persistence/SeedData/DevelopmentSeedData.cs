@@ -1,3 +1,4 @@
+using BuildBook.Application.Orders;
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
 using BuildBook.Domain.Rmas;
@@ -37,6 +38,14 @@ public static class DevelopmentSeedData
 
         var systemSettings = new List<SystemSetting>
         {
+            new()
+            {
+                Key = SystemSettingKeys.OrderWorkflowStatuses,
+                Value = BuildBookOrderStatuses.SerializeDefaultWorkflow(),
+                Description = "Default seeded workflow statuses used by the Orders module foundation.",
+                LastUpdatedAt = SeededAt,
+                LastUpdatedBy = "BuildBook development seed"
+            },
             new()
             {
                 Key = SystemSettingKeys.SupportTicketUrlTemplate,

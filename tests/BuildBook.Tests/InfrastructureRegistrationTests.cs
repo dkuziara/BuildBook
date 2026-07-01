@@ -1,5 +1,6 @@
 using BuildBook.Application.BuildRecords;
 using BuildBook.Application.Customers;
+using BuildBook.Application.Orders;
 using BuildBook.Application.Rmas;
 using BuildBook.Application.Security;
 using BuildBook.Application.Settings;
@@ -155,6 +156,8 @@ public class InfrastructureRegistrationTests
         Assert.Contains("\"Bronze\"", initializerContent);
         Assert.Contains("\"Silver\"", initializerContent);
         Assert.Contains("\"Gold\"", initializerContent);
+        Assert.Contains(nameof(BuildBookOrderStatuses.SerializeDefaultWorkflow), initializerContent);
+        Assert.Contains(SystemSettingKeys.OrderWorkflowStatuses, initializerContent);
         Assert.Contains(SystemSettingKeys.SupportTicketUrlTemplate, initializerContent);
         Assert.Contains(SystemSettingKeys.SupportTicketLabel, initializerContent);
     }

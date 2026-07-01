@@ -1,3 +1,4 @@
+using BuildBook.Application.Orders;
 using BuildBook.Application.Security;
 using BuildBook.Application.Settings;
 using BuildBook.Domain.Customers;
@@ -154,6 +155,13 @@ public sealed class BuildBookDatabaseInitializer(
 
         var missingSettings = new[]
         {
+            new SystemSetting
+            {
+                Key = SystemSettingKeys.OrderWorkflowStatuses,
+                Value = BuildBookOrderStatuses.SerializeDefaultWorkflow(),
+                Description = "Default seeded workflow statuses used by the Orders module foundation.",
+                LastUpdatedBy = "BuildBook initialization"
+            },
             new SystemSetting
             {
                 Key = SystemSettingKeys.SupportTicketUrlTemplate,

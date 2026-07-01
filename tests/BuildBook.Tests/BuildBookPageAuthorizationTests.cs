@@ -8,6 +8,7 @@ public class BuildBookPageAuthorizationTests
     [InlineData("Home.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRegister.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRecordDetail.razor", BuildBookPolicies.ViewBuildRecords)]
+    [InlineData("Orders.razor", BuildBookOrderPolicies.ViewOrders)]
     [InlineData("Rmas.razor", BuildBookRmaPolicies.ViewRmas)]
     [InlineData("RmaBoard.razor", BuildBookRmaPolicies.ViewRmas)]
     [InlineData("RmaDetail.razor", BuildBookRmaPolicies.ViewRmas)]
@@ -45,9 +46,11 @@ public class BuildBookPageAuthorizationTests
         var layoutContent = File.ReadAllText(layoutPath);
 
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ViewBuildRecords)}\"", layoutContent);
+        Assert.Contains($"Policy=\"@BuildBookOrderPolicies.{nameof(BuildBookOrderPolicies.ViewOrders)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ViewCustomers)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ViewRmas)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ManageUsers)}\"", layoutContent);
+        Assert.Contains("Orders", layoutContent);
         Assert.Contains("RMAs", layoutContent);
         Assert.Contains("Customers", layoutContent);
         Assert.Contains("Signed in as", layoutContent);
@@ -206,6 +209,26 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Fault summary", pageContent);
         Assert.Contains("Build Record", pageContent);
         Assert.Contains("/rmas/{rmaRecord.Id}", pageContent);
+        Assert.DoesNotContain("Password", pageContent);
+        Assert.DoesNotContain("BitLocker", pageContent);
+    }
+
+    [Fact]
+    public void OrdersPageDefinesExpectedRoutePlaceholderAndWorkflowStatuses()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("Orders.razor"));
+
+        Assert.Contains("@page \"/orders\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookOrderPolicies.ViewOrders", pageContent);
+        Assert.Contains("Orders", pageContent);
+        Assert.Contains("Foundation ready", pageContent);
+        Assert.Contains("BuildBookOrderStatuses.DefaultWorkflow", pageContent);
+        Assert.Contains("Order Received", pageContent);
+        Assert.Contains("Parts Ordered / Stock Allocated", pageContent);
+        Assert.Contains("Prepared for Shipping", pageContent);
+        Assert.Contains("Contract Ready for Invoicing", pageContent);
+        Assert.Contains("Orders data model and migration", pageContent);
         Assert.DoesNotContain("Password", pageContent);
         Assert.DoesNotContain("BitLocker", pageContent);
     }
@@ -867,6 +890,7 @@ public class BuildBookPageAuthorizationTests
             BuildBookPolicies.ManageUsers => nameof(BuildBookPolicies.ManageUsers),
             BuildBookPolicies.ManageSupportContractLevels => nameof(BuildBookPolicies.ManageSupportContractLevels),
             BuildBookPolicies.ManageSystemSettings => nameof(BuildBookPolicies.ManageSystemSettings),
+            BuildBookOrderPolicies.ViewOrders => nameof(BuildBookOrderPolicies.ViewOrders),
             BuildBookRmaPolicies.ViewRmas => nameof(BuildBookRmaPolicies.ViewRmas),
             BuildBookRmaPolicies.CreateRmas => nameof(BuildBookRmaPolicies.CreateRmas),
             BuildBookRmaPolicies.ExportRmaReports => nameof(BuildBookRmaPolicies.ExportRmaReports),
@@ -878,6 +902,7 @@ public class BuildBookPageAuthorizationTests
     {
         return policy switch
         {
+            BuildBookOrderPolicies.ViewOrders => $"BuildBookOrderPolicies.{nameof(BuildBookOrderPolicies.ViewOrders)}",
             BuildBookRmaPolicies.ViewRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ViewRmas)}",
             BuildBookRmaPolicies.CreateRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.CreateRmas)}",
             BuildBookRmaPolicies.ExportRmaReports => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ExportRmaReports)}",

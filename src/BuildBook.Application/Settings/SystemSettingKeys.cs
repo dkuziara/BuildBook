@@ -2,6 +2,7 @@ namespace BuildBook.Application.Settings;
 
 public static class SystemSettingKeys
 {
+    public const string OrderWorkflowStatuses = "OrderWorkflowStatuses";
     public const string SupportTicketUrlTemplate = "SupportTicketUrlTemplate";
     public const string SupportTicketLabel = "SupportTicketLabel";
 }
