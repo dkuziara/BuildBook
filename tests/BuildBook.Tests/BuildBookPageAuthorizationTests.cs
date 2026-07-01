@@ -9,6 +9,8 @@ public class BuildBookPageAuthorizationTests
     [InlineData("BuildRegister.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRecordDetail.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("Orders.razor", BuildBookOrderPolicies.ViewOrders)]
+    [InlineData("CreateOrder.razor", BuildBookOrderPolicies.CreateOrders)]
+    [InlineData("OrderDetail.razor", BuildBookOrderPolicies.ViewOrders)]
     [InlineData("OrderImport.razor", BuildBookOrderPolicies.ImportOrders)]
     [InlineData("Rmas.razor", BuildBookRmaPolicies.ViewRmas)]
     [InlineData("RmaBoard.razor", BuildBookRmaPolicies.ViewRmas)]
@@ -215,22 +217,85 @@ public class BuildBookPageAuthorizationTests
     }
 
     [Fact]
-    public void OrdersPageDefinesExpectedRoutePlaceholderAndWorkflowStatuses()
+    public void OrdersPageDefinesExpectedRouteRegisterFiltersAndTable()
     {
         var pageContent = File.ReadAllText(GetPagePath("Orders.razor"));
 
         Assert.Contains("@page \"/orders\"", pageContent);
         Assert.Contains("@rendermode InteractiveServer", pageContent);
         Assert.Contains("BuildBookOrderPolicies.ViewOrders", pageContent);
+        Assert.Contains("IOrderRegisterReader", pageContent);
         Assert.Contains("Orders", pageContent);
-        Assert.Contains("Foundation ready", pageContent);
-        Assert.Contains("BuildBookOrderStatuses.DefaultWorkflow", pageContent);
+        Assert.Contains("Order Register", pageContent);
+        Assert.Contains("FormName=\"orders-register-filters\"", pageContent);
+        Assert.Contains("BuildBookOrderPolicies.CreateOrders", pageContent);
+        Assert.Contains("BuildBookOrderPolicies.ImportOrders", pageContent);
+        Assert.Contains("Add Order", pageContent);
         Assert.Contains("Import Planner Export", pageContent);
+        Assert.Contains("/orders/new", pageContent);
         Assert.Contains("/orders/import", pageContent);
-        Assert.Contains("Default workflow statuses", pageContent);
-        Assert.Contains("@foreach (var status in BuildBookOrderStatuses.DefaultWorkflow)", pageContent);
+        Assert.Contains("Search", pageContent);
+        Assert.Contains("Customer", pageContent);
+        Assert.Contains("Assigned to", pageContent);
+        Assert.Contains("Status", pageContent);
+        Assert.Contains("Priority", pageContent);
+        Assert.Contains("Due date", pageContent);
+        Assert.Contains("Build Record link", pageContent);
+        Assert.Contains("SortByAsync(OrderRegisterSortColumn.Order)", pageContent);
+        Assert.Contains("SortByAsync(OrderRegisterSortColumn.LastUpdated)", pageContent);
+        Assert.Contains("Loading Orders", pageContent);
+        Assert.Contains("No Orders found", pageContent);
+        Assert.Contains("/orders/{orderRecord.Id}", pageContent);
         Assert.DoesNotContain("Password", pageContent);
         Assert.DoesNotContain("BitLocker", pageContent);
+    }
+
+    [Fact]
+    public void CreateOrderPageDefinesExpectedRouteAndForm()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("CreateOrder.razor"));
+
+        Assert.Contains("@page \"/orders/new\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookOrderPolicies.CreateOrders", pageContent);
+        Assert.Contains("IOrderRecordCreator", pageContent);
+        Assert.Contains("ICustomerOptionsReader", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("NavigationManager", pageContent);
+        Assert.Contains("FormName=\"create-order\"", pageContent);
+        Assert.Contains("Order title", pageContent);
+        Assert.Contains("Status", pageContent);
+        Assert.Contains("Priority", pageContent);
+        Assert.Contains("Customer", pageContent);
+        Assert.Contains("Support ticket no.", pageContent);
+        Assert.Contains("Order description / notes", pageContent);
+        Assert.Contains("Recurring order", pageContent);
+        Assert.Contains("Create Order", pageContent);
+        Assert.Contains("NavigationManager.NavigateTo($\"/orders/{result.OrderId.Value}\")", pageContent);
+    }
+
+    [Fact]
+    public void OrderDetailPageDefinesExpectedRouteSectionsAndLinkedTables()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("OrderDetail.razor"));
+
+        Assert.Contains("@page \"/orders/{OrderId:int}\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookOrderPolicies.ViewOrders", pageContent);
+        Assert.Contains("IOrderDetailReader", pageContent);
+        Assert.Contains("Summary", pageContent);
+        Assert.Contains("Overview", pageContent);
+        Assert.Contains("Order Details", pageContent);
+        Assert.Contains("Dates", pageContent);
+        Assert.Contains("Assignments", pageContent);
+        Assert.Contains("Checklist", pageContent);
+        Assert.Contains("Linked Build Records", pageContent);
+        Assert.Contains("Notes", pageContent);
+        Assert.Contains("History", pageContent);
+        Assert.Contains("Planner Import Traceability", pageContent);
+        Assert.Contains("/customers/{orderRecord.CustomerId.Value}", pageContent);
+        Assert.Contains("/build-records/{buildRecordLink.BuildRecordId}", pageContent);
+        Assert.Contains("/orders", pageContent);
     }
 
     [Fact]
@@ -921,6 +986,7 @@ public class BuildBookPageAuthorizationTests
             BuildBookPolicies.ManageSupportContractLevels => nameof(BuildBookPolicies.ManageSupportContractLevels),
             BuildBookPolicies.ManageSystemSettings => nameof(BuildBookPolicies.ManageSystemSettings),
             BuildBookOrderPolicies.ViewOrders => nameof(BuildBookOrderPolicies.ViewOrders),
+            BuildBookOrderPolicies.CreateOrders => nameof(BuildBookOrderPolicies.CreateOrders),
             BuildBookRmaPolicies.ViewRmas => nameof(BuildBookRmaPolicies.ViewRmas),
             BuildBookRmaPolicies.CreateRmas => nameof(BuildBookRmaPolicies.CreateRmas),
             BuildBookRmaPolicies.ExportRmaReports => nameof(BuildBookRmaPolicies.ExportRmaReports),
@@ -933,6 +999,7 @@ public class BuildBookPageAuthorizationTests
         return policy switch
         {
             BuildBookOrderPolicies.ViewOrders => $"BuildBookOrderPolicies.{nameof(BuildBookOrderPolicies.ViewOrders)}",
+            BuildBookOrderPolicies.CreateOrders => $"BuildBookOrderPolicies.{nameof(BuildBookOrderPolicies.CreateOrders)}",
             BuildBookOrderPolicies.ImportOrders => $"BuildBookOrderPolicies.{nameof(BuildBookOrderPolicies.ImportOrders)}",
             BuildBookRmaPolicies.ViewRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ViewRmas)}",
             BuildBookRmaPolicies.CreateRmas => $"BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.CreateRmas)}",

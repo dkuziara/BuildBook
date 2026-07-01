@@ -42,6 +42,9 @@ public class InfrastructureRegistrationTests
         var searchService = provider.GetRequiredService<IBuildRecordSearchService>();
         var detailReader = provider.GetRequiredService<IBuildRecordDetailReader>();
         var orderPlannerImportService = provider.GetRequiredService<IOrderPlannerImportService>();
+        var orderRegisterReader = provider.GetRequiredService<IOrderRegisterReader>();
+        var orderRecordCreator = provider.GetRequiredService<IOrderRecordCreator>();
+        var orderDetailReader = provider.GetRequiredService<IOrderDetailReader>();
         var productDetailsUpdater = provider.GetRequiredService<IProductDetailsUpdater>();
         var buildDetailsUpdater = provider.GetRequiredService<IBuildDetailsUpdater>();
         var customerOptionsReader = provider.GetRequiredService<ICustomerOptionsReader>();
@@ -75,6 +78,9 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(searchService);
         Assert.NotNull(detailReader);
         Assert.NotNull(orderPlannerImportService);
+        Assert.NotNull(orderRegisterReader);
+        Assert.NotNull(orderRecordCreator);
+        Assert.NotNull(orderDetailReader);
         Assert.NotNull(productDetailsUpdater);
         Assert.NotNull(buildDetailsUpdater);
         Assert.NotNull(customerOptionsReader);

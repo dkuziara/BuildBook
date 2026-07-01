@@ -1,0 +1,465 @@
+@page "/orders/{OrderId:int}"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.Orders
+@using BuildBook.Application.Security
+
+@attribute [Authorize(Policy = BuildBookOrderPolicies.ViewOrders)]
+
+@inject IOrderDetailReader OrderDetailReader
+
+<PageTitle>Order Detail</PageTitle>
+
+@if (orderRecord is null)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>@statusMessage</p>
+    </section>
+}
+else
+{
+    <section class="page-heading">
+        <div class="page-heading-copy">
+            <p class="eyebrow">Orders</p>
+            <h1>@orderRecord.OrderTitle</h1>
+            <p>Order summary, imported Planner context and linked BuildBook activity.</p>
+        </div>
+        <div class="page-actions">
+            <a class="secondary-button" href="/orders">Back to Orders</a>
+        </div>
+    </section>
+
+    <section class="detail-panel" aria-labelledby="order-summary-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-summary-heading">Summary</h2>
+                <p>Operational highlights for this Order.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Order number</dt>
+                <dd>@orderRecord.OrderNumber</dd>
+            </div>
+            <div>
+                <dt>Status</dt>
+                <dd>@orderRecord.Status</dd>
+            </div>
+            <div>
+                <dt>Customer</dt>
+                <dd>
+                    @if (orderRecord.CustomerId is not null && !string.IsNullOrWhiteSpace(orderRecord.CustomerName))
+                    {
+                        <a class="table-link" href="@($"/customers/{orderRecord.CustomerId.Value}")">@orderRecord.CustomerName</a>
+                    }
+                    else
+                    {
+                        @Display(orderRecord.CustomerName)
+                    }
+                </dd>
+            </div>
+            <div>
+                <dt>Priority</dt>
+                <dd>@Display(orderRecord.Priority?.ToString() ?? orderRecord.ImportedPriorityText)</dd>
+            </div>
+            <div>
+                <dt>Assigned users</dt>
+                <dd>@(orderRecord.Assignments.Count == 0 ? "Unassigned" : string.Join(", ", orderRecord.Assignments.Select(assignment => assignment.DisplayName)))</dd>
+            </div>
+            <div>
+                <dt>Checklist progress</dt>
+                <dd>@($"{orderRecord.ChecklistItems.Count(item => item.IsCompleted)} / {orderRecord.ChecklistItems.Count}")</dd>
+            </div>
+            <div>
+                <dt>Linked Build Records</dt>
+                <dd>@orderRecord.LinkedBuildRecords.Count</dd>
+            </div>
+            <div>
+                <dt>Support ticket no.</dt>
+                <dd>@Display(orderRecord.SupportTicketNo)</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-overview-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-overview-heading">Overview</h2>
+                <p>The main order description and compact planner-derived summary.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Order description / notes</dt>
+                <dd>@Display(orderRecord.OrderDescription)</dd>
+            </div>
+            <div>
+                <dt>Notes summary</dt>
+                <dd>@Display(orderRecord.NotesSummary)</dd>
+            </div>
+            <div>
+                <dt>Recurring</dt>
+                <dd>@(orderRecord.IsRecurring ? "Yes" : "No")</dd>
+            </div>
+            <div>
+                <dt>Imported late flag</dt>
+                <dd>@DisplayBoolean(orderRecord.ImportedLateFlag)</dd>
+            </div>
+            <div>
+                <dt>Labels</dt>
+                <dd>@FormatLabels()</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-details-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-details-heading">Order Details</h2>
+                <p>Reference fields and owner details stored against the Order.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Customer reference</dt>
+                <dd>@Display(orderRecord.CustomerReference)</dd>
+            </div>
+            <div>
+                <dt>Customer purchase order no.</dt>
+                <dd>@Display(orderRecord.CustomerPurchaseOrderNumber)</dd>
+            </div>
+            <div>
+                <dt>Internal order reference</dt>
+                <dd>@Display(orderRecord.InternalOrderReference)</dd>
+            </div>
+            <div>
+                <dt>Quote number</dt>
+                <dd>@Display(orderRecord.QuoteNumber)</dd>
+            </div>
+            <div>
+                <dt>Sales / Admin owner</dt>
+                <dd>@Display(orderRecord.SalesAdminOwner)</dd>
+            </div>
+            <div>
+                <dt>Production owner</dt>
+                <dd>@Display(orderRecord.ProductionOwner)</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-dates-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-dates-heading">Dates</h2>
+                <p>Tracked dates for creation, planned work and completion.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Start date</dt>
+                <dd>@Display(orderRecord.StartDate)</dd>
+            </div>
+            <div>
+                <dt>Due date</dt>
+                <dd>@Display(orderRecord.DueDate)</dd>
+            </div>
+            <div>
+                <dt>Completed date</dt>
+                <dd>@Display(orderRecord.CompletedAt)</dd>
+            </div>
+            <div>
+                <dt>Completed by</dt>
+                <dd>@Display(orderRecord.CompletedBy)</dd>
+            </div>
+            <div>
+                <dt>Created</dt>
+                <dd>@orderRecord.CreatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</dd>
+            </div>
+            <div>
+                <dt>Created by</dt>
+                <dd>@Display(orderRecord.CreatedBy)</dd>
+            </div>
+            <div>
+                <dt>Last updated</dt>
+                <dd>@orderRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</dd>
+            </div>
+            <div>
+                <dt>Last updated by</dt>
+                <dd>@Display(orderRecord.LastUpdatedBy)</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="table-panel compact-table-panel detail-section" aria-labelledby="order-assignments-heading">
+        <div class="table-panel-heading">
+            <h2 id="order-assignments-heading">Assignments</h2>
+            <p>@orderRecord.Assignments.Count assignments</p>
+        </div>
+
+        @if (orderRecord.Assignments.Count == 0)
+        {
+            <p class="empty-state">No assignments have been recorded for this Order yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Assigned to</th>
+                            <th scope="col">Assignment type</th>
+                            <th scope="col">Assigned at</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var assignment in orderRecord.Assignments)
+                        {
+                            <tr>
+                                <td>@assignment.DisplayName</td>
+                                <td>@Display(assignment.AssignmentType)</td>
+                                <td>@assignment.AssignedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="table-panel compact-table-panel detail-section" aria-labelledby="order-checklist-heading">
+        <div class="table-panel-heading">
+            <h2 id="order-checklist-heading">Checklist</h2>
+            <p>@orderRecord.ChecklistItems.Count checklist items</p>
+        </div>
+
+        @if (orderRecord.ChecklistItems.Count == 0)
+        {
+            <p class="empty-state">No checklist items are recorded for this Order yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Done</th>
+                            <th scope="col">Checklist item</th>
+                            <th scope="col">Completed by</th>
+                            <th scope="col">Completed at</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var checklistItem in orderRecord.ChecklistItems)
+                        {
+                            <tr>
+                                <td>@(checklistItem.IsCompleted ? "Yes" : "No")</td>
+                                <td>@checklistItem.Text</td>
+                                <td>@Display(checklistItem.CompletedBy)</td>
+                                <td>@Display(checklistItem.CompletedAt)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="table-panel compact-table-panel detail-section" aria-labelledby="order-linked-build-records-heading">
+        <div class="table-panel-heading">
+            <h2 id="order-linked-build-records-heading">Linked Build Records</h2>
+            <p>@orderRecord.LinkedBuildRecords.Count linked Build Records</p>
+        </div>
+
+        @if (orderRecord.LinkedBuildRecords.Count == 0)
+        {
+            <p class="empty-state">No Build Records are linked to this Order yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Build Record</th>
+                            <th scope="col">Serial number</th>
+                            <th scope="col">Machine name</th>
+                            <th scope="col">Link type</th>
+                            <th scope="col">Linked at</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var buildRecordLink in orderRecord.LinkedBuildRecords)
+                        {
+                            <tr>
+                                <td><a class="table-link" href="@($"/build-records/{buildRecordLink.BuildRecordId}")">@buildRecordLink.ProductCode / @buildRecordLink.ProductName</a></td>
+                                <td>@buildRecordLink.SerialNumber</td>
+                                <td>@Display(buildRecordLink.MachineName)</td>
+                                <td>@Display(buildRecordLink.LinkType)</td>
+                                <td>@buildRecordLink.LinkedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-notes-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-notes-heading">Notes</h2>
+                <p>Imported planner notes and future operational notes appear here.</p>
+            </div>
+        </div>
+
+        @if (orderRecord.Notes.Count == 0)
+        {
+            <p class="empty-state">No notes have been recorded for this Order yet.</p>
+        }
+        else
+        {
+            <ul class="recent-record-list">
+                @foreach (var note in orderRecord.Notes)
+                {
+                    <li>
+                        <strong>@note.NoteType</strong>
+                        <div>@note.NoteText</div>
+                        <div>@Display(note.CreatedBy) | @note.CreatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</div>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="table-panel compact-table-panel detail-section" aria-labelledby="order-history-heading">
+        <div class="table-panel-heading">
+            <h2 id="order-history-heading">History</h2>
+            <p>@orderRecord.StatusHistory.Count recorded status changes</p>
+        </div>
+
+        @if (orderRecord.StatusHistory.Count == 0)
+        {
+            <p class="empty-state">No status history has been recorded for this Order yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Changed at</th>
+                            <th scope="col">Old status</th>
+                            <th scope="col">New status</th>
+                            <th scope="col">Changed by</th>
+                            <th scope="col">Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var statusHistoryEntry in orderRecord.StatusHistory)
+                        {
+                            <tr>
+                                <td>@statusHistoryEntry.ChangedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                                <td>@Display(statusHistoryEntry.OldStatus)</td>
+                                <td>@statusHistoryEntry.NewStatus</td>
+                                <td>@Display(statusHistoryEntry.ChangedBy)</td>
+                                <td>@Display(statusHistoryEntry.Reason)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="detail-panel detail-section" aria-labelledby="order-planner-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="order-planner-heading">Planner Import Traceability</h2>
+                <p>Original Planner identifiers are kept for historic import review and reconciliation.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Planner task ID</dt>
+                <dd>@Display(orderRecord.PlannerTaskId)</dd>
+            </div>
+            <div>
+                <dt>Planner plan ID</dt>
+                <dd>@Display(orderRecord.PlannerPlanId)</dd>
+            </div>
+            <div>
+                <dt>Planner bucket ID</dt>
+                <dd>@Display(orderRecord.PlannerBucketId)</dd>
+            </div>
+            <div>
+                <dt>Planner bucket name</dt>
+                <dd>@Display(orderRecord.PlannerBucketName)</dd>
+            </div>
+            <div>
+                <dt>Planner source</dt>
+                <dd>@Display(orderRecord.PlannerSource)</dd>
+            </div>
+            <div>
+                <dt>Planner status</dt>
+                <dd>@Display(orderRecord.PlannerStatus)</dd>
+            </div>
+            <div>
+                <dt>Planner goal</dt>
+                <dd>@Display(orderRecord.PlannerGoal)</dd>
+            </div>
+        </dl>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public int OrderId { get; set; }
+
+    private OrderDetailModel? orderRecord;
+    private string statusMessage = "Loading order details...";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        orderRecord = await OrderDetailReader.GetByIdAsync(OrderId);
+        statusMessage = orderRecord is null
+            ? "Order was not found."
+            : string.Empty;
+    }
+
+    private string FormatLabels()
+    {
+        return orderRecord is { Labels.Count: > 0 }
+            ? string.Join(", ", orderRecord.Labels.Select(label => label.LabelText))
+            : "Not recorded";
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private static string Display(DateOnly? value)
+    {
+        return value?.ToString("d MMM yyyy") ?? "Not recorded";
+    }
+
+    private static string Display(DateTimeOffset? value)
+    {
+        return value?.ToLocalTime().ToString("d MMM yyyy HH:mm") ?? "Not recorded";
+    }
+
+    private static string DisplayBoolean(bool? value)
+    {
+        return value switch
+        {
+            true => "Yes",
+            false => "No",
+            _ => "Not recorded"
+        };
+    }
+}

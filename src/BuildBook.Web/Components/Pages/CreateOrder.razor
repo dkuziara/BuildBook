@@ -1,0 +1,183 @@
+@page "/orders/new"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.BuildRecords
+@using BuildBook.Application.Orders
+@using BuildBook.Application.Security
+@using BuildBook.Domain.Orders
+
+@attribute [Authorize(Policy = BuildBookOrderPolicies.CreateOrders)]
+
+@inject IOrderRecordCreator OrderRecordCreator
+@inject ICustomerOptionsReader CustomerOptionsReader
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Add Order</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">Orders</p>
+        <h1>Add a new Order.</h1>
+        <p>Create the core order details here, then use the detail page to review imported notes, checklist items and history.</p>
+    </div>
+</section>
+
+<section class="form-panel" aria-labelledby="add-order-heading">
+    <h2 id="add-order-heading">Order details</h2>
+
+    @if (serverErrors.Count > 0)
+    {
+        <div class="status-message error" role="alert">
+            <p>The Order could not be saved.</p>
+            <ul>
+                @foreach (var error in serverErrors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <EditForm Model="model" OnValidSubmit="CreateAsync" FormName="create-order">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-grid">
+            <div class="form-field">
+                <label for="order-title">Order title</label>
+                <InputText id="order-title" class="text-input" @bind-Value="model.OrderTitle" />
+                <ValidationMessage For="() => model.OrderTitle" />
+            </div>
+
+            <div class="form-field">
+                <label for="order-status">Status</label>
+                <InputSelect id="order-status" class="text-input" @bind-Value="model.Status">
+                    @foreach (var status in BuildBookOrderStatuses.DefaultWorkflow)
+                    {
+                        <option value="@status">@status</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => model.Status" />
+            </div>
+
+            <div class="form-field">
+                <label for="order-priority">Priority</label>
+                <InputSelect id="order-priority" class="text-input" @bind-Value="model.Priority">
+                    @foreach (var priority in Enum.GetValues<OrderPriority>())
+                    {
+                        <option value="@priority">@priority</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => model.Priority" />
+            </div>
+
+            <div class="form-field">
+                <label for="order-customer-id">Customer</label>
+                <InputSelect id="order-customer-id" class="text-input" @bind-Value="model.CustomerId">
+                    <option value="">Select customer</option>
+                    @foreach (var customer in customers)
+                    {
+                        <option value="@customer.Id">@customer.Name</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="form-field">
+                <label for="order-start-date">Start date</label>
+                <InputDate id="order-start-date" class="text-input" @bind-Value="model.StartDate" />
+            </div>
+
+            <div class="form-field">
+                <label for="order-due-date">Due date</label>
+                <InputDate id="order-due-date" class="text-input" @bind-Value="model.DueDate" />
+            </div>
+
+            <div class="form-field">
+                <label for="order-support-ticket">Support ticket no.</label>
+                <InputText id="order-support-ticket" class="text-input" @bind-Value="model.SupportTicketNo" />
+            </div>
+
+            <div class="form-field">
+                <label for="order-internal-reference">Internal order reference</label>
+                <InputText id="order-internal-reference" class="text-input" @bind-Value="model.InternalOrderReference" />
+            </div>
+
+            <div class="form-field">
+                <label for="order-customer-reference">Customer reference</label>
+                <InputText id="order-customer-reference" class="text-input" @bind-Value="model.CustomerReference" />
+            </div>
+
+            <div class="form-field">
+                <label for="order-purchase-order-number">Customer purchase order no.</label>
+                <InputText id="order-purchase-order-number" class="text-input" @bind-Value="model.CustomerPurchaseOrderNumber" />
+            </div>
+
+            <div class="form-field">
+                <label for="order-quote-number">Quote number</label>
+                <InputText id="order-quote-number" class="text-input" @bind-Value="model.QuoteNumber" />
+            </div>
+        </div>
+
+        <div class="form-field form-field-wide detail-section">
+            <label class="user-active-toggle" for="order-is-recurring">
+                <InputCheckbox id="order-is-recurring" @bind-Value="model.IsRecurring" />
+                Recurring order
+            </label>
+        </div>
+
+        <div class="form-field form-field-wide">
+            <label for="order-description">Order description / notes</label>
+            <InputTextArea id="order-description" class="text-input" @bind-Value="model.OrderDescription" />
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="primary-button" disabled="@isSaving">
+                @(isSaving ? "Saving..." : "Create Order")
+            </button>
+            <a class="action-link" href="/orders">Back to Orders</a>
+        </div>
+    </EditForm>
+</section>
+
+@code {
+    private CreateOrderRequest model = new();
+    private IReadOnlyList<CustomerOption> customers = [];
+    private readonly List<string> serverErrors = [];
+    private bool isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        customers = await CustomerOptionsReader.ListActiveAsync();
+    }
+
+    private async Task CreateAsync()
+    {
+        isSaving = true;
+        serverErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await OrderRecordCreator.CreateAsync(model, userName);
+
+            if (result.Succeeded && result.OrderId is not null)
+            {
+                NavigationManager.NavigateTo($"/orders/{result.OrderId.Value}");
+            }
+            else
+            {
+                serverErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            serverErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

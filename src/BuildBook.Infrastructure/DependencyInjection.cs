@@ -72,6 +72,9 @@ public static class DependencyInjection
         services.AddScoped<IBuildRecordDetailReader, BuildRecordDetailReader>();
         services.AddScoped<ISpreadsheetImportMappingService, SpreadsheetImportMappingService>();
         services.AddScoped<IOrderPlannerImportService, OrderPlannerImportService>();
+        services.AddScoped<IOrderRegisterReader, OrderRegisterReader>();
+        services.AddScoped<IOrderRecordCreator, OrderRecordCreator>();
+        services.AddScoped<IOrderDetailReader, OrderDetailReader>();
         services.AddScoped<IProductDetailsUpdater, ProductDetailsUpdater>();
         services.AddScoped<IBuildDetailsUpdater, BuildDetailsUpdater>();
         services.AddScoped<ICustomerOptionsReader, CustomerOptionsReader>();

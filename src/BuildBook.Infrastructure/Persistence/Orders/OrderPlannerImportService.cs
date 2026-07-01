@@ -12,6 +12,7 @@ public sealed class OrderPlannerImportService : IOrderPlannerImportService
 {
     private const int MaximumPreviewRows = 10;
     private const string ImportedUnmappedStatus = "Imported - Unmapped";
+    private const string SummarySuffix = "...";
     private readonly IDbContextFactory<BuildBookDbContext>? dbContextFactory;
 
     private static readonly IReadOnlyList<OrderPlannerImportPreviewColumn> PreviewColumns =
@@ -1036,7 +1037,27 @@ public sealed class OrderPlannerImportService : IOrderPlannerImportService
 
         return normalized.Length <= maximumLength
             ? normalized
-            : $"{normalized[..maximumLength].TrimEnd()}…";
+            : TruncateWithSuffix(normalized, maximumLength);
+    }
+
+    private static string TruncateWithSuffix(string value, int maximumLength)
+    {
+        if (maximumLength <= 0)
+        {
+            return string.Empty;
+        }
+
+        if (value.Length <= maximumLength)
+        {
+            return value;
+        }
+
+        if (maximumLength <= SummarySuffix.Length)
+        {
+            return SummarySuffix[..maximumLength];
+        }
+
+        return $"{value[..(maximumLength - SummarySuffix.Length)].TrimEnd()}{SummarySuffix}";
     }
 
     private static IReadOnlyDictionary<string, string> BuildHeaderMap(

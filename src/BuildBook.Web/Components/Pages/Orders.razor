@@ -3,8 +3,11 @@
 
 @using BuildBook.Application.Orders
 @using BuildBook.Application.Security
+@using BuildBook.Domain.Orders
 
 @attribute [Authorize(Policy = BuildBookOrderPolicies.ViewOrders)]
+
+@inject IOrderRegisterReader OrderRegisterReader
 
 <PageTitle>Orders</PageTitle>
 
@@ -12,40 +15,303 @@
     <div class="page-heading-copy">
         <p class="eyebrow">Orders</p>
         <h1>Orders</h1>
-        <p>The Orders module foundation is in place, and Planner import is now the first operational step for bringing historic order workflow into BuildBook.</p>
+        <p>Search, filter and open BuildBook Orders without going back to Planner exports.</p>
     </div>
-</section>
-
-<section class="detail-panel" aria-labelledby="orders-foundation-heading">
-    <div class="detail-panel-header">
-        <div>
-            <h2 id="orders-foundation-heading">Foundation ready</h2>
-            <p>Use the Planner import flow to bring existing order tasks into the new Orders data model while the register and detail screens are still being added.</p>
-        </div>
+    <div class="page-actions">
         <AuthorizeView Policy="@BuildBookOrderPolicies.ImportOrders">
             <Authorized>
-                <a class="primary-button" href="/orders/import">Import Planner Export</a>
+                <a class="secondary-button" href="/orders/import">Import Planner Export</a>
+            </Authorized>
+        </AuthorizeView>
+        <AuthorizeView Policy="@BuildBookOrderPolicies.CreateOrders">
+            <Authorized>
+                <a class="primary-button" href="/orders/new">Add Order</a>
             </Authorized>
         </AuthorizeView>
     </div>
+</section>
 
-    <div class="detail-grid">
+<section class="table-panel compact-table-panel" aria-labelledby="orders-register-table-heading">
+    <div class="table-panel-heading register-toolbar-heading">
         <div>
-            <h3>Default workflow statuses</h3>
-            <ul class="recent-record-list">
-                @foreach (var status in BuildBookOrderStatuses.DefaultWorkflow)
-                {
-                    <li>@status</li>
-                }
-            </ul>
+            <h2 id="orders-register-table-heading">Order Register</h2>
+            <p>@OrdersSummary</p>
         </div>
-        <div>
-            <h3>Planned next slices</h3>
-            <ul class="recent-record-list">
-                <li>Orders register and dashboard</li>
-                <li>Order detail and manual create/edit</li>
-                <li>Orders register and detail screens</li>
-            </ul>
+        <div class="form-actions register-toolbar-actions">
+            <button type="button" class="secondary-button" aria-controls="orders-register-filters-panel" aria-expanded="@showFilters.ToString().ToLowerInvariant()" @onclick="ToggleFilters">
+                @(showFilters ? "Hide filters" : "Show filters")
+            </button>
         </div>
     </div>
+
+    @if (showFilters)
+    {
+        <div id="orders-register-filters-panel" class="register-filters-block" aria-labelledby="orders-register-filters-heading">
+            <div class="compact-panel-title">
+                <h3 id="orders-register-filters-heading">Filters</h3>
+                <p>Refine open work by customer, owner, workflow stage and overdue status.</p>
+            </div>
+
+            <EditForm Model="filterModel" OnValidSubmit="ApplyFiltersAsync" FormName="orders-register-filters">
+                <div class="filter-grid">
+                    <div class="form-field">
+                        <label for="orders-filter-search">Search</label>
+                        <InputText id="orders-filter-search" class="text-input" @bind-Value="filterModel.Search" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="orders-filter-customer">Customer</label>
+                        <InputText id="orders-filter-customer" class="text-input" @bind-Value="filterModel.Customer" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="orders-filter-assigned-to">Assigned to</label>
+                        <InputText id="orders-filter-assigned-to" class="text-input" @bind-Value="filterModel.AssignedTo" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="orders-filter-status">Status</label>
+                        <InputSelect id="orders-filter-status" class="text-input" @bind-Value="filterModel.Status">
+                            <option value="">Any status</option>
+                            @foreach (var status in BuildBookOrderStatuses.DefaultWorkflow)
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="orders-filter-priority">Priority</label>
+                        <InputSelect id="orders-filter-priority" class="text-input" @bind-Value="filterModel.Priority">
+                            <option value="">Any priority</option>
+                            @foreach (var priority in Enum.GetValues<OrderPriority>())
+                            {
+                                <option value="@priority">@priority</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="orders-filter-due-date">Due date</label>
+                        <InputDate id="orders-filter-due-date" class="text-input" @bind-Value="filterModel.DueDate" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="orders-filter-overdue">Overdue</label>
+                        <InputSelect id="orders-filter-overdue" class="text-input" @bind-Value="overdueFilterValue">
+                            <option value="">Any</option>
+                            <option value="true">Overdue only</option>
+                            <option value="false">Not overdue</option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="orders-filter-completed">Completed</label>
+                        <InputSelect id="orders-filter-completed" class="text-input" @bind-Value="completedFilterValue">
+                            <option value="">Any</option>
+                            <option value="false">Open only</option>
+                            <option value="true">Completed only</option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="orders-filter-linked-build-record">Build Record link</label>
+                        <InputSelect id="orders-filter-linked-build-record" class="text-input" @bind-Value="linkedBuildRecordFilterValue">
+                            <option value="">Any</option>
+                            <option value="true">Linked only</option>
+                            <option value="false">Unlinked only</option>
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="form-actions register-actions">
+                    <button type="submit" class="secondary-button" disabled="@isLoading">Apply filters</button>
+                    <button type="button" class="secondary-button" disabled="@(!canClearFilters)" @onclick="ClearFiltersAsync">Clear filters</button>
+                </div>
+            </EditForm>
+        </div>
+    }
+
+    @if (orderRecords is null)
+    {
+        <div class="placeholder-panel table-panel-placeholder" aria-live="polite">
+            <p>Loading Orders...</p>
+        </div>
+    }
+    else if (orderRecords.Count == 0)
+    {
+        <div class="placeholder-panel table-panel-placeholder" aria-labelledby="empty-orders-register-heading">
+            <h3 id="empty-orders-register-heading">No Orders found</h3>
+            <p>@(hasActiveFilters ? "No Orders match the current filters." : "Import Planner data or add the first Order to start using the register.")</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.Order))">Order @SortIndicator(OrderRegisterSortColumn.Order)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.Status))">Status @SortIndicator(OrderRegisterSortColumn.Status)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.Customer))">Customer @SortIndicator(OrderRegisterSortColumn.Customer)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.Priority))">Priority @SortIndicator(OrderRegisterSortColumn.Priority)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.AssignedTo))">Assigned to @SortIndicator(OrderRegisterSortColumn.AssignedTo)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.StartDate))">Start date @SortIndicator(OrderRegisterSortColumn.StartDate)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.DueDate))">Due date @SortIndicator(OrderRegisterSortColumn.DueDate)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.ChecklistProgress))">Checklist progress @SortIndicator(OrderRegisterSortColumn.ChecklistProgress)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.LinkedBuilds))">Linked Builds @SortIndicator(OrderRegisterSortColumn.LinkedBuilds)</button></th>
+                        <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.LastUpdated))">Last updated @SortIndicator(OrderRegisterSortColumn.LastUpdated)</button></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var orderRecord in orderRecords)
+                    {
+                        <tr>
+                            <td>
+                                <a class="table-link" href="@($"/orders/{orderRecord.Id}")">@orderRecord.OrderNumber</a>
+                                <div>@orderRecord.OrderTitle</div>
+                            </td>
+                            <td>@orderRecord.Status</td>
+                            <td>@Display(orderRecord.CustomerName)</td>
+                            <td>@Display(orderRecord.Priority)</td>
+                            <td>@orderRecord.AssignedTo</td>
+                            <td>@Display(orderRecord.StartDate)</td>
+                            <td>@Display(orderRecord.DueDate)</td>
+                            <td>@FormatChecklistProgress(orderRecord)</td>
+                            <td>@FormatLinkedBuilds(orderRecord.LinkedBuildRecords)</td>
+                            <td>@orderRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
 </section>
+
+@code {
+    private IReadOnlyList<OrderRegisterRow>? orderRecords;
+    private OrderRegisterFilter filterModel = new();
+    private bool hasActiveFilters;
+    private bool isLoading;
+    private bool showFilters;
+    private string overdueFilterValue = string.Empty;
+    private string completedFilterValue = string.Empty;
+    private string linkedBuildRecordFilterValue = string.Empty;
+    private bool canClearFilters => !isLoading && hasActiveFilters;
+    private string OrdersSummary => orderRecords is null
+        ? "Loading Orders..."
+        : $"{orderRecords.Count} {(hasActiveFilters ? "matching" : "active")} orders";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrdersAsync();
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        SynchronizeFilterValuesToModel();
+        await LoadOrdersAsync(filterModel);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        filterModel = new OrderRegisterFilter();
+        SynchronizeFilterValuesFromModel();
+        await LoadOrdersAsync();
+    }
+
+    private async Task SortByAsync(OrderRegisterSortColumn column)
+    {
+        if (filterModel.SortBy == column)
+        {
+            filterModel.SortDescending = !filterModel.SortDescending;
+        }
+        else
+        {
+            filterModel.SortBy = column;
+            filterModel.SortDescending = column == OrderRegisterSortColumn.LastUpdated
+                || column == OrderRegisterSortColumn.ChecklistProgress
+                || column == OrderRegisterSortColumn.LinkedBuilds;
+        }
+
+        await LoadOrdersAsync(filterModel);
+    }
+
+    private async Task LoadOrdersAsync(OrderRegisterFilter? filter = null)
+    {
+        filter ??= new OrderRegisterFilter();
+        SynchronizeFilterValuesFromModel(filter);
+        isLoading = true;
+        hasActiveFilters = filter.HasAnyFilter();
+        showFilters = hasActiveFilters || showFilters;
+        orderRecords = await OrderRegisterReader.ListAsync(filter);
+        isLoading = false;
+    }
+
+    private void ToggleFilters()
+    {
+        showFilters = !showFilters;
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private static string Display(DateOnly? value)
+    {
+        return value?.ToString("d MMM yyyy") ?? "Not recorded";
+    }
+
+    private static string Display(OrderPriority? priority)
+    {
+        return priority?.ToString() ?? "Not recorded";
+    }
+
+    private static string FormatChecklistProgress(OrderRegisterRow row)
+    {
+        return row.TotalChecklistItems == 0
+            ? "No checklist"
+            : $"{row.CompletedChecklistItems} / {row.TotalChecklistItems}";
+    }
+
+    private static string FormatLinkedBuilds(int count)
+    {
+        return count == 0 ? "None" : count.ToString();
+    }
+
+    private string SortIndicator(OrderRegisterSortColumn column)
+    {
+        if (filterModel.SortBy != column)
+        {
+            return string.Empty;
+        }
+
+        return filterModel.SortDescending ? "v" : "^";
+    }
+
+    private void SynchronizeFilterValuesToModel()
+    {
+        filterModel.IsOverdue = ParseNullableBoolean(overdueFilterValue);
+        filterModel.IsCompleted = ParseNullableBoolean(completedFilterValue);
+        filterModel.HasLinkedBuildRecord = ParseNullableBoolean(linkedBuildRecordFilterValue);
+    }
+
+    private void SynchronizeFilterValuesFromModel(OrderRegisterFilter? filter = null)
+    {
+        filter ??= filterModel;
+        overdueFilterValue = FormatNullableBoolean(filter.IsOverdue);
+        completedFilterValue = FormatNullableBoolean(filter.IsCompleted);
+        linkedBuildRecordFilterValue = FormatNullableBoolean(filter.HasLinkedBuildRecord);
+    }
+
+    private static bool? ParseNullableBoolean(string? value)
+    {
+        return bool.TryParse(value, out var parsed) ? parsed : null;
+    }
+
+    private static string FormatNullableBoolean(bool? value)
+    {
+        return value?.ToString().ToLowerInvariant() ?? string.Empty;
+    }
+}
