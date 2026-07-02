@@ -1,6 +1,7 @@
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
 using BuildBook.Domain.Orders;
+using BuildBook.Domain.Products;
 using BuildBook.Domain.Rmas;
 using BuildBook.Domain.Security;
 using BuildBook.Domain.Settings;
@@ -49,6 +50,8 @@ public sealed class BuildBookDbContext(DbContextOptions<BuildBookDbContext> opti
     public DbSet<OrderImportBatch> OrderImportBatches => Set<OrderImportBatch>();
 
     public DbSet<OrderImportWarning> OrderImportWarnings => Set<OrderImportWarning>();
+
+    public DbSet<Product> Products => Set<Product>();
 
     public DbSet<RmaRecord> RmaRecords => Set<RmaRecord>();
 

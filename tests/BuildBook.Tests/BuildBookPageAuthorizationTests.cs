@@ -8,6 +8,10 @@ public class BuildBookPageAuthorizationTests
     [InlineData("Home.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRegister.razor", BuildBookPolicies.ViewBuildRecords)]
     [InlineData("BuildRecordDetail.razor", BuildBookPolicies.ViewBuildRecords)]
+    [InlineData("Products.razor", BuildBookPolicies.ViewBuildRecords)]
+    [InlineData("ProductDetail.razor", BuildBookPolicies.ViewBuildRecords)]
+    [InlineData("CreateProduct.razor", BuildBookPolicies.EditBuildRecords)]
+    [InlineData("EditProduct.razor", BuildBookPolicies.EditBuildRecords)]
     [InlineData("Orders.razor", BuildBookOrderPolicies.ViewOrders)]
     [InlineData("OrderBoard.razor", BuildBookOrderPolicies.ViewOrders)]
     [InlineData("CreateOrder.razor", BuildBookOrderPolicies.CreateOrders)]
@@ -55,6 +59,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ViewCustomers)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookRmaPolicies.{nameof(BuildBookRmaPolicies.ViewRmas)}\"", layoutContent);
         Assert.Contains($"Policy=\"@BuildBookPolicies.{nameof(BuildBookPolicies.ManageUsers)}\"", layoutContent);
+        Assert.Contains("Products", layoutContent);
         Assert.Contains("Orders", layoutContent);
         Assert.Contains("RMAs", layoutContent);
         Assert.Contains("Customers", layoutContent);
@@ -265,6 +270,30 @@ public class BuildBookPageAuthorizationTests
     }
 
     [Fact]
+    public void ProductsPageDefinesExpectedRouteFiltersAndTable()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("Products.razor"));
+
+        Assert.Contains("@page \"/products\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookPolicies.ViewBuildRecords", pageContent);
+        Assert.Contains("IProductService", pageContent);
+        Assert.Contains("Products", pageContent);
+        Assert.Contains("Product records", pageContent);
+        Assert.Contains("FormName=\"products-filters\"", pageContent);
+        Assert.Contains("Add product", pageContent);
+        Assert.Contains("Search", pageContent);
+        Assert.Contains("Product code", pageContent);
+        Assert.Contains("Description", pageContent);
+        Assert.Contains("Notes", pageContent);
+        Assert.Contains("SortByAsync(ProductSortColumn.ProductCode)", pageContent);
+        Assert.Contains("SortByAsync(ProductSortColumn.LastUpdated)", pageContent);
+        Assert.Contains("Loading products", pageContent);
+        Assert.Contains("No products found", pageContent);
+        Assert.Contains("/products/{product.Id}", pageContent);
+    }
+
+    [Fact]
     public void OrderBoardPageDefinesExpectedRouteGroupingAndWarnings()
     {
         var pageContent = File.ReadAllText(GetPagePath("OrderBoard.razor"));
@@ -399,6 +428,30 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("/orders", pageContent);
         Assert.DoesNotContain("<dt>Order number</dt>", pageContent);
         Assert.DoesNotContain("orderRecord.OrderNumber} | Order Detail", pageContent);
+    }
+
+    [Fact]
+    public void ProductDetailPageDefinesExpectedRouteSectionsAndEditForms()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("ProductDetail.razor"));
+
+        Assert.Contains("@page \"/products/{ProductId:int}\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookPolicies.ViewBuildRecords", pageContent);
+        Assert.Contains("IProductService", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("Summary", pageContent);
+        Assert.Contains("Notes", pageContent);
+        Assert.Contains("History", pageContent);
+        Assert.Contains("ProductSectionLink(\"product-summary\")", pageContent);
+        Assert.Contains("ProductSectionLink(\"product-notes\")", pageContent);
+        Assert.Contains("FormName=\"edit-product-summary\"", pageContent);
+        Assert.Contains("FormName=\"edit-product-notes\"", pageContent);
+        Assert.Contains("Product code", pageContent);
+        Assert.Contains("Description", pageContent);
+        Assert.Contains("SaveSummaryAsync", pageContent);
+        Assert.Contains("SaveNotesAsync", pageContent);
+        Assert.Contains("/products", pageContent);
     }
 
     [Fact]
@@ -962,6 +1015,37 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("/build-records/{buildRecord.Id}", pageContent);
         Assert.Contains("/rmas/{rmaRecord.Id}", pageContent);
         Assert.Contains("/customers/reports", pageContent);
+    }
+
+    [Fact]
+    public void CreateProductPageDefinesExpectedRouteAndForm()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("CreateProduct.razor"));
+
+        Assert.Contains("@page \"/products/new\"", pageContent);
+        Assert.Contains("@rendermode InteractiveServer", pageContent);
+        Assert.Contains("BuildBookPolicies.EditBuildRecords", pageContent);
+        Assert.Contains("IProductService", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("NavigationManager", pageContent);
+        Assert.Contains("FormName=\"create-product\"", pageContent);
+        Assert.Contains("Product code", pageContent);
+        Assert.Contains("Description", pageContent);
+        Assert.Contains("Notes", pageContent);
+        Assert.Contains("Create product", pageContent);
+        Assert.Contains("NavigationManager.NavigateTo($\"/products/{result.ProductId.Value}\")", pageContent);
+    }
+
+    [Fact]
+    public void EditProductPageDefinesExpectedRouteAndRedirect()
+    {
+        var pageContent = File.ReadAllText(GetPagePath("EditProduct.razor"));
+
+        Assert.Contains("@page \"/products/{ProductId:int}/edit\"", pageContent);
+        Assert.Contains("NavigationManager", pageContent);
+        Assert.Contains("Product editing now happens section-by-section on the product detail page.", pageContent);
+        Assert.Contains("Open Product Detail", pageContent);
+        Assert.Contains("/products/{ProductId}", pageContent);
     }
 
     [Fact]

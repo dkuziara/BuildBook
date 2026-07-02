@@ -1,0 +1,101 @@
+@page "/products/new"
+@rendermode InteractiveServer
+
+@using BuildBook.Application.Products
+
+@attribute [Authorize(Policy = BuildBookPolicies.EditBuildRecords)]
+
+@inject IProductService ProductService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Add Product</PageTitle>
+
+<section class="page-heading">
+    <div class="page-heading-copy">
+        <p class="eyebrow">Products</p>
+        <h1>Add a new product.</h1>
+        <p>Create a shared product record so product codes and descriptions stay consistent across BuildBook.</p>
+    </div>
+</section>
+
+<section class="form-panel" aria-labelledby="add-product-heading">
+    <h2 id="add-product-heading">Product details</h2>
+
+    @if (serverErrors.Count > 0)
+    {
+        <div class="status-message error" role="alert">
+            <p>The product record could not be saved.</p>
+            <ul>
+                @foreach (var error in serverErrors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <EditForm Model="model" OnValidSubmit="CreateAsync" FormName="create-product">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-grid">
+            <div class="form-field">
+                <label for="product-code">Product code</label>
+                <InputText id="product-code" class="text-input" @bind-Value="model.ProductCode" />
+                <ValidationMessage For="() => model.ProductCode" />
+            </div>
+
+            <div class="form-field">
+                <label for="product-description">Description</label>
+                <InputText id="product-description" class="text-input" @bind-Value="model.Description" />
+            </div>
+        </div>
+
+        <div class="form-field form-field-wide detail-section">
+            <label for="product-notes">Notes</label>
+            <InputTextArea id="product-notes" class="text-input" @bind-Value="model.Notes" />
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="primary-button" disabled="@isSaving">@(isSaving ? "Saving..." : "Create product")</button>
+            <a class="action-link" href="/products">Back to Products</a>
+        </div>
+    </EditForm>
+</section>
+
+@code {
+    private CreateProductRequest model = new();
+    private readonly List<string> serverErrors = [];
+    private bool isSaving;
+
+    private async Task CreateAsync()
+    {
+        isSaving = true;
+        serverErrors.Clear();
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userName = authenticationState.User.Identity?.Name ?? "Unknown";
+            var result = await ProductService.CreateAsync(model, userName);
+
+            if (result.Succeeded && result.ProductId is not null)
+            {
+                NavigationManager.NavigateTo($"/products/{result.ProductId.Value}");
+            }
+            else
+            {
+                serverErrors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            serverErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

@@ -1,6 +1,7 @@
 using BuildBook.Application.BuildRecords;
 using BuildBook.Application.Customers;
 using BuildBook.Application.Orders;
+using BuildBook.Application.Products;
 using BuildBook.Application.Rmas;
 using BuildBook.Application.Security;
 using BuildBook.Application.Settings;
@@ -8,6 +9,7 @@ using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.BuildRecords;
 using BuildBook.Infrastructure.Persistence.Customers;
 using BuildBook.Infrastructure.Persistence.Orders;
+using BuildBook.Infrastructure.Persistence.Products;
 using BuildBook.Infrastructure.Persistence.Rmas;
 using BuildBook.Infrastructure.Persistence.Security;
 using BuildBook.Infrastructure.Persistence.SeedData;
@@ -83,6 +85,7 @@ public static class DependencyInjection
         services.AddScoped<IOrderReportExcelExporter, OrderReportExcelExporter>();
         services.AddScoped<IOrderWorkflowService, OrderWorkflowService>();
         services.AddScoped<IOrderIntegrationService, OrderIntegrationService>();
+        services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IProductDetailsUpdater, ProductDetailsUpdater>();
         services.AddScoped<IBuildDetailsUpdater, BuildDetailsUpdater>();
         services.AddScoped<ICustomerOptionsReader, CustomerOptionsReader>();

@@ -1,0 +1,381 @@
+@page "/products/{ProductId:int}"
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@using BuildBook.Application.Products
+
+@attribute [Authorize(Policy = BuildBookPolicies.ViewBuildRecords)]
+
+@inject IProductService ProductService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Product Detail</PageTitle>
+
+@if (product is null)
+{
+    <section class="placeholder-panel" aria-live="polite">
+        <p>@statusMessage</p>
+    </section>
+}
+else
+{
+    <section class="page-heading">
+        <div class="page-heading-copy">
+            <p class="eyebrow">Products</p>
+            <h1>@product.ProductCode</h1>
+            <p>Shared product code, description and notes used to keep BuildBook records consistent.</p>
+        </div>
+        <div class="page-actions">
+            <a class="secondary-button" href="/products">Back to Products</a>
+        </div>
+    </section>
+
+    <nav class="section-chip-nav" aria-label="Product detail sections">
+        <a class="section-chip" href="@ProductSectionLink("product-summary")">Summary</a>
+        <a class="section-chip" href="@ProductSectionLink("product-notes")">Notes</a>
+        <a class="section-chip" href="@ProductSectionLink("product-history")">History</a>
+    </nav>
+
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="status-message @(statusIsError ? "error" : "success")" role="status">
+            <p>@statusMessage</p>
+        </div>
+    }
+
+    <section id="product-summary" class="detail-panel" aria-labelledby="product-summary-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="product-summary-heading">Summary</h2>
+                <p>Core product code and short description used across BuildBook.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+                <Authorized>
+                    @if (!IsEditing(ProductEditSection.Summary))
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingSummary">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (IsEditing(ProductEditSection.Summary))
+        {
+            @SectionErrors(summaryErrors, "Product summary could not be saved.")
+
+            <EditForm Model="summaryModel" OnValidSubmit="SaveSummaryAsync" FormName="edit-product-summary">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-product-code">Product code</label>
+                        <InputText id="edit-product-code" class="text-input" @bind-Value="summaryModel.ProductCode" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-product-description">Description</label>
+                        <InputText id="edit-product-description" class="text-input" @bind-Value="summaryModel.Description" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingSection">@(isSavingSection ? "Saving..." : "Save summary")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingSection" @onclick="CancelEditing">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Product code</dt>
+                    <dd>@product.ProductCode</dd>
+                </div>
+                <div>
+                    <dt>Description</dt>
+                    <dd>@Display(product.Description)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
+    <section id="product-notes" class="detail-panel detail-section" aria-labelledby="product-notes-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="product-notes-heading">Notes</h2>
+                <p>General product notes that should stay attached to the shared product record.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditBuildRecords">
+                <Authorized>
+                    @if (!IsEditing(ProductEditSection.Notes))
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingNotes">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (IsEditing(ProductEditSection.Notes))
+        {
+            @SectionErrors(noteErrors, "Product notes could not be saved.")
+
+            <EditForm Model="notesModel" OnValidSubmit="SaveNotesAsync" FormName="edit-product-notes">
+                <DataAnnotationsValidator />
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-product-notes">Notes</label>
+                    <InputTextArea id="edit-product-notes" class="text-input" @bind-Value="notesModel.Notes" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingSection">@(isSavingSection ? "Saving..." : "Save notes")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingSection" @onclick="CancelEditing">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Notes</dt>
+                    <dd>@Display(product.Notes)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
+    <section id="product-history" class="detail-panel detail-section" aria-labelledby="product-history-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="product-history-heading">History</h2>
+                <p>Basic lifecycle details for this product record.</p>
+            </div>
+        </div>
+
+        <dl class="summary-list">
+            <div>
+                <dt>Created</dt>
+                <dd>@product.CreatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</dd>
+            </div>
+            <div>
+                <dt>Created by</dt>
+                <dd>@product.CreatedBy</dd>
+            </div>
+            <div>
+                <dt>Last updated</dt>
+                <dd>@product.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</dd>
+            </div>
+            <div>
+                <dt>Last updated by</dt>
+                <dd>@product.LastUpdatedBy</dd>
+            </div>
+        </dl>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public int ProductId { get; set; }
+
+    private ProductDetailModel? product;
+    private SummaryEditModel summaryModel = new();
+    private NotesEditModel notesModel = new();
+    private readonly List<string> summaryErrors = [];
+    private readonly List<string> noteErrors = [];
+    private string statusMessage = "Loading product details...";
+    private bool statusIsError;
+    private bool isSavingSection;
+    private ProductEditSection? editingSection;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadProductAsync();
+    }
+
+    private async Task LoadProductAsync()
+    {
+        product = await ProductService.GetDetailAsync(ProductId);
+        statusMessage = product is null
+            ? "Product was not found."
+            : string.Empty;
+    }
+
+    private bool IsEditing(ProductEditSection section) => editingSection == section;
+
+    private void StartEditingSummary()
+    {
+        if (product is null)
+        {
+            return;
+        }
+
+        summaryModel = new SummaryEditModel
+        {
+            ProductCode = product.ProductCode,
+            Description = product.Description
+        };
+
+        StartEditing(ProductEditSection.Summary, summaryErrors);
+    }
+
+    private void StartEditingNotes()
+    {
+        if (product is null)
+        {
+            return;
+        }
+
+        notesModel = new NotesEditModel
+        {
+            Notes = product.Notes
+        };
+
+        StartEditing(ProductEditSection.Notes, noteErrors);
+    }
+
+    private void StartEditing(ProductEditSection section, List<string> errors)
+    {
+        errors.Clear();
+        statusMessage = string.Empty;
+        statusIsError = false;
+        editingSection = section;
+    }
+
+    private void CancelEditing()
+    {
+        summaryErrors.Clear();
+        noteErrors.Clear();
+        editingSection = null;
+    }
+
+    private async Task SaveSummaryAsync()
+    {
+        await SaveSectionAsync(
+            summaryErrors,
+            request =>
+            {
+                request.ProductCode = summaryModel.ProductCode;
+                request.Description = summaryModel.Description;
+            },
+            "Product summary was saved.");
+    }
+
+    private async Task SaveNotesAsync()
+    {
+        await SaveSectionAsync(
+            noteErrors,
+            request => request.Notes = notesModel.Notes,
+            "Product notes were saved.");
+    }
+
+    private async Task SaveSectionAsync(
+        List<string> errors,
+        Action<UpdateProductRequest> applyChanges,
+        string successMessage)
+    {
+        if (product is null)
+        {
+            return;
+        }
+
+        isSavingSection = true;
+        errors.Clear();
+        statusMessage = string.Empty;
+        statusIsError = false;
+
+        try
+        {
+            var request = BuildRequestFromProduct(product);
+            applyChanges(request);
+            var result = await ProductService.UpdateAsync(ProductId, request, await GetCurrentUserNameAsync());
+
+            if (result.Succeeded)
+            {
+                await LoadProductAsync();
+                editingSection = null;
+                statusMessage = successMessage;
+            }
+            else
+            {
+                errors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            errors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingSection = false;
+        }
+    }
+
+    private async Task<string> GetCurrentUserNameAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return authenticationState.User.Identity?.Name ?? "Unknown";
+    }
+
+    private string ProductSectionLink(string sectionId) => $"/products/{ProductId}#{sectionId}";
+
+    private RenderFragment SectionErrors(IReadOnlyList<string> errors, string title) => builder =>
+    {
+        if (errors.Count == 0)
+        {
+            return;
+        }
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "status-message error");
+        builder.AddAttribute(2, "role", "alert");
+        builder.OpenElement(3, "p");
+        builder.AddContent(4, title);
+        builder.CloseElement();
+        builder.OpenElement(5, "ul");
+        var sequence = 6;
+        foreach (var error in errors)
+        {
+            builder.OpenElement(sequence++, "li");
+            builder.AddContent(sequence++, error);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private static UpdateProductRequest BuildRequestFromProduct(ProductDetailModel product)
+    {
+        return new UpdateProductRequest
+        {
+            ProductCode = product.ProductCode,
+            Description = product.Description,
+            Notes = product.Notes
+        };
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private enum ProductEditSection
+    {
+        Summary,
+        Notes
+    }
+
+    private sealed class SummaryEditModel
+    {
+        [Required(ErrorMessage = "Product code is required.")]
+        public string ProductCode { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+    }
+
+    private sealed class NotesEditModel
+    {
+        public string? Notes { get; set; }
+    }
+}

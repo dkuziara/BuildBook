@@ -2,6 +2,7 @@ using System.Reflection;
 using BuildBook.Domain.BuildRecords;
 using BuildBook.Domain.Customers;
 using BuildBook.Domain.Orders;
+using BuildBook.Domain.Products;
 using BuildBook.Domain.Rmas;
 using BuildBook.Domain.Security;
 using BuildBook.Domain.Settings;
@@ -70,6 +71,7 @@ public class DomainEntityTests
         Assert.IsAssignableFrom<DbSet<OrderStatusHistory>>(context.OrderStatusHistory);
         Assert.IsAssignableFrom<DbSet<OrderImportBatch>>(context.OrderImportBatches);
         Assert.IsAssignableFrom<DbSet<OrderImportWarning>>(context.OrderImportWarnings);
+        Assert.IsAssignableFrom<DbSet<Product>>(context.Products);
         Assert.IsAssignableFrom<DbSet<RmaRecord>>(context.RmaRecords);
         Assert.IsAssignableFrom<DbSet<RmaChecklistItem>>(context.RmaChecklistItems);
         Assert.IsAssignableFrom<DbSet<RmaNote>>(context.RmaNotes);
@@ -300,6 +302,42 @@ public class DomainEntityTests
         Assert.Contains(nameof(OrderRecord.InvoiceNumber), indexedProperties);
         Assert.Contains(nameof(OrderRecord.SupportTicketNo), indexedProperties);
         Assert.Contains(nameof(OrderRecord.LastUpdatedAt), indexedProperties);
+    }
+
+    [Fact]
+    public void ProductModelIncludesExpectedFieldsAndLookupIndexes()
+    {
+        var propertyNames = typeof(Product)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(property => property.Name)
+            .ToArray();
+
+        Assert.Contains(nameof(Product.ProductCode), propertyNames);
+        Assert.Contains(nameof(Product.Description), propertyNames);
+        Assert.Contains(nameof(Product.Notes), propertyNames);
+        Assert.Contains(nameof(Product.CreatedAt), propertyNames);
+        Assert.Contains(nameof(Product.CreatedBy), propertyNames);
+        Assert.Contains(nameof(Product.LastUpdatedAt), propertyNames);
+        Assert.Contains(nameof(Product.LastUpdatedBy), propertyNames);
+
+        var options = new DbContextOptionsBuilder<BuildBookDbContext>()
+            .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=BuildBookProductIndexTest;Trusted_Connection=True;TrustServerCertificate=True")
+            .Options;
+
+        using var context = new BuildBookDbContext(options);
+        var product = context.Model.FindEntityType(typeof(Product));
+
+        Assert.NotNull(product);
+
+        var indexedProperties = product.GetIndexes()
+            .Select(index => string.Join(",", index.Properties.Select(property => property.Name)))
+            .ToArray();
+
+        Assert.Contains(nameof(Product.ProductCode), indexedProperties);
+        Assert.Contains(nameof(Product.LastUpdatedAt), indexedProperties);
+        Assert.Contains(
+            product.GetIndexes().Where(index => index.IsUnique).Select(index => string.Join(",", index.Properties.Select(property => property.Name))),
+            index => index == nameof(Product.ProductCode));
     }
 
     [Fact]

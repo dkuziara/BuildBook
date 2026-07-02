@@ -1,0 +1,30 @@
+@page "/products/{ProductId:int}/edit"
+@rendermode InteractiveServer
+
+@attribute [Authorize(Policy = BuildBookPolicies.EditBuildRecords)]
+
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Product</PageTitle>
+
+<section class="placeholder-panel" aria-live="polite">
+    <p>Product editing now happens section-by-section on the product detail page.</p>
+    <p>
+        <a class="primary-button" href="@($"/products/{ProductId}")">Open Product Detail</a>
+    </p>
+</section>
+
+@code {
+    [Parameter]
+    public int ProductId { get; set; }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        NavigationManager.NavigateTo($"/products/{ProductId}");
+    }
+}

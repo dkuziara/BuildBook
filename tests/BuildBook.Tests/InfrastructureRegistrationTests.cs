@@ -1,6 +1,7 @@
 using BuildBook.Application.BuildRecords;
 using BuildBook.Application.Customers;
 using BuildBook.Application.Orders;
+using BuildBook.Application.Products;
 using BuildBook.Application.Rmas;
 using BuildBook.Application.Security;
 using BuildBook.Application.Settings;
@@ -53,6 +54,7 @@ public class InfrastructureRegistrationTests
         var orderReportExcelExporter = provider.GetRequiredService<IOrderReportExcelExporter>();
         var orderWorkflowService = provider.GetRequiredService<IOrderWorkflowService>();
         var orderIntegrationService = provider.GetRequiredService<IOrderIntegrationService>();
+        var productService = provider.GetRequiredService<IProductService>();
         var productDetailsUpdater = provider.GetRequiredService<IProductDetailsUpdater>();
         var buildDetailsUpdater = provider.GetRequiredService<IBuildDetailsUpdater>();
         var customerOptionsReader = provider.GetRequiredService<ICustomerOptionsReader>();
@@ -97,6 +99,7 @@ public class InfrastructureRegistrationTests
         Assert.NotNull(orderReportExcelExporter);
         Assert.NotNull(orderWorkflowService);
         Assert.NotNull(orderIntegrationService);
+        Assert.NotNull(productService);
         Assert.NotNull(productDetailsUpdater);
         Assert.NotNull(buildDetailsUpdater);
         Assert.NotNull(customerOptionsReader);
@@ -139,6 +142,7 @@ public class InfrastructureRegistrationTests
 
         Assert.Contains(migrations, migration => migration.EndsWith("_InitialCreate", StringComparison.Ordinal));
         Assert.Contains(migrations, migration => migration.EndsWith("_AddOrdersModuleDataModel", StringComparison.Ordinal));
+        Assert.Contains(migrations, migration => migration.EndsWith("_AddProductsModule", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -210,6 +214,26 @@ public class InfrastructureRegistrationTests
         Assert.Contains("\"OrderImportBatches\"", migrationContent);
         Assert.Contains("\"OrderImportWarnings\"", migrationContent);
         Assert.Contains("IX_OrderRecords_PlannerTaskId", migrationContent);
+    }
+
+    [Fact]
+    public void ProductsMigrationCreatesProductsTable()
+    {
+        var migrationPath = Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Infrastructure",
+            "Persistence",
+            "Migrations",
+            "20260702125212_AddProductsModule.cs");
+        var migrationContent = File.ReadAllText(migrationPath);
+
+        Assert.Contains("CreateTable(", migrationContent);
+        Assert.Contains("\"Products\"", migrationContent);
+        Assert.Contains("\"ProductCode\"", migrationContent);
+        Assert.Contains("\"Description\"", migrationContent);
+        Assert.Contains("\"Notes\"", migrationContent);
+        Assert.Contains("IX_Products_ProductCode", migrationContent);
     }
 
     private static IConfiguration CreateConfiguration(string? connectionString)
