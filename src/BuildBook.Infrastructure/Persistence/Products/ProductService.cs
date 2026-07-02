@@ -1,5 +1,6 @@
 using BuildBook.Application.Products;
 using BuildBook.Domain.Products;
+using BuildBook.Domain.Rmas;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence.Products;
@@ -43,10 +44,11 @@ public sealed class ProductService(IDbContextFactory<BuildBookDbContext> dbConte
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        return await dbContext.Products
+        var detail = await dbContext.Products
             .AsNoTracking()
             .Where(product => product.Id == productId)
-            .Select(product => new ProductDetailModel(
+            .Select(product => new
+            {
                 product.Id,
                 product.ProductCode,
                 product.Description,
@@ -54,8 +56,68 @@ public sealed class ProductService(IDbContextFactory<BuildBookDbContext> dbConte
                 product.CreatedAt,
                 product.CreatedBy,
                 product.LastUpdatedAt,
-                product.LastUpdatedBy))
+                product.LastUpdatedBy
+            })
             .SingleOrDefaultAsync(cancellationToken);
+
+        if (detail is null)
+        {
+            return null;
+        }
+
+        var linkedBuildRecords = await dbContext.BuildRecords
+            .AsNoTracking()
+            .Where(buildRecord => buildRecord.IsActive && buildRecord.ProductCode == detail.ProductCode)
+            .OrderByDescending(buildRecord => buildRecord.LastUpdatedAt)
+            .Select(buildRecord => new ProductLinkedBuildRecord(
+                buildRecord.Id,
+                buildRecord.SerialNumber,
+                buildRecord.ProductName,
+                buildRecord.Customer == null ? null : buildRecord.Customer.Name,
+                buildRecord.DateShipped,
+                buildRecord.LastUpdatedAt))
+            .ToListAsync(cancellationToken);
+
+        var linkedOrders = await dbContext.OrderRecords
+            .AsNoTracking()
+            .Where(orderRecord => orderRecord.IsActive && orderRecord.ProductCode == detail.ProductCode)
+            .OrderByDescending(orderRecord => orderRecord.LastUpdatedAt)
+            .Select(orderRecord => new ProductLinkedOrder(
+                orderRecord.Id,
+                orderRecord.OrderTitle,
+                orderRecord.Status,
+                orderRecord.Customer == null ? null : orderRecord.Customer.Name,
+                orderRecord.DueDate,
+                orderRecord.LastUpdatedAt))
+            .ToListAsync(cancellationToken);
+
+        var linkedRmas = await dbContext.RmaRecords
+            .AsNoTracking()
+            .Where(rmaRecord => rmaRecord.IsActive && rmaRecord.ProductCode == detail.ProductCode)
+            .OrderByDescending(rmaRecord => rmaRecord.LastUpdatedAt)
+            .Select(rmaRecord => new ProductLinkedRma(
+                rmaRecord.Id,
+                rmaRecord.RmaNumber,
+                FormatRmaStatus(rmaRecord.Status),
+                rmaRecord.ProductName,
+                rmaRecord.SerialNumber,
+                rmaRecord.FaultSummary,
+                rmaRecord.DueDate,
+                rmaRecord.LastUpdatedAt))
+            .ToListAsync(cancellationToken);
+
+        return new ProductDetailModel(
+            detail.Id,
+            detail.ProductCode,
+            detail.Description,
+            detail.Notes,
+            detail.CreatedAt,
+            detail.CreatedBy,
+            detail.LastUpdatedAt,
+            detail.LastUpdatedBy,
+            linkedBuildRecords,
+            linkedOrders,
+            linkedRmas);
     }
 
     public async Task<ProductSaveResult> CreateAsync(
@@ -172,5 +234,18 @@ public sealed class ProductService(IDbContextFactory<BuildBookDbContext> dbConte
     private static string NormalizeUserName(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? "Unknown" : value.Trim();
+    }
+
+    private static string FormatRmaStatus(RmaStatus status)
+    {
+        return status switch
+        {
+            RmaStatus.BookedIn => "Booked In",
+            RmaStatus.WorkInProgress => "Work In Progress",
+            RmaStatus.ReadyToShip => "Ready To Ship",
+            RmaStatus.CancelledNoReply => "Cancelled / No Reply",
+            RmaStatus.CustomerFixed => "Customer Fixed",
+            _ => status.ToString()
+        };
     }
 }

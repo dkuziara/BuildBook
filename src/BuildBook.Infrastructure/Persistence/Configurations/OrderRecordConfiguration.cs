@@ -23,6 +23,9 @@ public sealed class OrderRecordConfiguration : IEntityTypeConfiguration<OrderRec
         builder.Property(orderRecord => orderRecord.OrderDescription)
             .HasMaxLength(4000);
 
+        builder.Property(orderRecord => orderRecord.ProductCode)
+            .HasMaxLength(64);
+
         builder.Property(orderRecord => orderRecord.Status)
             .HasMaxLength(128)
             .IsRequired();
@@ -91,6 +94,7 @@ public sealed class OrderRecordConfiguration : IEntityTypeConfiguration<OrderRec
             .IsUnique();
 
         builder.HasIndex(orderRecord => orderRecord.CustomerId);
+        builder.HasIndex(orderRecord => orderRecord.ProductCode);
         builder.HasIndex(orderRecord => orderRecord.Status);
         builder.HasIndex(orderRecord => orderRecord.Priority);
         builder.HasIndex(orderRecord => orderRecord.StartDate);

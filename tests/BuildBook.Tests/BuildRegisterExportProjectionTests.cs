@@ -31,6 +31,7 @@ public class BuildRegisterExportProjectionTests
         var row = new BuildRegisterRow(
             1,
             "CDM61100",
+            42,
             "RadSight Access Terminal",
             "1000000",
             "APVL",

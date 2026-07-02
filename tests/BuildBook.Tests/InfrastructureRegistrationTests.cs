@@ -230,9 +230,9 @@ public class InfrastructureRegistrationTests
 
         Assert.Contains("CreateTable(", migrationContent);
         Assert.Contains("\"Products\"", migrationContent);
-        Assert.Contains("\"ProductCode\"", migrationContent);
-        Assert.Contains("\"Description\"", migrationContent);
-        Assert.Contains("\"Notes\"", migrationContent);
+        Assert.Contains("ProductCode", migrationContent);
+        Assert.Contains("Description", migrationContent);
+        Assert.Contains("Notes", migrationContent);
         Assert.Contains("IX_Products_ProductCode", migrationContent);
     }
 

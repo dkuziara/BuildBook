@@ -261,6 +261,9 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Build Record link", pageContent);
         Assert.Contains("SortByAsync(OrderRegisterSortColumn.Order)", pageContent);
         Assert.Contains("SortByAsync(OrderRegisterSortColumn.LastUpdated)", pageContent);
+        Assert.Contains("Product code", pageContent);
+        Assert.Contains("orderRecord.ProductCode", pageContent);
+        Assert.Contains("/products/{orderRecord.LinkedProductId.Value}", pageContent);
         Assert.Contains("Loading Orders", pageContent);
         Assert.Contains("No Orders found", pageContent);
         Assert.Contains("/orders/{orderRecord.Id}", pageContent);
@@ -360,6 +363,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Priority", pageContent);
         Assert.Contains("Customer", pageContent);
         Assert.Contains("Support ticket no.", pageContent);
+        Assert.Contains("Product code", pageContent);
         Assert.Contains("Order description / notes", pageContent);
         Assert.Contains("Recurring order", pageContent);
         Assert.Contains("Create Order", pageContent);
@@ -421,6 +425,9 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("CurrentWarnings", pageContent);
         Assert.Contains("Readiness warnings were found.", pageContent);
         Assert.Contains("SupportTicketLinkBuilder.BuildUrl", pageContent);
+        Assert.Contains("orderRecord.ProductCode", pageContent);
+        Assert.Contains("/products/{orderRecord.ProductId.Value}", pageContent);
+        Assert.Contains("edit-order-product-code", pageContent);
         Assert.Contains("LoadOrderAsync", pageContent);
         Assert.Contains("Continue with the status change anyway", pageContent);
         Assert.Contains("/customers/{orderRecord.CustomerId.Value}", pageContent);
@@ -442,15 +449,24 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("AuthenticationStateProvider", pageContent);
         Assert.Contains("Summary", pageContent);
         Assert.Contains("Notes", pageContent);
+        Assert.Contains("Linked Build Records", pageContent);
+        Assert.Contains("Linked Orders", pageContent);
+        Assert.Contains("Linked RMAs", pageContent);
         Assert.Contains("History", pageContent);
         Assert.Contains("ProductSectionLink(\"product-summary\")", pageContent);
         Assert.Contains("ProductSectionLink(\"product-notes\")", pageContent);
+        Assert.Contains("ProductSectionLink(\"product-build-records\")", pageContent);
+        Assert.Contains("ProductSectionLink(\"product-orders\")", pageContent);
+        Assert.Contains("ProductSectionLink(\"product-rmas\")", pageContent);
         Assert.Contains("FormName=\"edit-product-summary\"", pageContent);
         Assert.Contains("FormName=\"edit-product-notes\"", pageContent);
         Assert.Contains("Product code", pageContent);
         Assert.Contains("Description", pageContent);
         Assert.Contains("SaveSummaryAsync", pageContent);
         Assert.Contains("SaveNotesAsync", pageContent);
+        Assert.Contains("/build-records/{buildRecord.Id}", pageContent);
+        Assert.Contains("/orders/{orderRecord.Id}", pageContent);
+        Assert.Contains("/rmas/{rmaRecord.Id}", pageContent);
         Assert.Contains("/products", pageContent);
     }
 

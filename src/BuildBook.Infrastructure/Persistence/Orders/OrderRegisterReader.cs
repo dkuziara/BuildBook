@@ -27,6 +27,13 @@ public sealed class OrderRegisterReader(
                 Id = orderRecord.Id,
                 OrderNumber = orderRecord.OrderNumber,
                 OrderTitle = orderRecord.OrderTitle,
+                ProductCode = orderRecord.ProductCode,
+                LinkedProductId = orderRecord.ProductCode == null
+                    ? null
+                    : dbContext.Products
+                        .Where(product => product.ProductCode == orderRecord.ProductCode)
+                        .Select(product => (int?)product.Id)
+                        .FirstOrDefault(),
                 Status = orderRecord.Status,
                 CustomerName = orderRecord.Customer == null ? null : orderRecord.Customer.Name,
                 Priority = orderRecord.Priority,
@@ -51,6 +58,8 @@ public sealed class OrderRegisterReader(
                 row.Id,
                 row.OrderNumber,
                 row.OrderTitle,
+                row.ProductCode,
+                row.LinkedProductId,
                 row.Status,
                 row.CustomerName,
                 row.Priority,
@@ -76,6 +85,7 @@ public sealed class OrderRegisterReader(
             query = query.Where(orderRecord =>
                 orderRecord.OrderNumber.Contains(search)
                 || orderRecord.OrderTitle.Contains(search)
+                || (orderRecord.ProductCode != null && orderRecord.ProductCode.Contains(search))
                 || (orderRecord.Customer != null && orderRecord.Customer.Name.Contains(search))
                 || (orderRecord.CustomerReference != null && orderRecord.CustomerReference.Contains(search))
                 || (orderRecord.CustomerPurchaseOrderNumber != null && orderRecord.CustomerPurchaseOrderNumber.Contains(search))
@@ -195,6 +205,10 @@ public sealed class OrderRegisterReader(
         public string OrderNumber { get; init; } = string.Empty;
 
         public string OrderTitle { get; init; } = string.Empty;
+
+        public string? ProductCode { get; init; }
+
+        public int? LinkedProductId { get; init; }
 
         public string Status { get; init; } = string.Empty;
 

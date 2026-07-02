@@ -8,6 +8,7 @@ internal static class OrderRegisterExportProjection
     [
         "Order Number",
         "Order Title",
+        "Product Code",
         "Status",
         "Customer",
         "Priority",
@@ -25,6 +26,7 @@ internal static class OrderRegisterExportProjection
         [
             row.OrderNumber,
             row.OrderTitle,
+            row.ProductCode ?? string.Empty,
             row.Status,
             row.CustomerName ?? string.Empty,
             row.Priority?.ToString() ?? string.Empty,

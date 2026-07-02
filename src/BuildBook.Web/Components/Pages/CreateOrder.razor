@@ -51,6 +51,11 @@
             </div>
 
             <div class="form-field">
+                <label for="order-product-code">Product code</label>
+                <InputText id="order-product-code" class="text-input" @bind-Value="model.ProductCode" />
+            </div>
+
+            <div class="form-field">
                 <label for="order-status">Status</label>
                 <InputSelect id="order-status" class="text-input" @bind-Value="model.Status">
                     @foreach (var status in BuildBookOrderStatuses.DefaultWorkflow)

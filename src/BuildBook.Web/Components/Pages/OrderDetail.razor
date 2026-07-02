@@ -83,6 +83,19 @@ else
 
         <dl class="summary-list">
             <div>
+                <dt>Product code</dt>
+                <dd>
+                    @if (orderRecord.ProductId is not null && !string.IsNullOrWhiteSpace(orderRecord.ProductCode))
+                    {
+                        <a class="table-link" href="@($"/products/{orderRecord.ProductId.Value}")">@orderRecord.ProductCode</a>
+                    }
+                    else
+                    {
+                        @Display(orderRecord.ProductCode)
+                    }
+                </dd>
+            </div>
+            <div>
                 <dt>Status</dt>
                 <dd>@orderRecord.Status</dd>
             </div>
@@ -165,6 +178,11 @@ else
                     </div>
 
                     <div class="form-field">
+                        <label for="edit-order-product-code">Product code</label>
+                        <InputText id="edit-order-product-code" class="text-input" @bind-Value="customerSupportModel.ProductCode" />
+                    </div>
+
+                    <div class="form-field">
                         <label for="edit-order-support-ticket">@supportTicketLabel</label>
                         <InputText id="edit-order-support-ticket" class="text-input" @bind-Value="customerSupportModel.SupportTicketNo" />
                     </div>
@@ -209,6 +227,19 @@ else
                         else
                         {
                             @Display(orderRecord.CustomerName)
+                        }
+                    </dd>
+                </div>
+                <div>
+                    <dt>Product code</dt>
+                    <dd>
+                        @if (orderRecord.ProductId is not null && !string.IsNullOrWhiteSpace(orderRecord.ProductCode))
+                        {
+                            <a class="table-link" href="@($"/products/{orderRecord.ProductId.Value}")">@orderRecord.ProductCode</a>
+                        }
+                        else
+                        {
+                            @Display(orderRecord.ProductCode)
                         }
                     </dd>
                 </div>
@@ -1218,6 +1249,7 @@ else
 
         customerSupportModel = new UpdateOrderCustomerAndSupportRequest
         {
+            ProductCode = orderRecord.ProductCode,
             CustomerId = orderRecord.CustomerId,
             CustomerReference = orderRecord.CustomerReference,
             CustomerPurchaseOrderNumber = orderRecord.CustomerPurchaseOrderNumber,

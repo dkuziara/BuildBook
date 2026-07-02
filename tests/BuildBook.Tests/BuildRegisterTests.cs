@@ -10,6 +10,7 @@ public class BuildRegisterTests
         var row = new BuildRegisterRow(
             1,
             "CDM61100",
+            42,
             "RadSight Access Terminal",
             "1000000",
             "APVL",
@@ -23,6 +24,7 @@ public class BuildRegisterTests
 
         Assert.Equal(1, row.Id);
         Assert.Equal("CDM61100", row.ProductCode);
+        Assert.Equal(42, row.LinkedProductId);
         Assert.Equal("RadSight Access Terminal", row.ProductName);
         Assert.Equal("1000000", row.SerialNumber);
         Assert.Equal("APVL", row.CustomerName);

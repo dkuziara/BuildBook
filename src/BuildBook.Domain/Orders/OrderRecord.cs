@@ -13,6 +13,8 @@ public sealed class OrderRecord
 
     public string? OrderDescription { get; set; }
 
+    public string? ProductCode { get; set; }
+
     public int? CustomerId { get; set; }
 
     public Customer? Customer { get; set; }

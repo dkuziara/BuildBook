@@ -29,13 +29,15 @@ public sealed class OrderIntegrationService(
             return OrderOperationResult.Failure("The selected customer could not be found.");
         }
 
+        var productCode = NormalizeOptionalValue(request.ProductCode);
         var customerReference = NormalizeOptionalValue(request.CustomerReference);
         var customerPurchaseOrderNumber = NormalizeOptionalValue(request.CustomerPurchaseOrderNumber);
         var internalOrderReference = NormalizeOptionalValue(request.InternalOrderReference);
         var quoteNumber = NormalizeOptionalValue(request.QuoteNumber);
         var supportTicketNo = NormalizeOptionalValue(request.SupportTicketNo);
 
-        if (orderRecord.CustomerId == request.CustomerId
+        if (orderRecord.ProductCode == productCode
+            && orderRecord.CustomerId == request.CustomerId
             && orderRecord.CustomerReference == customerReference
             && orderRecord.CustomerPurchaseOrderNumber == customerPurchaseOrderNumber
             && orderRecord.InternalOrderReference == internalOrderReference
@@ -45,6 +47,7 @@ public sealed class OrderIntegrationService(
             return OrderOperationResult.Success();
         }
 
+        orderRecord.ProductCode = productCode;
         orderRecord.CustomerId = request.CustomerId;
         orderRecord.CustomerReference = customerReference;
         orderRecord.CustomerPurchaseOrderNumber = customerPurchaseOrderNumber;

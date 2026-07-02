@@ -33,6 +33,9 @@ else
     <nav class="section-chip-nav" aria-label="Product detail sections">
         <a class="section-chip" href="@ProductSectionLink("product-summary")">Summary</a>
         <a class="section-chip" href="@ProductSectionLink("product-notes")">Notes</a>
+        <a class="section-chip" href="@ProductSectionLink("product-build-records")">Build Records</a>
+        <a class="section-chip" href="@ProductSectionLink("product-orders")">Orders</a>
+        <a class="section-chip" href="@ProductSectionLink("product-rmas")">RMAs</a>
         <a class="section-chip" href="@ProductSectionLink("product-history")">History</a>
     </nav>
 
@@ -97,6 +100,130 @@ else
                     <dd>@Display(product.Description)</dd>
                 </div>
             </dl>
+        }
+    </section>
+
+    <section id="product-build-records" class="table-panel compact-table-panel detail-section" aria-labelledby="product-build-records-heading">
+        <div class="table-panel-heading">
+            <h2 id="product-build-records-heading">Linked Build Records</h2>
+            <p>@product.LinkedBuildRecords.Count matching Build Records</p>
+        </div>
+
+        @if (product.LinkedBuildRecords.Count == 0)
+        {
+            <p class="empty-state">No Build Records currently use this product code.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Serial number</th>
+                            <th scope="col">Product name</th>
+                            <th scope="col">Customer</th>
+                            <th scope="col">Date shipped</th>
+                            <th scope="col">Last updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var buildRecord in product.LinkedBuildRecords)
+                        {
+                            <tr>
+                                <td><a class="table-link" href="@($"/build-records/{buildRecord.Id}")">@buildRecord.SerialNumber</a></td>
+                                <td>@buildRecord.ProductName</td>
+                                <td>@Display(buildRecord.CustomerName)</td>
+                                <td>@Display(buildRecord.DateShipped)</td>
+                                <td>@buildRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section id="product-orders" class="table-panel compact-table-panel detail-section" aria-labelledby="product-orders-heading">
+        <div class="table-panel-heading">
+            <h2 id="product-orders-heading">Linked Orders</h2>
+            <p>@product.LinkedOrders.Count matching Orders</p>
+        </div>
+
+        @if (product.LinkedOrders.Count == 0)
+        {
+            <p class="empty-state">No Orders currently use this product code.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Order</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Customer</th>
+                            <th scope="col">Due date</th>
+                            <th scope="col">Last updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var orderRecord in product.LinkedOrders)
+                        {
+                            <tr>
+                                <td><a class="table-link" href="@($"/orders/{orderRecord.Id}")">@orderRecord.OrderTitle</a></td>
+                                <td>@orderRecord.Status</td>
+                                <td>@Display(orderRecord.CustomerName)</td>
+                                <td>@Display(orderRecord.DueDate)</td>
+                                <td>@orderRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section id="product-rmas" class="table-panel compact-table-panel detail-section" aria-labelledby="product-rmas-heading">
+        <div class="table-panel-heading">
+            <h2 id="product-rmas-heading">Linked RMAs</h2>
+            <p>@product.LinkedRmas.Count matching RMAs</p>
+        </div>
+
+        @if (product.LinkedRmas.Count == 0)
+        {
+            <p class="empty-state">No RMAs currently use this product code.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">RMA number</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Product</th>
+                            <th scope="col">Serial number</th>
+                            <th scope="col">Fault summary</th>
+                            <th scope="col">Due date</th>
+                            <th scope="col">Last updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var rmaRecord in product.LinkedRmas)
+                        {
+                            <tr>
+                                <td><a class="table-link" href="@($"/rmas/{rmaRecord.Id}")">@rmaRecord.RmaNumber</a></td>
+                                <td>@rmaRecord.Status</td>
+                                <td>@rmaRecord.ProductName</td>
+                                <td>@Display(rmaRecord.SerialNumber)</td>
+                                <td>@rmaRecord.FaultSummary</td>
+                                <td>@Display(rmaRecord.DueDate)</td>
+                                <td>@rmaRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     </section>
 
@@ -358,6 +485,11 @@ else
     private static string Display(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private static string Display(DateOnly? value)
+    {
+        return value?.ToString("d MMM yyyy") ?? "Not recorded";
     }
 
     private enum ProductEditSection

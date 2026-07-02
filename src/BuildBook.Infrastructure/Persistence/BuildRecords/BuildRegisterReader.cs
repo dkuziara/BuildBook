@@ -64,6 +64,10 @@ public sealed class BuildRegisterReader(
             .Select(buildRecord => new BuildRegisterRow(
                 buildRecord.Id,
                 buildRecord.ProductCode,
+                dbContext.Products
+                    .Where(product => product.ProductCode == buildRecord.ProductCode)
+                    .Select(product => (int?)product.Id)
+                    .FirstOrDefault(),
                 buildRecord.ProductName,
                 buildRecord.SerialNumber,
                 buildRecord.Customer == null ? null : buildRecord.Customer.Name,

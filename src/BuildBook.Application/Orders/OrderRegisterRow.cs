@@ -6,6 +6,8 @@ public sealed record OrderRegisterRow(
     int Id,
     string OrderNumber,
     string OrderTitle,
+    string? ProductCode,
+    int? LinkedProductId,
     string Status,
     string? CustomerName,
     OrderPriority? Priority,

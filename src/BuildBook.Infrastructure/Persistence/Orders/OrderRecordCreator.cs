@@ -56,6 +56,7 @@ public sealed class OrderRecordCreator(
         {
             OrderNumber = $"TMP-{Guid.NewGuid():N}",
             OrderTitle = normalizedTitle,
+            ProductCode = NormalizeOptionalValue(request.ProductCode),
             OrderDescription = NormalizeOptionalValue(request.OrderDescription),
             CustomerId = request.CustomerId,
             Status = normalizedStatus,

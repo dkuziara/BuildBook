@@ -21,6 +21,13 @@ public sealed class OrderDetailReader(
                 record.Id,
                 record.OrderNumber,
                 record.OrderTitle,
+                record.ProductCode,
+                ProductId = record.ProductCode == null
+                    ? null
+                    : dbContext.Products
+                        .Where(product => product.ProductCode == record.ProductCode)
+                        .Select(product => (int?)product.Id)
+                        .FirstOrDefault(),
                 record.OrderDescription,
                 record.CustomerId,
                 CustomerName = record.Customer == null ? null : record.Customer.Name,
@@ -176,6 +183,8 @@ public sealed class OrderDetailReader(
                 orderRecord.Id,
                 orderRecord.OrderNumber,
                 orderRecord.OrderTitle,
+                orderRecord.ProductCode,
+                orderRecord.ProductId,
                 orderRecord.OrderDescription,
                 orderRecord.CustomerId,
                 orderRecord.CustomerName,

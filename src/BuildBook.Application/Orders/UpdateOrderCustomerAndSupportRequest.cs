@@ -2,6 +2,8 @@ namespace BuildBook.Application.Orders;
 
 public sealed class UpdateOrderCustomerAndSupportRequest
 {
+    public string? ProductCode { get; set; }
+
     public int? CustomerId { get; set; }
 
     public string? CustomerReference { get; set; }

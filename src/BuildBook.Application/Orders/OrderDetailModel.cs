@@ -6,6 +6,8 @@ public sealed record OrderDetailModel(
     int Id,
     string OrderNumber,
     string OrderTitle,
+    string? ProductCode,
+    int? ProductId,
     string? OrderDescription,
     int? CustomerId,
     string? CustomerName,

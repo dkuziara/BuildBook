@@ -264,6 +264,7 @@ public class DomainEntityTests
 
         Assert.Contains(nameof(OrderRecord.OrderNumber), propertyNames);
         Assert.Contains(nameof(OrderRecord.OrderTitle), propertyNames);
+        Assert.Contains(nameof(OrderRecord.ProductCode), propertyNames);
         Assert.Contains(nameof(OrderRecord.Status), propertyNames);
         Assert.Contains(nameof(OrderRecord.Priority), propertyNames);
         Assert.Contains(nameof(OrderRecord.PlannerTaskId), propertyNames);
@@ -294,6 +295,7 @@ public class DomainEntityTests
 
         Assert.Contains(nameof(OrderRecord.OrderNumber), indexedProperties);
         Assert.Contains(nameof(OrderRecord.CustomerId), indexedProperties);
+        Assert.Contains(nameof(OrderRecord.ProductCode), indexedProperties);
         Assert.Contains(nameof(OrderRecord.Status), indexedProperties);
         Assert.Contains(nameof(OrderRecord.Priority), indexedProperties);
         Assert.Contains(nameof(OrderRecord.StartDate), indexedProperties);

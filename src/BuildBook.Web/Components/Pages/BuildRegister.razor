@@ -129,7 +129,16 @@
                     @foreach (var buildRecord in buildRecords)
                     {
                         <tr>
-                            <td>@Display(buildRecord.ProductCode)</td>
+                            <td>
+                                @if (buildRecord.LinkedProductId is not null)
+                                {
+                                    <a class="table-link" href="@($"/products/{buildRecord.LinkedProductId.Value}")">@buildRecord.ProductCode</a>
+                                }
+                                else
+                                {
+                                    @Display(buildRecord.ProductCode)
+                                }
+                            </td>
                             <td>@Display(buildRecord.ProductName)</td>
                             <td>
                                 <a class="table-link" href="@($"/build-records/{buildRecord.Id}")">@buildRecord.SerialNumber</a>

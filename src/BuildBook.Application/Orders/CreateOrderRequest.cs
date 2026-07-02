@@ -8,6 +8,8 @@ public sealed class CreateOrderRequest
     [Required(ErrorMessage = "Order title is required.")]
     public string OrderTitle { get; set; } = string.Empty;
 
+    public string? ProductCode { get; set; }
+
     public string? OrderDescription { get; set; }
 
     public int? CustomerId { get; set; }

@@ -160,6 +160,7 @@
                 <thead>
                     <tr>
                         <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.Order))">Order @SortIndicator(OrderRegisterSortColumn.Order)</button></th>
+                        <th scope="col">Product code</th>
                         <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.Status))">Status @SortIndicator(OrderRegisterSortColumn.Status)</button></th>
                         <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.Customer))">Customer @SortIndicator(OrderRegisterSortColumn.Customer)</button></th>
                         <th scope="col"><button type="button" class="sort-button" @onclick="@(() => SortByAsync(OrderRegisterSortColumn.Priority))">Priority @SortIndicator(OrderRegisterSortColumn.Priority)</button></th>
@@ -176,6 +177,16 @@
                     {
                         <tr>
                             <td><a class="table-link" href="@($"/orders/{orderRecord.Id}")">@orderRecord.OrderTitle</a></td>
+                            <td>
+                                @if (orderRecord.LinkedProductId is not null && !string.IsNullOrWhiteSpace(orderRecord.ProductCode))
+                                {
+                                    <a class="table-link" href="@($"/products/{orderRecord.LinkedProductId.Value}")">@orderRecord.ProductCode</a>
+                                }
+                                else
+                                {
+                                    @Display(orderRecord.ProductCode)
+                                }
+                            </td>
                             <td>@orderRecord.Status</td>
                             <td>@Display(orderRecord.CustomerName)</td>
                             <td>@Display(orderRecord.Priority)</td>

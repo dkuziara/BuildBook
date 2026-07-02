@@ -3,6 +3,7 @@ namespace BuildBook.Application.BuildRecords;
 public sealed record BuildRegisterRow(
     int Id,
     string ProductCode,
+    int? LinkedProductId,
     string ProductName,
     string SerialNumber,
     string? CustomerName,

@@ -13,6 +13,7 @@ public class BuildRegisterCsvExporterTests
             new BuildRegisterRow(
                 1,
                 "CDM61100",
+                42,
                 "RadSight Access Terminal",
                 "1000000",
                 "APVL",
@@ -26,6 +27,7 @@ public class BuildRegisterCsvExporterTests
             new BuildRegisterRow(
                 2,
                 "CDM61101",
+                null,
                 "Device, Test",
                 "1000001",
                 "North \"Lab\"",
