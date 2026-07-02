@@ -175,10 +175,7 @@
                     @foreach (var orderRecord in orderRecords)
                     {
                         <tr>
-                            <td>
-                                <a class="table-link" href="@($"/orders/{orderRecord.Id}")">@orderRecord.OrderTitle</a>
-                                <div>@orderRecord.OrderNumber</div>
-                            </td>
+                            <td><a class="table-link" href="@($"/orders/{orderRecord.Id}")">@orderRecord.OrderTitle</a></td>
                             <td>@orderRecord.Status</td>
                             <td>@Display(orderRecord.CustomerName)</td>
                             <td>@Display(orderRecord.Priority)</td>

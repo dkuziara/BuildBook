@@ -1,5 +1,6 @@
 using BuildBook.Application.Customers;
 using BuildBook.Domain.Customers;
+using BuildBook.Domain.Orders;
 using BuildBook.Domain.Rmas;
 using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.Customers;
@@ -210,6 +211,79 @@ public class CustomerServiceIntegrationTests
                 Directory.Delete(documentRoot, recursive: true);
             }
 
+            await DatabaseTestHelper.DeleteDatabaseAsync(options);
+        }
+    }
+
+    [Fact]
+    public async Task GetDetailAsync_ReturnsLinkedOrdersForCustomer()
+    {
+        var options = DatabaseTestHelper.CreateSqlServerOptions("BuildBookCustomerLinkedOrders");
+        await DatabaseTestHelper.InitializeDatabaseAsync(options);
+
+        try
+        {
+            int customerId;
+
+            await using (var setupContext = new BuildBookDbContext(options))
+            {
+                var customer = new Customer
+                {
+                    Name = "Acme Medical",
+                    SupportContractStatus = CustomerSupportContractStatuses.Active,
+                    CreatedBy = "tester",
+                    LastUpdatedBy = "tester",
+                    IsActive = true
+                };
+
+                var linkedOrder = new OrderRecord
+                {
+                    Customer = customer,
+                    OrderNumber = "ORD-1001",
+                    OrderTitle = "Install upgrade kit",
+                    Status = "Prepared For Shipping",
+                    Priority = OrderPriority.High,
+                    DueDate = new DateOnly(2026, 7, 15),
+                    SupportTicketNo = "SUP-4455",
+                    CreatedByUserId = null,
+                    LastUpdatedAt = new DateTimeOffset(2026, 7, 2, 9, 30, 0, TimeSpan.Zero),
+                    IsActive = true
+                };
+
+                var inactiveOrder = new OrderRecord
+                {
+                    Customer = customer,
+                    OrderNumber = "ORD-1002",
+                    OrderTitle = "Inactive order",
+                    Status = "Invoiced",
+                    LastUpdatedAt = new DateTimeOffset(2026, 7, 1, 8, 0, 0, TimeSpan.Zero),
+                    IsActive = false
+                };
+
+                setupContext.Customers.Add(customer);
+                setupContext.OrderRecords.AddRange(linkedOrder, inactiveOrder);
+                await setupContext.SaveChangesAsync();
+                customerId = customer.Id;
+            }
+
+            var service = new CustomerService(
+                new TestDbContextFactory(options),
+                new RmaAuditService(),
+                CreateStorage());
+
+            var detail = await service.GetDetailAsync(customerId);
+
+            Assert.NotNull(detail);
+            var order = Assert.Single(detail!.LinkedOrders);
+            Assert.Equal("ORD-1001", order.OrderNumber);
+            Assert.Equal("Install upgrade kit", order.OrderTitle);
+            Assert.Equal("Prepared For Shipping", order.Status);
+            Assert.Equal(OrderPriority.High, order.Priority);
+            Assert.Equal(new DateOnly(2026, 7, 15), order.DueDate);
+            Assert.Equal("SUP-4455", order.SupportTicketNumber);
+        }
+        finally
+        {
             await DatabaseTestHelper.DeleteDatabaseAsync(options);
         }
     }

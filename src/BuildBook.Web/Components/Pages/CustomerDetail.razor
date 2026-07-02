@@ -5,6 +5,7 @@
 @using BuildBook.Application.Customers
 @using BuildBook.Application.Settings
 @using BuildBook.Domain.Customers
+@using BuildBook.Domain.Orders
 @using BuildBook.Domain.Rmas
 @using Microsoft.AspNetCore.Components.Forms
 
@@ -47,6 +48,7 @@ else
         <a class="section-chip" href="@CustomerSectionLink("customer-contacts")">Contacts</a>
         <a class="section-chip" href="@CustomerSectionLink("customer-contract")">Support Contract</a>
         <a class="section-chip" href="@CustomerSectionLink("customer-contract-documents")">Documents</a>
+        <a class="section-chip" href="@CustomerSectionLink("customer-orders")">Orders</a>
         <a class="section-chip" href="@CustomerSectionLink("customer-build-records")">Build Records</a>
         <a class="section-chip" href="@CustomerSectionLink("customer-rmas")">RMAs</a>
         <a class="section-chip" href="@CustomerSectionLink("customer-history")">History</a>
@@ -501,6 +503,54 @@ else
                                         </Authorized>
                                     </AuthorizeView>
                                 </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section id="customer-orders" class="table-panel compact-table-panel detail-section" aria-labelledby="customer-orders-heading">
+        <div class="table-panel-heading">
+            <h2 id="customer-orders-heading">Linked Orders</h2>
+            <p>@customer.LinkedOrders.Count matching order records</p>
+        </div>
+
+        @if (customer.LinkedOrders.Count == 0)
+        {
+            <p class="empty-state">No Orders are linked to this customer yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Order</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Priority</th>
+                            <th scope="col">Due date</th>
+                            <th scope="col">@SupportTicketLabel</th>
+                            <th scope="col">Last updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var orderRecord in customer.LinkedOrders)
+                        {
+                            <tr>
+                                <td><a class="table-link" href="@($"/orders/{orderRecord.Id}")">@orderRecord.OrderTitle</a></td>
+                                <td>@orderRecord.Status</td>
+                                <td>@Display(orderRecord.Priority)</td>
+                                <td>@Display(orderRecord.DueDate)</td>
+                                <td>
+                                    @Display(orderRecord.SupportTicketNumber)
+                                    @if (GetSupportTicketUrl(orderRecord.SupportTicketNumber) is { } supportTicketUrl)
+                                    {
+                                        <span> </span><a class="action-link" href="@supportTicketUrl" target="_blank" rel="noopener noreferrer">Open Support Ticket</a>
+                                    }
+                                </td>
+                                <td>@orderRecord.LastUpdatedAt.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
                             </tr>
                         }
                     </tbody>
@@ -1060,6 +1110,11 @@ else
     private static string Display(DateTimeOffset? value)
     {
         return value?.ToLocalTime().ToString("d MMM yyyy HH:mm") ?? "Not recorded";
+    }
+
+    private static string Display(OrderPriority? priority)
+    {
+        return priority?.ToString() ?? "Not recorded";
     }
 
     private static string FormatStatus(RmaStatus status)

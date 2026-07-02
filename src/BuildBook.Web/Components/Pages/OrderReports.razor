@@ -215,7 +215,7 @@ else
                             @foreach (var row in selectedRows)
                             {
                                 <tr>
-                                    <td><a class="table-link" href="@($"/orders/{row.Id}")">@row.OrderTitle</a><div>@row.OrderNumber</div></td>
+                                    <td><a class="table-link" href="@($"/orders/{row.Id}")">@row.OrderTitle</a></td>
                                     <td>@row.Status</td>
                                     <td>@Display(row.CustomerName)</td>
                                     <td>@Display(row.Priority)</td>

@@ -259,6 +259,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Loading Orders", pageContent);
         Assert.Contains("No Orders found", pageContent);
         Assert.Contains("/orders/{orderRecord.Id}", pageContent);
+        Assert.DoesNotContain("@orderRecord.OrderNumber", pageContent);
         Assert.DoesNotContain("Password", pageContent);
         Assert.DoesNotContain("BitLocker", pageContent);
     }
@@ -280,6 +281,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Overdue", pageContent);
         Assert.Contains("board-warning-list", pageContent);
         Assert.Contains("/orders/{card.Id}", pageContent);
+        Assert.DoesNotContain("@card.OrderNumber", pageContent);
     }
 
     [Fact]
@@ -306,6 +308,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("LoadReportsAsync", pageContent);
         Assert.Contains("scope=", pageContent);
         Assert.Contains("#selected-order-report-heading", pageContent);
+        Assert.DoesNotContain("@row.OrderNumber", pageContent);
         Assert.DoesNotContain("Password", pageContent);
         Assert.DoesNotContain("BitLocker", pageContent);
     }
@@ -394,6 +397,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("/customers/{orderRecord.CustomerId.Value}", pageContent);
         Assert.Contains("/build-records/{buildRecordLink.BuildRecordId}", pageContent);
         Assert.Contains("/orders", pageContent);
+        Assert.DoesNotContain("<dt>Order number</dt>", pageContent);
+        Assert.DoesNotContain("orderRecord.OrderNumber} | Order Detail", pageContent);
     }
 
     [Fact]
@@ -774,6 +779,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Create RMA", pageContent);
         Assert.Contains("GetBuildRecordHistoryAsync", pageContent);
         Assert.Contains("/orders/{linkedOrder.OrderId}", pageContent);
+        Assert.DoesNotContain("@linkedOrder.OrderNumber", pageContent);
         Assert.Contains("/rmas/new?buildRecordId={BuildRecordId}", pageContent);
         Assert.Contains("History", pageContent);
         Assert.Contains("Audit history for this Build Record.", pageContent);
@@ -936,10 +942,12 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Contacts", pageContent);
         Assert.Contains("Support Contract", pageContent);
         Assert.Contains("Support Contract Documents", pageContent);
+        Assert.Contains("Linked Orders", pageContent);
         Assert.Contains("Linked Build Records", pageContent);
         Assert.Contains("Linked RMAs", pageContent);
         Assert.Contains("History", pageContent);
         Assert.Contains("CustomerSectionLink(\"customer-summary\")", pageContent);
+        Assert.Contains("CustomerSectionLink(\"customer-orders\")", pageContent);
         Assert.Contains("FormName=\"edit-customer-summary\"", pageContent);
         Assert.Contains("FormName=\"edit-customer-address\"", pageContent);
         Assert.Contains("FormName=\"edit-customer-contacts\"", pageContent);
@@ -949,6 +957,8 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Upload document", pageContent);
         Assert.Contains("DeleteContractDocumentAsync", pageContent);
         Assert.Contains("/customers/{CustomerId}/contract-documents/{documentId}", pageContent);
+        Assert.Contains("/orders/{orderRecord.Id}", pageContent);
+        Assert.DoesNotContain("@orderRecord.OrderNumber", pageContent);
         Assert.Contains("/build-records/{buildRecord.Id}", pageContent);
         Assert.Contains("/rmas/{rmaRecord.Id}", pageContent);
         Assert.Contains("/customers/reports", pageContent);

@@ -994,7 +994,7 @@ else
                         @foreach (var linkedOrder in buildRecord.LinkedOrders)
                         {
                             <tr>
-                                <td><a class="table-link" href="@($"/orders/{linkedOrder.OrderId}")">@linkedOrder.OrderTitle</a><div>@linkedOrder.OrderNumber</div></td>
+                                <td><a class="table-link" href="@($"/orders/{linkedOrder.OrderId}")">@linkedOrder.OrderTitle</a></td>
                                 <td>@linkedOrder.Status</td>
                                 <td>@Display(linkedOrder.CustomerName)</td>
                                 <td>@Display(linkedOrder.LinkType)</td>

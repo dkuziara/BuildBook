@@ -83,10 +83,6 @@ else
 
         <dl class="summary-list">
             <div>
-                <dt>Order number</dt>
-                <dd>@orderRecord.OrderNumber</dd>
-            </div>
-            <div>
                 <dt>Status</dt>
                 <dd>@orderRecord.Status</dd>
             </div>
@@ -1141,7 +1137,7 @@ else
     private string supportTicketLabel = SupportTicketSettingsValidator.DefaultSupportTicketLabel;
     private string? supportTicketUrlTemplate;
 
-    private string PageTitleText => orderRecord is null ? "Order Detail" : $"{orderRecord.OrderNumber} | Order Detail";
+    private string PageTitleText => orderRecord is null ? "Order Detail" : $"{orderRecord.OrderTitle} | Order Detail";
 
     private string? CurrentSupportTicketUrl => orderRecord is null
         ? null

@@ -1,4 +1,5 @@
 using BuildBook.Application.Customers;
+using BuildBook.Domain.Orders;
 using BuildBook.Application.Rmas;
 using BuildBook.Domain.Customers;
 using BuildBook.Domain.Rmas;
@@ -120,6 +121,19 @@ public sealed class CustomerService(
                         document.Description,
                         document.UploadedBy,
                         document.UploadedAt))
+                    .ToList(),
+                customer.OrderRecords
+                    .Where(orderRecord => orderRecord.IsActive)
+                    .OrderByDescending(orderRecord => orderRecord.LastUpdatedAt)
+                    .Select(orderRecord => new LinkedCustomerOrder(
+                        orderRecord.Id,
+                        orderRecord.OrderNumber,
+                        orderRecord.OrderTitle,
+                        orderRecord.Status,
+                        orderRecord.Priority,
+                        orderRecord.DueDate,
+                        orderRecord.SupportTicketNo,
+                        orderRecord.LastUpdatedAt))
                     .ToList(),
                 customer.BuildRecords
                     .Where(buildRecord => buildRecord.IsActive)
