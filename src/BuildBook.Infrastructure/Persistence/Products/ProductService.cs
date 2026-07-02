@@ -1,3 +1,4 @@
+using BuildBook.Application.Paging;
 using BuildBook.Application.Products;
 using BuildBook.Domain.Products;
 using BuildBook.Domain.Rmas;
@@ -7,6 +8,16 @@ namespace BuildBook.Infrastructure.Persistence.Products;
 
 public sealed class ProductService(IDbContextFactory<BuildBookDbContext> dbContextFactory) : IProductService
 {
+    public async Task<PagedResult<ProductListItem>> SearchPageAsync(
+        ProductListFilter filter,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await SearchAsync(filter, cancellationToken);
+        return PagedResult<ProductListItem>.Create(rows, pageNumber, pageSize);
+    }
+
     public async Task<IReadOnlyList<ProductListItem>> SearchAsync(
         ProductListFilter filter,
         CancellationToken cancellationToken = default)

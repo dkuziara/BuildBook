@@ -4,6 +4,7 @@
 @attribute [Authorize(Policy = BuildBookPolicies.ViewBuildRecords)]
 
 @inject IBuildRegisterReader BuildRegisterReader
+@inject IOptions<BuildBookOptions> BuildBookOptionsAccessor
 
 <PageTitle>Build Register</PageTitle>
 
@@ -156,35 +157,51 @@
                 </tbody>
             </table>
         </div>
+
+        <ListPager AriaLabel="Build Register pagination"
+                   ItemLabel="records"
+                   TotalCount="@buildRecordsPage!.TotalCount"
+                   PageNumber="@buildRecordsPage!.PageNumber"
+                   TotalPages="@buildRecordsPage!.TotalPages"
+                   PageSize="@buildRecordsPage!.PageSize"
+                   Disabled="@isLoading"
+                   PageNumberChanged="OnPageNumberChangedAsync"
+                   PageSizeChanged="OnPageSizeChangedAsync" />
     }
 </section>
 
 @code {
-    private IReadOnlyList<BuildRegisterRow>? buildRecords;
+    private PagedResult<BuildRegisterRow>? buildRecordsPage;
     private BuildRegisterFilter filterModel = new();
     private bool hasActiveFilters;
     private bool isLoading;
     private bool showFilters;
+    private int pageNumber = 1;
+    private int pageSize = 10;
+    private IReadOnlyList<BuildRegisterRow>? buildRecords => buildRecordsPage?.Items;
     private bool canClearFilters => !isLoading && hasActiveFilters;
     private string BuildRegisterCsvDownloadUrl => BuildExportUrl();
     private string BuildRegisterExcelDownloadUrl => BuildExportUrl("xlsx");
-    private string RecordsSummary => buildRecords is null
+    private string RecordsSummary => buildRecordsPage is null
         ? "Loading Build Records..."
-        : $"{buildRecords.Count} {(hasActiveFilters ? "matching" : "active")} records";
+        : $"{buildRecordsPage.TotalCount} {(hasActiveFilters ? "matching" : "active")} records";
 
     protected override async Task OnInitializedAsync()
     {
+        pageSize = NormalizePageSize(BuildBookOptionsAccessor.Value.DefaultPageSize);
         await LoadBuildRecordsAsync();
     }
 
     private async Task ApplyFiltersAsync()
     {
+        pageNumber = 1;
         await LoadBuildRecordsAsync(filterModel);
     }
 
     private async Task ClearFiltersAsync()
     {
         filterModel = new BuildRegisterFilter();
+        pageNumber = 1;
         await LoadBuildRecordsAsync();
     }
 
@@ -200,6 +217,7 @@
             filterModel.SortDescending = column == BuildRegisterSortColumn.LastUpdated;
         }
 
+        pageNumber = 1;
         await LoadBuildRecordsAsync(filterModel);
     }
 
@@ -208,8 +226,22 @@
         isLoading = true;
         hasActiveFilters = filter?.HasAnyFilter() == true;
         showFilters = hasActiveFilters || showFilters;
-        buildRecords = await BuildRegisterReader.ListAsync(filter);
+        buildRecordsPage = await BuildRegisterReader.GetPageAsync(filter, pageNumber, pageSize);
+        pageNumber = buildRecordsPage.PageNumber;
         isLoading = false;
+    }
+
+    private async Task OnPageNumberChangedAsync(int newPageNumber)
+    {
+        pageNumber = newPageNumber;
+        await LoadBuildRecordsAsync(filterModel);
+    }
+
+    private async Task OnPageSizeChangedAsync(int newPageSize)
+    {
+        pageSize = NormalizePageSize(newPageSize);
+        pageNumber = 1;
+        await LoadBuildRecordsAsync(filterModel);
     }
 
     private void ToggleFilters()
@@ -269,5 +301,15 @@
     private static string CreateQueryParameter(string key, string value)
     {
         return $"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}";
+    }
+
+    private static int NormalizePageSize(int requestedPageSize)
+    {
+        return requestedPageSize switch
+        {
+            <= 10 => 10,
+            <= 50 => 50,
+            _ => 100
+        };
     }
 }

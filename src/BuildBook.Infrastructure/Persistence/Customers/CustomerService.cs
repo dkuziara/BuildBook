@@ -1,4 +1,5 @@
 using BuildBook.Application.Customers;
+using BuildBook.Application.Paging;
 using BuildBook.Domain.Orders;
 using BuildBook.Application.Rmas;
 using BuildBook.Domain.Customers;
@@ -12,6 +13,16 @@ public sealed class CustomerService(
     IRmaAuditService rmaAuditService,
     ICustomerContractDocumentStorage customerContractDocumentStorage) : ICustomerService, ICustomerListReader
 {
+    public async Task<PagedResult<CustomerListItem>> SearchPageAsync(
+        CustomerListFilter filter,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await SearchAsync(filter, cancellationToken);
+        return PagedResult<CustomerListItem>.Create(rows, pageNumber, pageSize);
+    }
+
     public Task<IReadOnlyList<CustomerListItem>> ListAsync(
         CustomerListFilter filter,
         CancellationToken cancellationToken = default)

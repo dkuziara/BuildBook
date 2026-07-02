@@ -1,4 +1,5 @@
 using BuildBook.Application.BuildRecords;
+using BuildBook.Application.Paging;
 using Microsoft.EntityFrameworkCore;
 
 namespace BuildBook.Infrastructure.Persistence.BuildRecords;
@@ -6,6 +7,16 @@ namespace BuildBook.Infrastructure.Persistence.BuildRecords;
 public sealed class BuildRegisterReader(
     IDbContextFactory<BuildBookDbContext> dbContextFactory) : IBuildRegisterReader
 {
+    public async Task<PagedResult<BuildRegisterRow>> GetPageAsync(
+        BuildRegisterFilter? filter,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await ListAsync(filter, cancellationToken);
+        return PagedResult<BuildRegisterRow>.Create(rows, pageNumber, pageSize);
+    }
+
     public async Task<IReadOnlyList<BuildRegisterRow>> ListAsync(
         BuildRegisterFilter? filter = null,
         CancellationToken cancellationToken = default)

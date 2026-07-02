@@ -6,6 +6,7 @@
 @attribute [Authorize(Policy = BuildBookPolicies.ViewBuildRecords)]
 
 @inject IProductService ProductService
+@inject IOptions<BuildBookOptions> BuildBookOptionsAccessor
 
 <PageTitle>Products</PageTitle>
 
@@ -99,33 +100,49 @@
                 </tbody>
             </table>
         </div>
+
+        <ListPager AriaLabel="Products pagination"
+                   ItemLabel="records"
+                   TotalCount="@productsPage!.TotalCount"
+                   PageNumber="@productsPage!.PageNumber"
+                   TotalPages="@productsPage!.TotalPages"
+                   PageSize="@productsPage!.PageSize"
+                   Disabled="@isLoading"
+                   PageNumberChanged="OnPageNumberChangedAsync"
+                   PageSizeChanged="OnPageSizeChangedAsync" />
     }
 </section>
 
 @code {
-    private IReadOnlyList<ProductListItem>? products;
+    private PagedResult<ProductListItem>? productsPage;
     private ProductListFilter filterModel = new();
     private bool hasActiveFilters;
     private bool isLoading;
     private bool showFilters;
+    private int pageNumber = 1;
+    private int pageSize = 10;
+    private IReadOnlyList<ProductListItem>? products => productsPage?.Items;
     private bool canClearFilters => !isLoading && hasActiveFilters;
-    private string RecordsSummary => products is null
+    private string RecordsSummary => productsPage is null
         ? "Loading products..."
-        : $"{products.Count} {(hasActiveFilters ? "matching" : "available")} records";
+        : $"{productsPage.TotalCount} {(hasActiveFilters ? "matching" : "available")} records";
 
     protected override async Task OnInitializedAsync()
     {
+        pageSize = NormalizePageSize(BuildBookOptionsAccessor.Value.DefaultPageSize);
         await LoadProductsAsync();
     }
 
     private async Task ApplyFiltersAsync()
     {
+        pageNumber = 1;
         await LoadProductsAsync(filterModel);
     }
 
     private async Task ClearFiltersAsync()
     {
         filterModel = new ProductListFilter();
+        pageNumber = 1;
         await LoadProductsAsync();
     }
 
@@ -141,6 +158,7 @@
             filterModel.SortDescending = column == ProductSortColumn.LastUpdated;
         }
 
+        pageNumber = 1;
         await LoadProductsAsync(filterModel);
     }
 
@@ -150,8 +168,22 @@
         var activeFilter = filter ?? new ProductListFilter();
         hasActiveFilters = activeFilter.HasAnyFilter();
         showFilters = hasActiveFilters || showFilters;
-        products = await ProductService.SearchAsync(activeFilter);
+        productsPage = await ProductService.SearchPageAsync(activeFilter, pageNumber, pageSize);
+        pageNumber = productsPage.PageNumber;
         isLoading = false;
+    }
+
+    private async Task OnPageNumberChangedAsync(int newPageNumber)
+    {
+        pageNumber = newPageNumber;
+        await LoadProductsAsync(filterModel);
+    }
+
+    private async Task OnPageSizeChangedAsync(int newPageSize)
+    {
+        pageSize = NormalizePageSize(newPageSize);
+        pageNumber = 1;
+        await LoadProductsAsync(filterModel);
     }
 
     private void ToggleFilters()
@@ -172,5 +204,15 @@
     private static string Display(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
+    }
+
+    private static int NormalizePageSize(int requestedPageSize)
+    {
+        return requestedPageSize switch
+        {
+            <= 10 => 10,
+            <= 50 => 50,
+            _ => 100
+        };
     }
 }

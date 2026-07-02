@@ -1,3 +1,5 @@
+using BuildBook.Application.Paging;
+
 namespace BuildBook.Application.Rmas;
 
 public interface IRmaRecordService
@@ -56,6 +58,12 @@ public interface IRmaRecordService
 
     Task<RmaCreatePrefillModel?> GetCreatePrefillAsync(
         int buildRecordId,
+        CancellationToken cancellationToken = default);
+
+    Task<PagedResult<RmaRegisterRow>> SearchPageAsync(
+        RmaRegisterFilter? filter,
+        int pageNumber,
+        int pageSize,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<RmaRegisterRow>> SearchAsync(

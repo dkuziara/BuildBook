@@ -1,4 +1,5 @@
 using System.Data;
+using BuildBook.Application.Paging;
 using BuildBook.Application.Rmas;
 using BuildBook.Domain.Customers;
 using BuildBook.Domain.Rmas;
@@ -714,6 +715,16 @@ public sealed class RmaRecordService(
                 rmaRecord.BuildRecordId,
                 rmaRecord.LastUpdatedAt))
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<PagedResult<RmaRegisterRow>> SearchPageAsync(
+        RmaRegisterFilter? filter,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await SearchAsync(filter, cancellationToken);
+        return PagedResult<RmaRegisterRow>.Create(rows, pageNumber, pageSize);
     }
 
     public Task<IReadOnlyList<RmaRegisterRow>> ListAsync(

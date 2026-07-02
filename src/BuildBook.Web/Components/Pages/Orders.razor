@@ -8,6 +8,7 @@
 @attribute [Authorize(Policy = BuildBookOrderPolicies.ViewOrders)]
 
 @inject IOrderRegisterReader OrderRegisterReader
+@inject IOptions<BuildBookOptions> BuildBookOptionsAccessor
 
 <PageTitle>Orders</PageTitle>
 
@@ -201,31 +202,46 @@
                 </tbody>
             </table>
         </div>
+
+        <ListPager AriaLabel="Orders pagination"
+                   ItemLabel="orders"
+                   TotalCount="@orderRecordsPage!.TotalCount"
+                   PageNumber="@orderRecordsPage!.PageNumber"
+                   TotalPages="@orderRecordsPage!.TotalPages"
+                   PageSize="@orderRecordsPage!.PageSize"
+                   Disabled="@isLoading"
+                   PageNumberChanged="OnPageNumberChangedAsync"
+                   PageSizeChanged="OnPageSizeChangedAsync" />
     }
 </section>
 
 @code {
-    private IReadOnlyList<OrderRegisterRow>? orderRecords;
+    private PagedResult<OrderRegisterRow>? orderRecordsPage;
     private OrderRegisterFilter filterModel = new();
     private bool hasActiveFilters;
     private bool isLoading;
     private bool showFilters;
+    private int pageNumber = 1;
+    private int pageSize = 10;
     private string overdueFilterValue = string.Empty;
     private string completedFilterValue = string.Empty;
     private string linkedBuildRecordFilterValue = string.Empty;
+    private IReadOnlyList<OrderRegisterRow>? orderRecords => orderRecordsPage?.Items;
     private bool canClearFilters => !isLoading && hasActiveFilters;
-    private string OrdersSummary => orderRecords is null
+    private string OrdersSummary => orderRecordsPage is null
         ? "Loading Orders..."
-        : $"{orderRecords.Count} {(hasActiveFilters ? "matching" : "active")} orders";
+        : $"{orderRecordsPage.TotalCount} {(hasActiveFilters ? "matching" : "active")} orders";
 
     protected override async Task OnInitializedAsync()
     {
+        pageSize = NormalizePageSize(BuildBookOptionsAccessor.Value.DefaultPageSize);
         await LoadOrdersAsync();
     }
 
     private async Task ApplyFiltersAsync()
     {
         SynchronizeFilterValuesToModel();
+        pageNumber = 1;
         await LoadOrdersAsync(filterModel);
     }
 
@@ -233,6 +249,7 @@
     {
         filterModel = new OrderRegisterFilter();
         SynchronizeFilterValuesFromModel();
+        pageNumber = 1;
         await LoadOrdersAsync();
     }
 
@@ -250,6 +267,7 @@
                 || column == OrderRegisterSortColumn.LinkedBuilds;
         }
 
+        pageNumber = 1;
         await LoadOrdersAsync(filterModel);
     }
 
@@ -260,8 +278,22 @@
         isLoading = true;
         hasActiveFilters = filter.HasAnyFilter();
         showFilters = hasActiveFilters || showFilters;
-        orderRecords = await OrderRegisterReader.ListAsync(filter);
+        orderRecordsPage = await OrderRegisterReader.GetPageAsync(filter, pageNumber, pageSize);
+        pageNumber = orderRecordsPage.PageNumber;
         isLoading = false;
+    }
+
+    private async Task OnPageNumberChangedAsync(int newPageNumber)
+    {
+        pageNumber = newPageNumber;
+        await LoadOrdersAsync(filterModel);
+    }
+
+    private async Task OnPageSizeChangedAsync(int newPageSize)
+    {
+        pageSize = NormalizePageSize(newPageSize);
+        pageNumber = 1;
+        await LoadOrdersAsync(filterModel);
     }
 
     private void ToggleFilters()
@@ -359,5 +391,15 @@
         {
             values.Add($"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}");
         }
+    }
+
+    private static int NormalizePageSize(int requestedPageSize)
+    {
+        return requestedPageSize switch
+        {
+            <= 10 => 10,
+            <= 50 => 50,
+            _ => 100
+        };
     }
 }

@@ -8,6 +8,7 @@
 
 @inject ICustomerService CustomerService
 @inject ISupportContractLevelService SupportContractLevelService
+@inject IOptions<BuildBookOptions> BuildBookOptionsAccessor
 
 <PageTitle>Customers</PageTitle>
 
@@ -161,26 +162,40 @@
                 </tbody>
             </table>
         </div>
+
+        <ListPager AriaLabel="Customers pagination"
+                   ItemLabel="records"
+                   TotalCount="@customersPage!.TotalCount"
+                   PageNumber="@customersPage!.PageNumber"
+                   TotalPages="@customersPage!.TotalPages"
+                   PageSize="@customersPage!.PageSize"
+                   Disabled="@isLoading"
+                   PageNumberChanged="OnPageNumberChangedAsync"
+                   PageSizeChanged="OnPageSizeChangedAsync" />
     }
 </section>
 
 @code {
-    private IReadOnlyList<CustomerListItem>? customers;
+    private PagedResult<CustomerListItem>? customersPage;
     private IReadOnlyList<SupportContractLevelModel> supportContractLevels = [];
     private CustomerListFilter filterModel = new();
     private bool hasActiveFilters;
     private bool isLoading;
     private bool showFilters;
+    private int pageNumber = 1;
+    private int pageSize = 10;
     private string? activeFilterValue;
+    private IReadOnlyList<CustomerListItem>? customers => customersPage?.Items;
     private bool canClearFilters => !isLoading && hasActiveFilters;
     private string CustomerCsvDownloadUrl => BuildExportUrl();
     private string CustomerExcelDownloadUrl => BuildExportUrl("xlsx");
-    private string RecordsSummary => customers is null
+    private string RecordsSummary => customersPage is null
         ? "Loading customers..."
-        : $"{customers.Count} {(hasActiveFilters ? "matching" : "available")} records";
+        : $"{customersPage.TotalCount} {(hasActiveFilters ? "matching" : "available")} records";
 
     protected override async Task OnInitializedAsync()
     {
+        pageSize = NormalizePageSize(BuildBookOptionsAccessor.Value.DefaultPageSize);
         supportContractLevels = await SupportContractLevelService.ListAsync(includeInactive: false);
         await LoadCustomersAsync();
     }
@@ -188,6 +203,7 @@
     private async Task ApplyFiltersAsync()
     {
         filterModel.IsActive = ParseActiveFilter();
+        pageNumber = 1;
         await LoadCustomersAsync(filterModel);
     }
 
@@ -195,6 +211,7 @@
     {
         filterModel = new CustomerListFilter();
         activeFilterValue = null;
+        pageNumber = 1;
         await LoadCustomersAsync();
     }
 
@@ -211,6 +228,7 @@
         }
 
         filterModel.IsActive = ParseActiveFilter();
+        pageNumber = 1;
         await LoadCustomersAsync(filterModel);
     }
 
@@ -220,8 +238,22 @@
         var activeFilter = filter ?? new CustomerListFilter();
         hasActiveFilters = activeFilter.HasAnyFilter();
         showFilters = hasActiveFilters || showFilters;
-        customers = await CustomerService.SearchAsync(activeFilter);
+        customersPage = await CustomerService.SearchPageAsync(activeFilter, pageNumber, pageSize);
+        pageNumber = customersPage.PageNumber;
         isLoading = false;
+    }
+
+    private async Task OnPageNumberChangedAsync(int newPageNumber)
+    {
+        pageNumber = newPageNumber;
+        await LoadCustomersAsync(filterModel);
+    }
+
+    private async Task OnPageSizeChangedAsync(int newPageSize)
+    {
+        pageSize = NormalizePageSize(newPageSize);
+        pageNumber = 1;
+        await LoadCustomersAsync(filterModel);
     }
 
     private void ToggleFilters()
@@ -292,5 +324,15 @@
     private static string CreateQueryParameter(string key, string value)
     {
         return $"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}";
+    }
+
+    private static int NormalizePageSize(int requestedPageSize)
+    {
+        return requestedPageSize switch
+        {
+            <= 10 => 10,
+            <= 50 => 50,
+            _ => 100
+        };
     }
 }

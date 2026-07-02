@@ -1,7 +1,15 @@
+using BuildBook.Application.Paging;
+
 namespace BuildBook.Application.Products;
 
 public interface IProductService
 {
+    Task<PagedResult<ProductListItem>> SearchPageAsync(
+        ProductListFilter filter,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ProductListItem>> SearchAsync(
         ProductListFilter filter,
         CancellationToken cancellationToken = default);

@@ -1,4 +1,5 @@
 using BuildBook.Application.Orders;
+using BuildBook.Application.Paging;
 using BuildBook.Domain.Orders;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +8,16 @@ namespace BuildBook.Infrastructure.Persistence.Orders;
 public sealed class OrderRegisterReader(
     IDbContextFactory<BuildBookDbContext> dbContextFactory) : IOrderRegisterReader
 {
+    public async Task<PagedResult<OrderRegisterRow>> GetPageAsync(
+        OrderRegisterFilter? filter,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await ListAsync(filter, cancellationToken);
+        return PagedResult<OrderRegisterRow>.Create(rows, pageNumber, pageSize);
+    }
+
     public async Task<IReadOnlyList<OrderRegisterRow>> ListAsync(
         OrderRegisterFilter? filter = null,
         CancellationToken cancellationToken = default)

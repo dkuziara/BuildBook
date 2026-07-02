@@ -219,6 +219,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Build Record link", pageContent);
         Assert.Contains("Loading RMA records", pageContent);
         Assert.Contains("No RMA records found", pageContent);
+        Assert.Contains("<ListPager", pageContent);
         Assert.Contains("RMA number", pageContent);
         Assert.Contains("Fault summary", pageContent);
         Assert.Contains("Build Record", pageContent);
@@ -264,6 +265,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Product code", pageContent);
         Assert.Contains("orderRecord.ProductCode", pageContent);
         Assert.Contains("/products/{orderRecord.LinkedProductId.Value}", pageContent);
+        Assert.Contains("<ListPager", pageContent);
         Assert.Contains("Loading Orders", pageContent);
         Assert.Contains("No Orders found", pageContent);
         Assert.Contains("/orders/{orderRecord.Id}", pageContent);
@@ -291,6 +293,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Notes", pageContent);
         Assert.Contains("SortByAsync(ProductSortColumn.ProductCode)", pageContent);
         Assert.Contains("SortByAsync(ProductSortColumn.LastUpdated)", pageContent);
+        Assert.Contains("<ListPager", pageContent);
         Assert.Contains("Loading products", pageContent);
         Assert.Contains("No products found", pageContent);
         Assert.Contains("/products/{product.Id}", pageContent);
@@ -729,9 +732,24 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Date shipped", pageContent);
         Assert.Contains("Checked by", pageContent);
         Assert.Contains("Last updated", pageContent);
+        Assert.Contains("<ListPager", pageContent);
         Assert.Contains("/build-records/{buildRecord.Id}", pageContent);
         Assert.DoesNotContain("BuildRecordSecrets", pageContent);
         Assert.DoesNotContain("Password", pageContent);
+    }
+
+    [Fact]
+    public void ListPagerComponentDefinesPageControlsAndPageSizeOptions()
+    {
+        var componentContent = File.ReadAllText(GetComponentPath("ListPager.razor"));
+
+        Assert.Contains("Rows per page", componentContent);
+        Assert.Contains("Previous", componentContent);
+        Assert.Contains("Next", componentContent);
+        Assert.Contains("Page @PageNumber of @TotalPages", componentContent);
+        Assert.Contains("PageSizeOptions = [10, 50, 100]", componentContent);
+        Assert.Contains("PageSizeChanged", componentContent);
+        Assert.Contains("PageNumberChanged", componentContent);
     }
 
     [Fact]
@@ -994,6 +1012,7 @@ public class BuildBookPageAuthorizationTests
         Assert.Contains("Support contract status", pageContent);
         Assert.Contains("Apply filters", pageContent);
         Assert.Contains("Clear filters", pageContent);
+        Assert.Contains("<ListPager", pageContent);
     }
 
     [Fact]
@@ -1183,6 +1202,16 @@ public class BuildBookPageAuthorizationTests
             "Components",
             "Pages",
             pageFileName);
+    }
+
+    private static string GetComponentPath(string fileName)
+    {
+        return Path.Combine(
+            GetRepositoryRoot(),
+            "src",
+            "BuildBook.Web",
+            "Components",
+            fileName);
     }
 
     private static string GetRepositoryRoot()

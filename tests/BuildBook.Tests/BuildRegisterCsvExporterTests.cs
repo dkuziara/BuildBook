@@ -1,4 +1,5 @@
 using BuildBook.Application.BuildRecords;
+using BuildBook.Application.Paging;
 using BuildBook.Infrastructure.Persistence.BuildRecords;
 
 namespace BuildBook.Tests;
@@ -55,6 +56,16 @@ public class BuildRegisterCsvExporterTests
     private sealed class StubBuildRegisterReader(IReadOnlyList<BuildRegisterRow> rows) : IBuildRegisterReader
     {
         public BuildRegisterFilter? LastFilter { get; private set; }
+
+        public Task<PagedResult<BuildRegisterRow>> GetPageAsync(
+            BuildRegisterFilter? filter,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            LastFilter = filter;
+            return Task.FromResult(PagedResult<BuildRegisterRow>.Create(rows, pageNumber, pageSize));
+        }
 
         public Task<IReadOnlyList<BuildRegisterRow>> ListAsync(
             BuildRegisterFilter? filter = null,

@@ -4,6 +4,7 @@
 @attribute [Authorize(Policy = BuildBookRmaPolicies.ViewRmas)]
 
 @inject IRmaRecordService RmaRecordService
+@inject IOptions<BuildBookOptions> BuildBookOptionsAccessor
 
 <PageTitle>RMA Register</PageTitle>
 
@@ -196,32 +197,47 @@
                 </tbody>
             </table>
         </div>
+
+        <ListPager AriaLabel="RMA Register pagination"
+                   ItemLabel="records"
+                   TotalCount="@rmaRecordsPage!.TotalCount"
+                   PageNumber="@rmaRecordsPage!.PageNumber"
+                   TotalPages="@rmaRecordsPage!.TotalPages"
+                   PageSize="@rmaRecordsPage!.PageSize"
+                   Disabled="@isLoading"
+                   PageNumberChanged="OnPageNumberChangedAsync"
+                   PageSizeChanged="OnPageSizeChangedAsync" />
     }
 </section>
 
 @code {
-    private IReadOnlyList<RmaRegisterRow>? rmaRecords;
+    private PagedResult<RmaRegisterRow>? rmaRecordsPage;
     private RmaDashboardSummary? dashboardSummary;
     private RmaRegisterFilter filterModel = new();
     private bool hasActiveFilters;
     private bool isLoading;
     private bool showFilters;
+    private int pageNumber = 1;
+    private int pageSize = 10;
     private string? linkedBuildRecordFilter;
+    private IReadOnlyList<RmaRegisterRow>? rmaRecords => rmaRecordsPage?.Items;
     private bool canClearFilters => !isLoading && hasActiveFilters;
     private string RmaCsvDownloadUrl => BuildExportUrl();
     private string RmaExcelDownloadUrl => BuildExportUrl("xlsx");
-    private string RecordsSummary => rmaRecords is null
+    private string RecordsSummary => rmaRecordsPage is null
         ? "Loading RMA records..."
-        : $"{rmaRecords.Count} {(hasActiveFilters ? "matching" : "active")} records";
+        : $"{rmaRecordsPage.TotalCount} {(hasActiveFilters ? "matching" : "active")} records";
 
     protected override async Task OnInitializedAsync()
     {
+        pageSize = NormalizePageSize(BuildBookOptionsAccessor.Value.DefaultPageSize);
         await LoadRmasAsync();
     }
 
     private async Task ApplyFiltersAsync()
     {
         filterModel.HasLinkedBuildRecord = ParseLinkedBuildRecordFilter();
+        pageNumber = 1;
         await LoadRmasAsync(filterModel);
     }
 
@@ -229,6 +245,7 @@
     {
         filterModel = new RmaRegisterFilter();
         linkedBuildRecordFilter = null;
+        pageNumber = 1;
         await LoadRmasAsync();
     }
 
@@ -245,6 +262,7 @@
         }
 
         filterModel.HasLinkedBuildRecord = ParseLinkedBuildRecordFilter();
+        pageNumber = 1;
         await LoadRmasAsync(filterModel);
     }
 
@@ -254,8 +272,22 @@
         hasActiveFilters = filter?.HasAnyFilter() == true;
         showFilters = hasActiveFilters || showFilters;
         dashboardSummary = await RmaRecordService.GetDashboardSummaryAsync();
-        rmaRecords = await RmaRecordService.SearchAsync(filter);
+        rmaRecordsPage = await RmaRecordService.SearchPageAsync(filter, pageNumber, pageSize);
+        pageNumber = rmaRecordsPage.PageNumber;
         isLoading = false;
+    }
+
+    private async Task OnPageNumberChangedAsync(int newPageNumber)
+    {
+        pageNumber = newPageNumber;
+        await LoadRmasAsync(filterModel);
+    }
+
+    private async Task OnPageSizeChangedAsync(int newPageSize)
+    {
+        pageSize = NormalizePageSize(newPageSize);
+        pageNumber = 1;
+        await LoadRmasAsync(filterModel);
     }
 
     private void ToggleFilters()
@@ -362,5 +394,15 @@
     private static string CreateQueryParameter(string key, string value)
     {
         return $"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}";
+    }
+
+    private static int NormalizePageSize(int requestedPageSize)
+    {
+        return requestedPageSize switch
+        {
+            <= 10 => 10,
+            <= 50 => 50,
+            _ => 100
+        };
     }
 }
