@@ -58,6 +58,8 @@ public sealed class Customer
 
     public bool IsActive { get; set; } = true;
 
+    public ICollection<CustomerContractDocument> ContractDocuments { get; } = new List<CustomerContractDocument>();
+
     public ICollection<BuildRecord> BuildRecords { get; } = new List<BuildRecord>();
 
     public ICollection<OrderRecord> OrderRecords { get; } = new List<OrderRecord>();

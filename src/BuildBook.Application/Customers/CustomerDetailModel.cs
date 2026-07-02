@@ -27,5 +27,6 @@ public sealed record CustomerDetailModel(
     string CreatedBy,
     DateTimeOffset LastUpdatedAt,
     string LastUpdatedBy,
+    IReadOnlyList<CustomerContractDocumentModel> ContractDocuments,
     IReadOnlyList<LinkedCustomerBuildRecord> LinkedBuildRecords,
     IReadOnlyList<LinkedCustomerRma> LinkedRmas);

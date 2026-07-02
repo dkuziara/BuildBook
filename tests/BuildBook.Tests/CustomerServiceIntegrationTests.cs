@@ -5,6 +5,7 @@ using BuildBook.Infrastructure.Persistence;
 using BuildBook.Infrastructure.Persistence.Customers;
 using BuildBook.Infrastructure.Persistence.Rmas;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace BuildBook.Tests;
 
@@ -90,7 +91,8 @@ public class CustomerServiceIntegrationTests
 
             var service = new CustomerService(
                 new TestDbContextFactory(options),
-                new RmaAuditService());
+                new RmaAuditService(),
+                CreateStorage());
 
             var result = await service.UpdateAsync(
                 customerId,
@@ -132,5 +134,95 @@ public class CustomerServiceIntegrationTests
         {
             await DatabaseTestHelper.DeleteDatabaseAsync(options);
         }
+    }
+
+    [Fact]
+    public async Task SaveAndDeleteContractDocumentAsync_PersistsAndRetrievesCustomerFiles()
+    {
+        var options = DatabaseTestHelper.CreateSqlServerOptions("BuildBookCustomerContractDocuments");
+        await DatabaseTestHelper.InitializeDatabaseAsync(options);
+        var documentRoot = Path.Combine(Path.GetTempPath(), "BuildBookTests", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            int customerId;
+
+            await using (var setupContext = new BuildBookDbContext(options))
+            {
+                var customer = new Customer
+                {
+                    Name = "Acme Medical",
+                    SupportContractStatus = CustomerSupportContractStatuses.Active,
+                    CreatedBy = "tester",
+                    LastUpdatedBy = "tester",
+                    IsActive = true
+                };
+
+                setupContext.Customers.Add(customer);
+                await setupContext.SaveChangesAsync();
+                customerId = customer.Id;
+            }
+
+            var service = new CustomerService(
+                new TestDbContextFactory(options),
+                new RmaAuditService(),
+                CreateStorage(documentRoot));
+
+            await using var uploadStream = new MemoryStream("contract-pdf"u8.ToArray());
+            var saveResult = await service.SaveContractDocumentAsync(
+                customerId,
+                new SaveCustomerContractDocumentRequest
+                {
+                    FileName = "support-contract.pdf",
+                    ContentType = "application/pdf",
+                    DocumentType = "Support contract",
+                    Description = "Current active agreement."
+                },
+                uploadStream,
+                "DOMAIN\\contracts");
+
+            Assert.True(saveResult.Succeeded);
+
+            var detail = await service.GetDetailAsync(customerId);
+            Assert.NotNull(detail);
+
+            var document = Assert.Single(detail!.ContractDocuments);
+            Assert.Equal("support-contract.pdf", document.FileName);
+            Assert.Equal("Support contract", document.DocumentType);
+            Assert.Equal("Current active agreement.", document.Description);
+
+            var content = await service.GetContractDocumentContentAsync(customerId, document.Id);
+            Assert.NotNull(content);
+            Assert.Equal("application/pdf", content!.ContentType);
+            Assert.Equal("contract-pdf", System.Text.Encoding.UTF8.GetString(content.Content));
+
+            var deleteResult = await service.DeleteContractDocumentAsync(customerId, document.Id, "DOMAIN\\contracts");
+            Assert.True(deleteResult.Succeeded);
+
+            var refreshedDetail = await service.GetDetailAsync(customerId);
+            Assert.NotNull(refreshedDetail);
+            Assert.Empty(refreshedDetail!.ContractDocuments);
+        }
+        finally
+        {
+            if (Directory.Exists(documentRoot))
+            {
+                Directory.Delete(documentRoot, recursive: true);
+            }
+
+            await DatabaseTestHelper.DeleteDatabaseAsync(options);
+        }
+    }
+
+    private static ICustomerContractDocumentStorage CreateStorage(string? documentRoot = null)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["BuildBook:CustomerContractDocumentStorageDirectory"] = documentRoot ?? Path.Combine(Path.GetTempPath(), "BuildBookTests", Guid.NewGuid().ToString("N"))
+            })
+            .Build();
+
+        return new LocalCustomerContractDocumentStorage(configuration);
     }
 }

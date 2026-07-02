@@ -86,6 +86,7 @@ public static class DependencyInjection
         services.AddScoped<IProductDetailsUpdater, ProductDetailsUpdater>();
         services.AddScoped<IBuildDetailsUpdater, BuildDetailsUpdater>();
         services.AddScoped<ICustomerOptionsReader, CustomerOptionsReader>();
+        services.AddSingleton<ICustomerContractDocumentStorage, LocalCustomerContractDocumentStorage>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<ICustomerListReader, CustomerService>();
         services.AddScoped<ICustomerListCsvExporter, CustomerListCsvExporter>();

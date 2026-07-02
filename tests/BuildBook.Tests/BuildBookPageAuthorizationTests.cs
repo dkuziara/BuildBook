@@ -928,17 +928,30 @@ public class BuildBookPageAuthorizationTests
 
         Assert.Contains("@page \"/customers/{CustomerId:int}\"", pageContent);
         Assert.Contains("ICustomerService", pageContent);
+        Assert.Contains("ISupportContractLevelService", pageContent);
+        Assert.Contains("AuthenticationStateProvider", pageContent);
+        Assert.Contains("Record", pageContent);
         Assert.Contains("Summary", pageContent);
         Assert.Contains("Address", pageContent);
         Assert.Contains("Contacts", pageContent);
         Assert.Contains("Support Contract", pageContent);
+        Assert.Contains("Support Contract Documents", pageContent);
         Assert.Contains("Linked Build Records", pageContent);
         Assert.Contains("Linked RMAs", pageContent);
         Assert.Contains("History", pageContent);
+        Assert.Contains("CustomerSectionLink(\"customer-summary\")", pageContent);
+        Assert.Contains("FormName=\"edit-customer-summary\"", pageContent);
+        Assert.Contains("FormName=\"edit-customer-address\"", pageContent);
+        Assert.Contains("FormName=\"edit-customer-contacts\"", pageContent);
+        Assert.Contains("FormName=\"edit-customer-support-contract\"", pageContent);
+        Assert.Contains("FormName=\"add-customer-contract-document\"", pageContent);
+        Assert.Contains("InputFile", pageContent);
+        Assert.Contains("Upload document", pageContent);
+        Assert.Contains("DeleteContractDocumentAsync", pageContent);
+        Assert.Contains("/customers/{CustomerId}/contract-documents/{documentId}", pageContent);
         Assert.Contains("/build-records/{buildRecord.Id}", pageContent);
         Assert.Contains("/rmas/{rmaRecord.Id}", pageContent);
         Assert.Contains("/customers/reports", pageContent);
-        Assert.Contains("/customers/{customer.Id}/edit", pageContent);
     }
 
     [Fact]
@@ -991,12 +1004,9 @@ public class BuildBookPageAuthorizationTests
         var pageContent = File.ReadAllText(GetPagePath("EditCustomer.razor"));
 
         Assert.Contains("@page \"/customers/{CustomerId:int}/edit\"", pageContent);
-        Assert.Contains("ICustomerService", pageContent);
-        Assert.Contains("ISupportContractLevelService", pageContent);
-        Assert.Contains("AuthenticationStateProvider", pageContent);
         Assert.Contains("NavigationManager", pageContent);
-        Assert.Contains("FormName=\"edit-customer\"", pageContent);
-        Assert.Contains("Save customer", pageContent);
+        Assert.Contains("Customer editing now happens section-by-section on the customer detail page.", pageContent);
+        Assert.Contains("Open Customer Detail", pageContent);
         Assert.Contains("/customers/{CustomerId}", pageContent);
     }
 

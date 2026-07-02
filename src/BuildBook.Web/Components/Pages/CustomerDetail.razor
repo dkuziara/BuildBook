@@ -1,14 +1,19 @@
 @page "/customers/{CustomerId:int}"
 @rendermode InteractiveServer
 
+@using System.ComponentModel.DataAnnotations
 @using BuildBook.Application.Customers
 @using BuildBook.Application.Settings
+@using BuildBook.Domain.Customers
 @using BuildBook.Domain.Rmas
+@using Microsoft.AspNetCore.Components.Forms
 
 @attribute [Authorize(Policy = BuildBookPolicies.ViewCustomers)]
 
 @inject ICustomerService CustomerService
+@inject ISupportContractLevelService SupportContractLevelService
 @inject ISystemSettingsService SystemSettingsService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Customer Detail</PageTitle>
 
@@ -32,156 +37,479 @@ else
                     <a class="secondary-button" href="/customers/reports">Reports</a>
                 </Authorized>
             </AuthorizeView>
-            <AuthorizeView Policy="@BuildBookPolicies.EditCustomers">
-                <Authorized>
-                    <a class="primary-button" href="@($"/customers/{customer.Id}/edit")">Edit customer</a>
-                </Authorized>
-            </AuthorizeView>
             <a class="secondary-button" href="/customers">Back to Customers</a>
         </div>
     </section>
 
-    <section class="detail-panel" aria-labelledby="customer-summary-heading">
+    <nav class="section-chip-nav" aria-label="Customer detail sections">
+        <a class="section-chip" href="@CustomerSectionLink("customer-summary")">Summary</a>
+        <a class="section-chip" href="@CustomerSectionLink("customer-address")">Address</a>
+        <a class="section-chip" href="@CustomerSectionLink("customer-contacts")">Contacts</a>
+        <a class="section-chip" href="@CustomerSectionLink("customer-contract")">Support Contract</a>
+        <a class="section-chip" href="@CustomerSectionLink("customer-contract-documents")">Documents</a>
+        <a class="section-chip" href="@CustomerSectionLink("customer-build-records")">Build Records</a>
+        <a class="section-chip" href="@CustomerSectionLink("customer-rmas")">RMAs</a>
+        <a class="section-chip" href="@CustomerSectionLink("customer-history")">History</a>
+    </nav>
+
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="status-message @(statusIsError ? "error" : "success")" role="status">
+            <p>@statusMessage</p>
+        </div>
+    }
+
+    <section id="customer-summary" class="detail-panel" aria-labelledby="customer-summary-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="customer-summary-heading">Summary</h2>
-                <p>Shared customer information used across Build Records and RMAs.</p>
+                <p>Shared customer information used across Build Records, Orders and RMAs.</p>
             </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditCustomers">
+                <Authorized>
+                    @if (!IsEditing(CustomerEditSection.Summary))
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingSummary">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
         </div>
 
-        <dl class="summary-list">
-            <div>
-                <dt>Account code</dt>
-                <dd>@Display(customer.AccountCode)</dd>
-            </div>
-            <div>
-                <dt>Support contract level</dt>
-                <dd>@Display(customer.SupportContractLevelName)</dd>
-            </div>
-            <div>
-                <dt>Support contract status</dt>
-                <dd>@customer.SupportContractStatus</dd>
-            </div>
-            <div>
-                <dt>Open RMAs</dt>
-                <dd>@customer.LinkedRmas.Count(rma => rma.IsOpen)</dd>
-            </div>
-            <div>
-                <dt>Overdue RMAs</dt>
-                <dd>@customer.LinkedRmas.Count(rma => rma.IsOverdue)</dd>
-            </div>
-            <div>
-                <dt>Status</dt>
-                <dd>@(customer.IsActive ? "Active" : "Inactive")</dd>
-            </div>
-        </dl>
+        @if (IsEditing(CustomerEditSection.Summary))
+        {
+            @SectionErrors(summaryErrors, "Summary details could not be saved.")
+
+            <EditForm Model="summaryModel" OnValidSubmit="SaveSummaryAsync" FormName="edit-customer-summary">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-customer-name">Customer name</label>
+                        <InputText id="edit-customer-name" class="text-input" @bind-Value="summaryModel.Name" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-account-code">Account code</label>
+                        <InputText id="edit-customer-account-code" class="text-input" @bind-Value="summaryModel.AccountCode" />
+                    </div>
+
+                    <div class="form-field form-field-wide">
+                        <label class="user-active-toggle" for="edit-customer-is-active">
+                            <InputCheckbox id="edit-customer-is-active" @bind-Value="summaryModel.IsActive" />
+                            Active customer
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingSection">@(isSavingSection ? "Saving..." : "Save summary")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingSection" @onclick="CancelEditing">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Account code</dt>
+                    <dd>@Display(customer.AccountCode)</dd>
+                </div>
+                <div>
+                    <dt>Support contract level</dt>
+                    <dd>@Display(customer.SupportContractLevelName)</dd>
+                </div>
+                <div>
+                    <dt>Support contract status</dt>
+                    <dd>@customer.SupportContractStatus</dd>
+                </div>
+                <div>
+                    <dt>Open RMAs</dt>
+                    <dd>@customer.LinkedRmas.Count(rma => rma.IsOpen)</dd>
+                </div>
+                <div>
+                    <dt>Overdue RMAs</dt>
+                    <dd>@customer.LinkedRmas.Count(rma => rma.IsOverdue)</dd>
+                </div>
+                <div>
+                    <dt>Status</dt>
+                    <dd>@(customer.IsActive ? "Active" : "Inactive")</dd>
+                </div>
+            </dl>
+        }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="customer-address-heading">
+    <section id="customer-address" class="detail-panel detail-section" aria-labelledby="customer-address-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="customer-address-heading">Address</h2>
                 <p>Stored address details for shipping, support and account context.</p>
             </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditCustomers">
+                <Authorized>
+                    @if (!IsEditing(CustomerEditSection.Address))
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingAddress">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
         </div>
 
-        <dl class="summary-list">
-            <div>
-                <dt>Address line 1</dt>
-                <dd>@Display(customer.AddressLine1)</dd>
-            </div>
-            <div>
-                <dt>Address line 2</dt>
-                <dd>@Display(customer.AddressLine2)</dd>
-            </div>
-            <div>
-                <dt>Town / City</dt>
-                <dd>@Display(customer.TownCity)</dd>
-            </div>
-            <div>
-                <dt>County / Region</dt>
-                <dd>@Display(customer.CountyRegion)</dd>
-            </div>
-            <div>
-                <dt>Postcode</dt>
-                <dd>@Display(customer.Postcode)</dd>
-            </div>
-            <div>
-                <dt>Country</dt>
-                <dd>@Display(customer.Country)</dd>
-            </div>
-        </dl>
+        @if (IsEditing(CustomerEditSection.Address))
+        {
+            @SectionErrors(addressErrors, "Address details could not be saved.")
+
+            <EditForm Model="addressModel" OnValidSubmit="SaveAddressAsync" FormName="edit-customer-address">
+                <DataAnnotationsValidator />
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-customer-address-line-1">Address line 1</label>
+                    <InputText id="edit-customer-address-line-1" class="text-input" @bind-Value="addressModel.AddressLine1" />
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-customer-address-line-2">Address line 2</label>
+                    <InputText id="edit-customer-address-line-2" class="text-input" @bind-Value="addressModel.AddressLine2" />
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-customer-town-city">Town / City</label>
+                        <InputText id="edit-customer-town-city" class="text-input" @bind-Value="addressModel.TownCity" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-county-region">County / Region</label>
+                        <InputText id="edit-customer-county-region" class="text-input" @bind-Value="addressModel.CountyRegion" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-postcode">Postcode</label>
+                        <InputText id="edit-customer-postcode" class="text-input" @bind-Value="addressModel.Postcode" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-country">Country</label>
+                        <InputText id="edit-customer-country" class="text-input" @bind-Value="addressModel.Country" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingSection">@(isSavingSection ? "Saving..." : "Save address")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingSection" @onclick="CancelEditing">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Address line 1</dt>
+                    <dd>@Display(customer.AddressLine1)</dd>
+                </div>
+                <div>
+                    <dt>Address line 2</dt>
+                    <dd>@Display(customer.AddressLine2)</dd>
+                </div>
+                <div>
+                    <dt>Town / City</dt>
+                    <dd>@Display(customer.TownCity)</dd>
+                </div>
+                <div>
+                    <dt>County / Region</dt>
+                    <dd>@Display(customer.CountyRegion)</dd>
+                </div>
+                <div>
+                    <dt>Postcode</dt>
+                    <dd>@Display(customer.Postcode)</dd>
+                </div>
+                <div>
+                    <dt>Country</dt>
+                    <dd>@Display(customer.Country)</dd>
+                </div>
+            </dl>
+        }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="customer-contacts-heading">
+    <section id="customer-contacts" class="detail-panel detail-section" aria-labelledby="customer-contacts-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="customer-contacts-heading">Contacts</h2>
                 <p>Main customer contact details and the primary named contact if one is recorded.</p>
             </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditCustomers">
+                <Authorized>
+                    @if (!IsEditing(CustomerEditSection.Contacts))
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingContacts">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
         </div>
 
-        <dl class="summary-list">
-            <div>
-                <dt>Main phone</dt>
-                <dd>@Display(customer.MainPhone)</dd>
-            </div>
-            <div>
-                <dt>Main email</dt>
-                <dd>@Display(customer.MainEmail)</dd>
-            </div>
-            <div>
-                <dt>Website</dt>
-                <dd>@Display(customer.Website)</dd>
-            </div>
-            <div>
-                <dt>Primary contact name</dt>
-                <dd>@Display(customer.PrimaryContactName)</dd>
-            </div>
-            <div>
-                <dt>Primary contact email</dt>
-                <dd>@Display(customer.PrimaryContactEmail)</dd>
-            </div>
-            <div>
-                <dt>Primary contact phone</dt>
-                <dd>@Display(customer.PrimaryContactPhone)</dd>
-            </div>
-        </dl>
+        @if (IsEditing(CustomerEditSection.Contacts))
+        {
+            @SectionErrors(contactErrors, "Contact details could not be saved.")
+
+            <EditForm Model="contactsModel" OnValidSubmit="SaveContactsAsync" FormName="edit-customer-contacts">
+                <DataAnnotationsValidator />
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-customer-main-phone">Main phone</label>
+                        <InputText id="edit-customer-main-phone" class="text-input" @bind-Value="contactsModel.MainPhone" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-main-email">Main email</label>
+                        <InputText id="edit-customer-main-email" class="text-input" @bind-Value="contactsModel.MainEmail" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-website">Website</label>
+                        <InputText id="edit-customer-website" class="text-input" @bind-Value="contactsModel.Website" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-primary-contact-name">Primary contact name</label>
+                        <InputText id="edit-customer-primary-contact-name" class="text-input" @bind-Value="contactsModel.PrimaryContactName" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-primary-contact-email">Primary contact email</label>
+                        <InputText id="edit-customer-primary-contact-email" class="text-input" @bind-Value="contactsModel.PrimaryContactEmail" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-primary-contact-phone">Primary contact phone</label>
+                        <InputText id="edit-customer-primary-contact-phone" class="text-input" @bind-Value="contactsModel.PrimaryContactPhone" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingSection">@(isSavingSection ? "Saving..." : "Save contacts")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingSection" @onclick="CancelEditing">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Main phone</dt>
+                    <dd>@Display(customer.MainPhone)</dd>
+                </div>
+                <div>
+                    <dt>Main email</dt>
+                    <dd>@Display(customer.MainEmail)</dd>
+                </div>
+                <div>
+                    <dt>Website</dt>
+                    <dd>@Display(customer.Website)</dd>
+                </div>
+                <div>
+                    <dt>Primary contact name</dt>
+                    <dd>@Display(customer.PrimaryContactName)</dd>
+                </div>
+                <div>
+                    <dt>Primary contact email</dt>
+                    <dd>@Display(customer.PrimaryContactEmail)</dd>
+                </div>
+                <div>
+                    <dt>Primary contact phone</dt>
+                    <dd>@Display(customer.PrimaryContactPhone)</dd>
+                </div>
+            </dl>
+        }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="customer-contract-heading">
+    <section id="customer-contract" class="detail-panel detail-section" aria-labelledby="customer-contract-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="customer-contract-heading">Support Contract</h2>
-                <p>Support contract details that later RMA workflows can use for priority guidance and reporting.</p>
+                <p>Support contract details and notes used for customer service context and RMA guidance.</p>
+            </div>
+            <AuthorizeView Policy="@BuildBookPolicies.EditCustomers">
+                <Authorized>
+                    @if (!IsEditing(CustomerEditSection.SupportContract))
+                    {
+                        <button type="button" class="secondary-button" @onclick="StartEditingSupportContract">Edit</button>
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+
+        @if (IsEditing(CustomerEditSection.SupportContract))
+        {
+            @SectionErrors(supportContractErrors, "Support contract details could not be saved.")
+
+            <EditForm Model="supportContractModel" OnValidSubmit="SaveSupportContractAsync" FormName="edit-customer-support-contract">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="edit-customer-contract-level">Support contract level</label>
+                        <InputSelect id="edit-customer-contract-level" class="text-input" @bind-Value="supportContractModel.SupportContractLevelId">
+                            <option value="">No contract level</option>
+                            @foreach (var supportContractLevel in supportContractLevels)
+                            {
+                                <option value="@supportContractLevel.Id">@supportContractLevel.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-contract-status">Support contract status</label>
+                        <InputSelect id="edit-customer-contract-status" class="text-input" @bind-Value="supportContractModel.SupportContractStatus">
+                            @foreach (var supportContractStatus in CustomerSupportContractStatuses.All)
+                            {
+                                <option value="@supportContractStatus">@supportContractStatus</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-contract-start-date">Support contract start date</label>
+                        <InputDate id="edit-customer-contract-start-date" class="text-input" @bind-Value="supportContractModel.SupportContractStartDate" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="edit-customer-contract-end-date">Support contract end date</label>
+                        <InputDate id="edit-customer-contract-end-date" class="text-input" @bind-Value="supportContractModel.SupportContractEndDate" />
+                    </div>
+                </div>
+
+                <div class="form-field form-field-wide">
+                    <label for="edit-customer-support-notes">Support notes</label>
+                    <InputTextArea id="edit-customer-support-notes" class="text-input" @bind-Value="supportContractModel.SupportNotes" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@isSavingSection">@(isSavingSection ? "Saving..." : "Save support contract")</button>
+                    <button type="button" class="secondary-button" disabled="@isSavingSection" @onclick="CancelEditing">Cancel</button>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <dl class="summary-list">
+                <div>
+                    <dt>Contract level</dt>
+                    <dd>@Display(customer.SupportContractLevelName)</dd>
+                </div>
+                <div>
+                    <dt>Contract status</dt>
+                    <dd>@customer.SupportContractStatus</dd>
+                </div>
+                <div>
+                    <dt>Start date</dt>
+                    <dd>@Display(customer.SupportContractStartDate)</dd>
+                </div>
+                <div>
+                    <dt>End date</dt>
+                    <dd>@Display(customer.SupportContractEndDate)</dd>
+                </div>
+                <div>
+                    <dt>Support notes</dt>
+                    <dd>@Display(customer.SupportNotes)</dd>
+                </div>
+            </dl>
+        }
+    </section>
+
+    <section id="customer-contract-documents" class="detail-panel detail-section" aria-labelledby="customer-contract-documents-heading">
+        <div class="detail-panel-header">
+            <div>
+                <h2 id="customer-contract-documents-heading">Support Contract Documents</h2>
+                <p>Store contract PDFs, Word documents and related files against the customer record.</p>
             </div>
         </div>
 
-        <dl class="summary-list">
-            <div>
-                <dt>Contract level</dt>
-                <dd>@Display(customer.SupportContractLevelName)</dd>
+        @SectionErrors(documentErrors, "Support contract document could not be saved.")
+
+        <AuthorizeView Policy="@BuildBookPolicies.EditCustomers">
+            <Authorized Context="documentAuth">
+                <EditForm Model="contractDocumentModel" OnValidSubmit="SaveContractDocumentAsync" FormName="add-customer-contract-document">
+                    <DataAnnotationsValidator />
+
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label for="edit-customer-contract-document-file">File</label>
+                            <InputFile id="edit-customer-contract-document-file" OnChange="OnContractDocumentSelected" />
+                        </div>
+
+                        <div class="form-field">
+                            <label for="edit-customer-contract-document-type">Document type</label>
+                            <InputSelect id="edit-customer-contract-document-type" class="text-input" @bind-Value="contractDocumentModel.DocumentType">
+                                @foreach (var documentType in ContractDocumentTypes)
+                                {
+                                    <option value="@documentType">@documentType</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+
+                    <div class="form-field form-field-wide">
+                        <label for="edit-customer-contract-document-description">Description</label>
+                        <InputTextArea id="edit-customer-contract-document-description" class="text-input" @bind-Value="contractDocumentModel.Description" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(selectedContractDocumentName))
+                    {
+                        <p class="empty-state">Selected file: @selectedContractDocumentName</p>
+                    }
+
+                    <div class="form-actions">
+                        <button type="submit" class="primary-button" disabled="@isSavingDocument">@(isSavingDocument ? "Uploading..." : "Upload document")</button>
+                    </div>
+                </EditForm>
+            </Authorized>
+        </AuthorizeView>
+
+        @if (customer.ContractDocuments.Count == 0)
+        {
+            <p class="empty-state">No support contract documents have been uploaded yet.</p>
+        }
+        else
+        {
+            <div class="table-scroll detail-section">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">File</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Description</th>
+                            <th scope="col">Uploaded</th>
+                            <th scope="col">Uploaded by</th>
+                            <th scope="col"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var document in customer.ContractDocuments)
+                        {
+                            <tr>
+                                <td><a class="table-link" href="@GetContractDocumentUrl(document.Id)">@document.FileName</a></td>
+                                <td>@document.DocumentType</td>
+                                <td>@Display(document.Description)</td>
+                                <td>@Display(document.UploadedAt)</td>
+                                <td>@document.UploadedBy</td>
+                                <td>
+                                    <AuthorizeView Policy="@BuildBookPolicies.EditCustomers">
+                                        <Authorized>
+                                            <button type="button" class="button-small" disabled="@isSavingDocument" @onclick="@(() => DeleteContractDocumentAsync(document.Id))">Delete</button>
+                                        </Authorized>
+                                    </AuthorizeView>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
-            <div>
-                <dt>Contract status</dt>
-                <dd>@customer.SupportContractStatus</dd>
-            </div>
-            <div>
-                <dt>Start date</dt>
-                <dd>@Display(customer.SupportContractStartDate)</dd>
-            </div>
-            <div>
-                <dt>End date</dt>
-                <dd>@Display(customer.SupportContractEndDate)</dd>
-            </div>
-            <div>
-                <dt>Support notes</dt>
-                <dd>@Display(customer.SupportNotes)</dd>
-            </div>
-        </dl>
+        }
     </section>
 
-    <section class="table-panel compact-table-panel detail-section" aria-labelledby="customer-build-records-heading">
+    <section id="customer-build-records" class="table-panel compact-table-panel detail-section" aria-labelledby="customer-build-records-heading">
         <div class="table-panel-heading">
             <h2 id="customer-build-records-heading">Linked Build Records</h2>
             <p>@customer.LinkedBuildRecords.Count matching Build Records</p>
@@ -223,7 +551,7 @@ else
         }
     </section>
 
-    <section class="table-panel compact-table-panel detail-section" aria-labelledby="customer-rmas-heading">
+    <section id="customer-rmas" class="table-panel compact-table-panel detail-section" aria-labelledby="customer-rmas-heading">
         <div class="table-panel-heading">
             <h2 id="customer-rmas-heading">Linked RMAs</h2>
             <p>@customer.LinkedRmas.Count matching RMA records</p>
@@ -275,7 +603,7 @@ else
         }
     </section>
 
-    <section class="detail-panel detail-section" aria-labelledby="customer-history-heading">
+    <section id="customer-history" class="detail-panel detail-section" aria-labelledby="customer-history-heading">
         <div class="detail-panel-header">
             <div>
                 <h2 id="customer-history-heading">History</h2>
@@ -309,26 +637,415 @@ else
     public int CustomerId { get; set; }
 
     private CustomerDetailModel? customer;
+    private IReadOnlyList<SupportContractLevelModel> supportContractLevels = [];
+    private SummaryEditModel summaryModel = new();
+    private AddressEditModel addressModel = new();
+    private ContactsEditModel contactsModel = new();
+    private SupportContractEditModel supportContractModel = new();
+    private SaveCustomerContractDocumentRequest contractDocumentModel = CreateDefaultContractDocumentModel();
+    private readonly List<string> summaryErrors = [];
+    private readonly List<string> addressErrors = [];
+    private readonly List<string> contactErrors = [];
+    private readonly List<string> supportContractErrors = [];
+    private readonly List<string> documentErrors = [];
     private string statusMessage = "Loading customer details...";
     private string supportTicketLabel = SupportTicketSettingsValidator.DefaultSupportTicketLabel;
     private string? supportTicketUrlTemplate;
+    private bool statusIsError;
+    private bool isSavingSection;
+    private bool isSavingDocument;
+    private CustomerEditSection? editingSection;
+    private IBrowserFile? selectedContractDocumentFile;
+    private string? selectedContractDocumentName;
+
     private string SupportTicketLabel => supportTicketLabel;
+    private const long MaxContractDocumentSizeBytes = 15 * 1024 * 1024;
+    private static readonly string[] ContractDocumentTypes = ["Support contract", "Renewal", "Amendment", "Customer correspondence", "Other"];
 
     protected override async Task OnParametersSetAsync()
+    {
+        await LoadCustomerAsync();
+    }
+
+    private async Task LoadCustomerAsync()
     {
         var settings = await SystemSettingsService.GetSupportTicketSettingsAsync();
         supportTicketLabel = settings.SupportTicketLabel;
         supportTicketUrlTemplate = settings.SupportTicketUrlTemplate;
+        supportContractLevels = await SupportContractLevelService.ListAsync();
         customer = await CustomerService.GetDetailAsync(CustomerId);
         statusMessage = customer is null
             ? "Customer was not found."
             : string.Empty;
     }
 
+    private bool IsEditing(CustomerEditSection section) => editingSection == section;
+
+    private void StartEditingSummary()
+    {
+        if (customer is null)
+        {
+            return;
+        }
+
+        summaryModel = new SummaryEditModel
+        {
+            Name = customer.Name,
+            AccountCode = customer.AccountCode,
+            IsActive = customer.IsActive
+        };
+
+        StartEditing(CustomerEditSection.Summary, summaryErrors);
+    }
+
+    private void StartEditingAddress()
+    {
+        if (customer is null)
+        {
+            return;
+        }
+
+        addressModel = new AddressEditModel
+        {
+            AddressLine1 = customer.AddressLine1,
+            AddressLine2 = customer.AddressLine2,
+            TownCity = customer.TownCity,
+            CountyRegion = customer.CountyRegion,
+            Postcode = customer.Postcode,
+            Country = customer.Country
+        };
+
+        StartEditing(CustomerEditSection.Address, addressErrors);
+    }
+
+    private void StartEditingContacts()
+    {
+        if (customer is null)
+        {
+            return;
+        }
+
+        contactsModel = new ContactsEditModel
+        {
+            MainPhone = customer.MainPhone,
+            MainEmail = customer.MainEmail,
+            Website = customer.Website,
+            PrimaryContactName = customer.PrimaryContactName,
+            PrimaryContactEmail = customer.PrimaryContactEmail,
+            PrimaryContactPhone = customer.PrimaryContactPhone
+        };
+
+        StartEditing(CustomerEditSection.Contacts, contactErrors);
+    }
+
+    private void StartEditingSupportContract()
+    {
+        if (customer is null)
+        {
+            return;
+        }
+
+        supportContractModel = new SupportContractEditModel
+        {
+            SupportContractLevelId = customer.SupportContractLevelId,
+            SupportContractStatus = customer.SupportContractStatus,
+            SupportContractStartDate = customer.SupportContractStartDate,
+            SupportContractEndDate = customer.SupportContractEndDate,
+            SupportNotes = customer.SupportNotes
+        };
+
+        StartEditing(CustomerEditSection.SupportContract, supportContractErrors);
+    }
+
+    private void StartEditing(CustomerEditSection section, List<string> errors)
+    {
+        errors.Clear();
+        statusMessage = string.Empty;
+        statusIsError = false;
+        editingSection = section;
+    }
+
+    private void CancelEditing()
+    {
+        ClearSectionErrors();
+        editingSection = null;
+    }
+
+    private async Task SaveSummaryAsync()
+    {
+        await SaveSectionAsync(
+            summaryErrors,
+            request =>
+            {
+                request.Name = summaryModel.Name;
+                request.AccountCode = summaryModel.AccountCode;
+                request.IsActive = summaryModel.IsActive;
+            },
+            "Customer summary was saved.");
+    }
+
+    private async Task SaveAddressAsync()
+    {
+        await SaveSectionAsync(
+            addressErrors,
+            request =>
+            {
+                request.AddressLine1 = addressModel.AddressLine1;
+                request.AddressLine2 = addressModel.AddressLine2;
+                request.TownCity = addressModel.TownCity;
+                request.CountyRegion = addressModel.CountyRegion;
+                request.Postcode = addressModel.Postcode;
+                request.Country = addressModel.Country;
+            },
+            "Customer address was saved.");
+    }
+
+    private async Task SaveContactsAsync()
+    {
+        await SaveSectionAsync(
+            contactErrors,
+            request =>
+            {
+                request.MainPhone = contactsModel.MainPhone;
+                request.MainEmail = contactsModel.MainEmail;
+                request.Website = contactsModel.Website;
+                request.PrimaryContactName = contactsModel.PrimaryContactName;
+                request.PrimaryContactEmail = contactsModel.PrimaryContactEmail;
+                request.PrimaryContactPhone = contactsModel.PrimaryContactPhone;
+            },
+            "Customer contacts were saved.");
+    }
+
+    private async Task SaveSupportContractAsync()
+    {
+        await SaveSectionAsync(
+            supportContractErrors,
+            request =>
+            {
+                request.SupportContractLevelId = supportContractModel.SupportContractLevelId;
+                request.SupportContractStatus = supportContractModel.SupportContractStatus;
+                request.SupportContractStartDate = supportContractModel.SupportContractStartDate;
+                request.SupportContractEndDate = supportContractModel.SupportContractEndDate;
+                request.SupportNotes = supportContractModel.SupportNotes;
+            },
+            "Support contract details were saved.");
+    }
+
+    private async Task SaveSectionAsync(
+        List<string> errors,
+        Action<UpdateCustomerRequest> applyChanges,
+        string successMessage)
+    {
+        if (customer is null)
+        {
+            return;
+        }
+
+        isSavingSection = true;
+        errors.Clear();
+        statusMessage = string.Empty;
+        statusIsError = false;
+
+        try
+        {
+            var request = BuildRequestFromCustomer(customer);
+            applyChanges(request);
+            var result = await CustomerService.UpdateAsync(CustomerId, request, await GetCurrentUserNameAsync());
+
+            if (result.Succeeded)
+            {
+                await LoadCustomerAsync();
+                editingSection = null;
+                statusMessage = successMessage;
+            }
+            else
+            {
+                errors.AddRange(result.Errors);
+            }
+        }
+        catch
+        {
+            errors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingSection = false;
+        }
+    }
+
+    private void OnContractDocumentSelected(InputFileChangeEventArgs args)
+    {
+        documentErrors.Clear();
+        selectedContractDocumentFile = args.File;
+        selectedContractDocumentName = selectedContractDocumentFile?.Name;
+        contractDocumentModel.FileName = selectedContractDocumentFile?.Name ?? string.Empty;
+        contractDocumentModel.ContentType = selectedContractDocumentFile?.ContentType;
+    }
+
+    private async Task SaveContractDocumentAsync()
+    {
+        isSavingDocument = true;
+        documentErrors.Clear();
+        statusMessage = string.Empty;
+        statusIsError = false;
+
+        try
+        {
+            if (selectedContractDocumentFile is null)
+            {
+                documentErrors.Add("Select a file to upload.");
+                return;
+            }
+
+            await using var stream = selectedContractDocumentFile.OpenReadStream(MaxContractDocumentSizeBytes);
+            var result = await CustomerService.SaveContractDocumentAsync(
+                CustomerId,
+                contractDocumentModel,
+                stream,
+                await GetCurrentUserNameAsync());
+
+            if (result.Succeeded)
+            {
+                contractDocumentModel = CreateDefaultContractDocumentModel();
+                selectedContractDocumentFile = null;
+                selectedContractDocumentName = null;
+                await LoadCustomerAsync();
+                statusMessage = "Support contract document was uploaded.";
+            }
+            else
+            {
+                documentErrors.AddRange(result.Errors);
+            }
+        }
+        catch (IOException)
+        {
+            documentErrors.Add("The selected file could not be read.");
+        }
+        catch
+        {
+            documentErrors.Add("Check the database connection and try again.");
+        }
+        finally
+        {
+            isSavingDocument = false;
+        }
+    }
+
+    private async Task DeleteContractDocumentAsync(int documentId)
+    {
+        documentErrors.Clear();
+        statusMessage = string.Empty;
+        statusIsError = false;
+        isSavingDocument = true;
+
+        try
+        {
+            var result = await CustomerService.DeleteContractDocumentAsync(CustomerId, documentId, await GetCurrentUserNameAsync());
+            if (result.Succeeded)
+            {
+                await LoadCustomerAsync();
+                statusMessage = "Support contract document was removed.";
+            }
+            else
+            {
+                statusIsError = true;
+                statusMessage = string.Join(" ", result.Errors);
+            }
+        }
+        catch
+        {
+            statusIsError = true;
+            statusMessage = "Support contract document could not be removed. Try again.";
+        }
+        finally
+        {
+            isSavingDocument = false;
+        }
+    }
+
+    private async Task<string> GetCurrentUserNameAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return authenticationState.User.Identity?.Name ?? "Unknown";
+    }
+
+    private string CustomerSectionLink(string sectionId) => $"/customers/{CustomerId}#{sectionId}";
+
+    private string GetContractDocumentUrl(int documentId) => $"/customers/{CustomerId}/contract-documents/{documentId}";
+
     private string? GetSupportTicketUrl(string? supportTicketNumber)
     {
         return SupportTicketLinkBuilder.BuildUrl(supportTicketUrlTemplate, supportTicketNumber);
     }
+
+    private void ClearSectionErrors()
+    {
+        summaryErrors.Clear();
+        addressErrors.Clear();
+        contactErrors.Clear();
+        supportContractErrors.Clear();
+    }
+
+    private static SaveCustomerContractDocumentRequest CreateDefaultContractDocumentModel()
+    {
+        return new SaveCustomerContractDocumentRequest
+        {
+            DocumentType = ContractDocumentTypes[0]
+        };
+    }
+
+    private static UpdateCustomerRequest BuildRequestFromCustomer(CustomerDetailModel customer)
+    {
+        return new UpdateCustomerRequest
+        {
+            Name = customer.Name,
+            AccountCode = customer.AccountCode,
+            AddressLine1 = customer.AddressLine1,
+            AddressLine2 = customer.AddressLine2,
+            TownCity = customer.TownCity,
+            CountyRegion = customer.CountyRegion,
+            Postcode = customer.Postcode,
+            Country = customer.Country,
+            MainPhone = customer.MainPhone,
+            MainEmail = customer.MainEmail,
+            Website = customer.Website,
+            PrimaryContactName = customer.PrimaryContactName,
+            PrimaryContactEmail = customer.PrimaryContactEmail,
+            PrimaryContactPhone = customer.PrimaryContactPhone,
+            SupportContractLevelId = customer.SupportContractLevelId,
+            SupportContractStatus = customer.SupportContractStatus,
+            SupportContractStartDate = customer.SupportContractStartDate,
+            SupportContractEndDate = customer.SupportContractEndDate,
+            SupportNotes = customer.SupportNotes,
+            IsActive = customer.IsActive
+        };
+    }
+
+    private RenderFragment SectionErrors(IReadOnlyList<string> errors, string title) => builder =>
+    {
+        if (errors.Count == 0)
+        {
+            return;
+        }
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "status-message error");
+        builder.AddAttribute(2, "role", "alert");
+        builder.OpenElement(3, "p");
+        builder.AddContent(4, title);
+        builder.CloseElement();
+        builder.OpenElement(5, "ul");
+        var sequence = 6;
+        foreach (var error in errors)
+        {
+            builder.OpenElement(sequence++, "li");
+            builder.AddContent(sequence++, error);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+        builder.CloseElement();
+    };
 
     private static string Display(string? value)
     {
@@ -338,6 +1055,11 @@ else
     private static string Display(DateOnly? value)
     {
         return value?.ToString("d MMM yyyy") ?? "Not recorded";
+    }
+
+    private static string Display(DateTimeOffset? value)
+    {
+        return value?.ToLocalTime().ToString("d MMM yyyy HH:mm") ?? "Not recorded";
     }
 
     private static string FormatStatus(RmaStatus status)
@@ -351,5 +1073,67 @@ else
             RmaStatus.CustomerFixed => "Customer Fixed",
             _ => status.ToString()
         };
+    }
+
+    private enum CustomerEditSection
+    {
+        Summary,
+        Address,
+        Contacts,
+        SupportContract
+    }
+
+    private sealed class SummaryEditModel
+    {
+        [Required(ErrorMessage = "Customer name is required.")]
+        public string Name { get; set; } = string.Empty;
+
+        public string? AccountCode { get; set; }
+
+        public bool IsActive { get; set; } = true;
+    }
+
+    private sealed class AddressEditModel
+    {
+        public string? AddressLine1 { get; set; }
+
+        public string? AddressLine2 { get; set; }
+
+        public string? TownCity { get; set; }
+
+        public string? CountyRegion { get; set; }
+
+        public string? Postcode { get; set; }
+
+        public string? Country { get; set; }
+    }
+
+    private sealed class ContactsEditModel
+    {
+        public string? MainPhone { get; set; }
+
+        public string? MainEmail { get; set; }
+
+        public string? Website { get; set; }
+
+        public string? PrimaryContactName { get; set; }
+
+        public string? PrimaryContactEmail { get; set; }
+
+        public string? PrimaryContactPhone { get; set; }
+    }
+
+    private sealed class SupportContractEditModel
+    {
+        public int? SupportContractLevelId { get; set; }
+
+        [Required(ErrorMessage = "Support contract status is required.")]
+        public string SupportContractStatus { get; set; } = CustomerSupportContractStatuses.NoContract;
+
+        public DateOnly? SupportContractStartDate { get; set; }
+
+        public DateOnly? SupportContractEndDate { get; set; }
+
+        public string? SupportNotes { get; set; }
     }
 }

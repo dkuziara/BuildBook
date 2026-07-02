@@ -10,6 +10,11 @@ public interface ICustomerService
         int customerId,
         CancellationToken cancellationToken = default);
 
+    Task<CustomerContractDocumentContentModel?> GetContractDocumentContentAsync(
+        int customerId,
+        int documentId,
+        CancellationToken cancellationToken = default);
+
     Task<CustomerSaveResult> CreateAsync(
         CreateCustomerRequest request,
         string createdBy,
@@ -19,5 +24,18 @@ public interface ICustomerService
         int customerId,
         UpdateCustomerRequest request,
         string updatedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<CustomerSaveResult> SaveContractDocumentAsync(
+        int customerId,
+        SaveCustomerContractDocumentRequest request,
+        Stream content,
+        string uploadedBy,
+        CancellationToken cancellationToken = default);
+
+    Task<CustomerSaveResult> DeleteContractDocumentAsync(
+        int customerId,
+        int documentId,
+        string deletedBy,
         CancellationToken cancellationToken = default);
 }

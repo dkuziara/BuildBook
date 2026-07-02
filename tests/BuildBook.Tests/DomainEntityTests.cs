@@ -52,6 +52,7 @@ public class DomainEntityTests
 
         Assert.IsAssignableFrom<DbSet<BuildRecord>>(context.BuildRecords);
         Assert.IsAssignableFrom<DbSet<Customer>>(context.Customers);
+        Assert.IsAssignableFrom<DbSet<CustomerContractDocument>>(context.CustomerContractDocuments);
         Assert.IsAssignableFrom<DbSet<SupportContractLevel>>(context.SupportContractLevels);
         Assert.IsAssignableFrom<DbSet<BuildRecordSecret>>(context.BuildRecordSecrets);
         Assert.IsAssignableFrom<DbSet<BuildRecordAudit>>(context.BuildRecordAudit);
@@ -146,6 +147,7 @@ public class DomainEntityTests
         Assert.Contains(nameof(Customer.SupportContractStartDate), propertyNames);
         Assert.Contains(nameof(Customer.SupportContractEndDate), propertyNames);
         Assert.Contains(nameof(Customer.SupportNotes), propertyNames);
+        Assert.Contains(nameof(Customer.ContractDocuments), propertyNames);
         Assert.Contains(nameof(Customer.OrderRecords), propertyNames);
     }
 

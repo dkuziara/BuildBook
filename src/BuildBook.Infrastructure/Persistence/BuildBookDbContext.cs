@@ -14,6 +14,8 @@ public sealed class BuildBookDbContext(DbContextOptions<BuildBookDbContext> opti
 
     public DbSet<Customer> Customers => Set<Customer>();
 
+    public DbSet<CustomerContractDocument> CustomerContractDocuments => Set<CustomerContractDocument>();
+
     public DbSet<SupportContractLevel> SupportContractLevels => Set<SupportContractLevel>();
 
     public DbSet<BuildRecordSecret> BuildRecordSecrets => Set<BuildRecordSecret>();

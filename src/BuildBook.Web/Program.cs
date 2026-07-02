@@ -71,6 +71,19 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapGet(
+        "/customers/{customerId:int}/contract-documents/{documentId:int}",
+        async (int customerId, int documentId, ICustomerService customerService, CancellationToken cancellationToken) =>
+        {
+            var document = await customerService.GetContractDocumentContentAsync(customerId, documentId, cancellationToken);
+            return document is null
+                ? Results.NotFound()
+                : Results.File(
+                    document.Content,
+                    document.ContentType,
+                    document.FileName);
+        })
+    .RequireAuthorization(BuildBookPolicies.ViewCustomers);
+app.MapGet(
         "/rmas/{rmaRecordId:int}/attachments/{attachmentId:int}",
         async (int rmaRecordId, int attachmentId, IRmaRecordService rmaRecordService, CancellationToken cancellationToken) =>
         {

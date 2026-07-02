@@ -8,7 +8,8 @@ namespace BuildBook.Infrastructure.Persistence.Customers;
 
 public sealed class CustomerService(
     IDbContextFactory<BuildBookDbContext> dbContextFactory,
-    IRmaAuditService rmaAuditService) : ICustomerService, ICustomerListReader
+    IRmaAuditService rmaAuditService,
+    ICustomerContractDocumentStorage customerContractDocumentStorage) : ICustomerService, ICustomerListReader
 {
     public Task<IReadOnlyList<CustomerListItem>> ListAsync(
         CustomerListFilter filter,
@@ -108,6 +109,18 @@ public sealed class CustomerService(
                 customer.CreatedBy,
                 customer.LastUpdatedAt,
                 customer.LastUpdatedBy,
+                customer.ContractDocuments
+                    .OrderByDescending(document => document.UploadedAt)
+                    .ThenByDescending(document => document.Id)
+                    .Select(document => new CustomerContractDocumentModel(
+                        document.Id,
+                        document.FileName,
+                        document.ContentType,
+                        document.DocumentType,
+                        document.Description,
+                        document.UploadedBy,
+                        document.UploadedAt))
+                    .ToList(),
                 customer.BuildRecords
                     .Where(buildRecord => buildRecord.IsActive)
                     .OrderByDescending(buildRecord => buildRecord.LastUpdatedAt)
@@ -146,6 +159,32 @@ public sealed class CustomerService(
                             && rmaRecord.Status != RmaStatus.CustomerFixed))
                     .ToList()))
             .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<CustomerContractDocumentContentModel?> GetContractDocumentContentAsync(
+        int customerId,
+        int documentId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var document = await dbContext.CustomerContractDocuments
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                item => item.Id == documentId && item.CustomerId == customerId,
+                cancellationToken);
+
+        if (document is null)
+        {
+            return null;
+        }
+
+        var content = await customerContractDocumentStorage.ReadAsync(document.StoredFilePath, cancellationToken);
+        return content is null
+            ? null
+            : new CustomerContractDocumentContentModel(
+                document.FileName,
+                document.ContentType,
+                content);
     }
 
     public async Task<CustomerSaveResult> CreateAsync(
@@ -210,6 +249,93 @@ public sealed class CustomerService(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return CustomerSaveResult.Success(customer.Id);
+    }
+
+    public async Task<CustomerSaveResult> SaveContractDocumentAsync(
+        int customerId,
+        SaveCustomerContractDocumentRequest request,
+        Stream content,
+        string uploadedBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.FileName))
+        {
+            return CustomerSaveResult.Failure("A file is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.DocumentType))
+        {
+            return CustomerSaveResult.Failure("Document type is required.");
+        }
+
+        var userName = NormalizeUserName(uploadedBy);
+        var fileName = Path.GetFileName(request.FileName);
+        var contentType = string.IsNullOrWhiteSpace(request.ContentType)
+            ? "application/octet-stream"
+            : request.ContentType.Trim();
+        var documentType = request.DocumentType.Trim();
+        var description = NormalizeOptionalValue(request.Description);
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var customer = await dbContext.Customers
+            .SingleOrDefaultAsync(existingCustomer => existingCustomer.Id == customerId, cancellationToken);
+
+        if (customer is null)
+        {
+            return CustomerSaveResult.Failure("Customer was not found.");
+        }
+
+        var storedFilePath = await customerContractDocumentStorage.SaveAsync(customerId, fileName, content, cancellationToken);
+        var document = new CustomerContractDocument
+        {
+            CustomerId = customerId,
+            FileName = fileName,
+            StoredFilePath = storedFilePath,
+            ContentType = contentType,
+            DocumentType = documentType,
+            Description = description,
+            UploadedBy = userName,
+            UploadedAt = DateTimeOffset.UtcNow
+        };
+
+        dbContext.CustomerContractDocuments.Add(document);
+        customer.LastUpdatedAt = DateTimeOffset.UtcNow;
+        customer.LastUpdatedBy = userName;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return CustomerSaveResult.Success(customerId);
+    }
+
+    public async Task<CustomerSaveResult> DeleteContractDocumentAsync(
+        int customerId,
+        int documentId,
+        string deletedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var userName = NormalizeUserName(deletedBy);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var customer = await dbContext.Customers
+            .SingleOrDefaultAsync(existingCustomer => existingCustomer.Id == customerId, cancellationToken);
+        var document = await dbContext.CustomerContractDocuments
+            .SingleOrDefaultAsync(item => item.Id == documentId && item.CustomerId == customerId, cancellationToken);
+
+        if (customer is null)
+        {
+            return CustomerSaveResult.Failure("Customer was not found.");
+        }
+
+        if (document is null)
+        {
+            return CustomerSaveResult.Failure("Document was not found.");
+        }
+
+        dbContext.CustomerContractDocuments.Remove(document);
+        customer.LastUpdatedAt = DateTimeOffset.UtcNow;
+        customer.LastUpdatedBy = userName;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await customerContractDocumentStorage.DeleteAsync(document.StoredFilePath, cancellationToken);
+
+        return CustomerSaveResult.Success(customerId);
     }
 
     public async Task<CustomerSaveResult> UpdateAsync(
